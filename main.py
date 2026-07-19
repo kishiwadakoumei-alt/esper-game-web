@@ -714,6 +714,6 @@ def main(page: ft.Page):
         page.add(ft.Text(f"システムエラー: {e}\n{traceback.format_exc()}", color="red"))
         page.update()
 
-# 【ネット公開用】余計な引数を消して、最もシンプルに動かす
+# 【ネット公開用】最も安全な呼び出し方
 port = int(os.environ.get("PORT", 8000))
-ft.run(target=main, view=ft.AppView.WEB_BROWSER, port=port, host="0.0.0.0")
+ft.app(main, port=port, view=ft.AppView.WEB_BROWSER, host="0.0.0.0")

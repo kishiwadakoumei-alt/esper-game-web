@@ -716,4 +716,4 @@ def main(page: ft.Page):
 
 # 【ネット公開用】Renderが指定したポート番号を自動で取得する
 port = int(os.environ.get("PORT", 8000))
-ft.run(main, view=ft.AppView.WEB_BROWSER, port=port, host="0.0.0.0")
+ft.run(target=main, view=ft.WEB_BROWSER, port=port, host="0.0.0.0", open_browser=False)

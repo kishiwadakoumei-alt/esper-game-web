@@ -2,6 +2,7 @@ import flet as ft
 import random
 from collections import Counter
 import traceback
+import os  # ★これを追加！
 
 class EsperGame:
     def __init__(self):
@@ -713,5 +714,6 @@ def main(page: ft.Page):
         page.add(ft.Text(f"システムエラー: {e}\n{traceback.format_exc()}", color="red"))
         page.update()
 
-# 【ネット公開用】0.0.0.0 を指定することで、外部のスマホなどからもアクセス可能になります。
-ft.run(main, view=ft.AppView.WEB_BROWSER, port=8000, host="0.0.0.0")
+# 【ネット公開用】Renderが指定したポート番号を自動で取得する
+port = int(os.environ.get("PORT", 8000))
+ft.run(main, view=ft.AppView.WEB_BROWSER, port=port, host="0.0.0.0")

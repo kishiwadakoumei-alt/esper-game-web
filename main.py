@@ -714,6 +714,6 @@ def main(page: ft.Page):
         page.add(ft.Text(f"システムエラー: {e}\n{traceback.format_exc()}", color="red"))
         page.update()
 
-# 【ネット公開用】Renderが指定したポート番号を自動で取得する
+# 【ネット公開用】定数の場所を正しく指定しました
 port = int(os.environ.get("PORT", 8000))
-ft.run(target=main, view=ft.WEB_BROWSER, port=port, host="0.0.0.0", open_browser=False)
+ft.run(target=main, view=ft.AppView.WEB_BROWSER, port=port, host="0.0.0.0", open_browser=False)

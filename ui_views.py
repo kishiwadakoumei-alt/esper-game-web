@@ -1,4 +1,5 @@
 import flet as ft
+import random
 from collections import Counter
 from game_logic import EsperGame
 
@@ -279,7 +280,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             new_controls.append(ft.Container(
                 content=ft.Column([
                     ft.Text("【補充】山札からカードを1枚引いてください", color="white", weight="bold"),
-                    ft.Button("山札から引く", on_click=on_draw, bgcolor="blue", color="white")
+                    ft.Button("山札から引く", on_draw, bgcolor="blue", color="white")
                 ]), padding=15, bgcolor="#224422", border_radius=5
             ))
 
@@ -326,9 +327,9 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 
                 is_disabled = False
                 btn_text = f"【発動】{ability} (2枚)"
-                if deck_len == 1 and ability != "再生":
+                if deck_len <= 1 and ability != "再生":
                     is_disabled = True
-                    btn_text += " ⚠️山札1枚のため使用不可"
+                    btn_text += " ⚠️山札1枚以下のため使用不可"
                 decision_nodes.append(ft.Button(btn_text, on_click=make_on_click(ability), disabled=is_disabled))
             
             if counts.get("擬態", 0) >= 2:
@@ -341,7 +342,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                     mimic_text = "【発動】カモフラージュ (擬態2枚+1枚)"
                     if deck_len <= 2:
                         is_mimic_disabled = True
-                        mimic_text += " ⚠️山札不足"
+                        mimic_text += " ⚠️山札2枚以下のため使用不可"
                     decision_nodes.append(ft.Button(mimic_text, on_click=on_mimic_start_click, disabled=is_mimic_disabled))
             
             new_controls.append(ft.Container(
@@ -393,7 +394,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         
                         if (my_needs + op_needs) > len(game.deck):
                             msg = f"お互いに合計 {my_needs + op_needs} 枚の補充が必要ですが、山札が残り{len(game.deck)}枚のため補充できなくなりました"
-                            # ★修正：引き分けに戻す
                             game.trigger_draw(msg)
                             sync()
                             return

@@ -62,7 +62,7 @@ class EsperGame:
         while len(hand) < 6 and self.deck:
             hand.append(self.deck.pop())
 
-    # ★追加：ロール（p1/p2）からプレイヤーの実際の名前を取得する関数
+    # プレイヤーの実際の名前を取得する関数
     def get_player_name(self, role):
         if role == "p1" and len(self.players) > 0: return self.players[0]
         if role == "p2" and len(self.players) > 1: return self.players[1]
@@ -100,7 +100,7 @@ class EsperGame:
         self.turn_step = "GAME_OVER"
         self.log_message = f"⚖️【引き分け】{reason}⚖️"
 
-    # ★修正：アクションメッセージを受け取り、次のターンの案内と合体させる
+    # 詳細なアクションメッセージ（action_msg）を受け取れるように修正
     def end_action(self, current_role, action_msg=""):
         if len(self.deck) == 0:
             self.trigger_endgame("山札が尽きました")
@@ -121,6 +121,7 @@ class EsperGame:
             next_name = self.get_player_name(self.current_turn)
             turn_msg = f"【{next_name} のターン】カードを捨ててください。"
             
+        # 行動結果と次のターンの案内を合体させる
         if action_msg:
             self.log_message = f"{action_msg} ➔ {turn_msg}"
         else:

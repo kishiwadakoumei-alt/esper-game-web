@@ -110,7 +110,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
         my_dis_display = ft.Row([make_group_ui(g) for g in my_groups], wrap=True)
         op_dis_display = ft.Row([make_group_ui(g) for g in op_groups], wrap=True)
         
-        # ★追加：除外カード3枚の表示 UI
         excluded_ui = []
         for card in game.excluded_cards:
             if game.turn_step in ["GAME_CLEAR", "GAME_OVER"]:
@@ -394,8 +393,8 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         
                         if (my_needs + op_needs) > len(game.deck):
                             msg = f"お互いに合計 {my_needs + op_needs} 枚の補充が必要ですが、山札が残り{len(game.deck)}枚のため補充できなくなりました"
-                            # ★修正：引き分けではなく、山札切れと同じ「勝敗判定」に回す
-                            game.trigger_endgame(msg)
+                            # ★修正：引き分けに戻す
+                            game.trigger_draw(msg)
                             sync()
                             return
                             

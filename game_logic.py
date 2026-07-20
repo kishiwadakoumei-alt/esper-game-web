@@ -6,6 +6,9 @@ class EsperGame:
         self.types = ["千里眼", "時間移動", "念動力", "未来予知", "瞬間移動", "再生", "擬態"]
         self.deck = [c for c in self.types for _ in range(8)]
         random.shuffle(self.deck)
+        
+        # ★追加：除外する3枚を専用のリストに保存
+        self.excluded_cards = self.deck[:3]
         self.deck = self.deck[3:]
         
         self.p1_hand = [self.deck.pop() for _ in range(6)]
@@ -64,16 +67,27 @@ class EsperGame:
         self.turn_step = "GAME_OVER"
         p1_counts = Counter(self.p1_hand)
         p2_counts = Counter(self.p2_hand)
+        
+        # ★修正：同種枚数が同じ場合の「セット数」での勝敗判定を追加
         p1_max = max(p1_counts.values()) if p1_counts else 0
+        p1_max_sets = sum(1 for v in p1_counts.values() if v == p1_max)
+        
         p2_max = max(p2_counts.values()) if p2_counts else 0
+        p2_max_sets = sum(1 for v in p2_counts.values() if v == p2_max)
         
         msg = f"【終了】{reason}。"
+        
         if p1_max > p2_max:
             self.log_message = msg + " 最大同種判定により、プレイヤー1の勝利！🎉"
         elif p2_max > p1_max:
             self.log_message = msg + " 最大同種判定により、プレイヤー2の勝利！🎉"
         else:
-            self.log_message = msg + " 最大同種が同じため引き分け！⚖️"
+            if p1_max_sets > p2_max_sets:
+                self.log_message = msg + f" 同数({p1_max}枚)ですが、セット数({p1_max_sets}対{p2_max_sets})でプレイヤー1の勝利！🎉"
+            elif p2_max_sets > p1_max_sets:
+                self.log_message = msg + f" 同数({p1_max}枚)ですが、セット数({p2_max_sets}対{p1_max_sets})でプレイヤー2の勝利！🎉"
+            else:
+                self.log_message = msg + " 最大同種もセット数も同じため、完全引き分け！⚖️"
 
     def trigger_draw(self, reason):
         self.turn_step = "GAME_OVER"

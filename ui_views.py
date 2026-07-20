@@ -110,11 +110,27 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
         my_dis_display = ft.Row([make_group_ui(g) for g in my_groups], wrap=True)
         op_dis_display = ft.Row([make_group_ui(g) for g in op_groups], wrap=True)
         
+        # ★追加：除外カード3枚の表示 UI
+        excluded_ui = []
+        for card in game.excluded_cards:
+            if game.turn_step in ["GAME_CLEAR", "GAME_OVER"]:
+                excluded_ui.append(
+                    ft.Container(content=ft.Text(card, color="black", weight="bold", size=10), padding=5, bgcolor="#E0E0E0", border_radius=5)
+                )
+            else:
+                excluded_ui.append(
+                    ft.Container(content=ft.Text("？", color="white", weight="bold", size=10), padding=5, bgcolor="#555555", border_radius=5)
+                )
+        excluded_row = ft.Row(excluded_ui, wrap=True)
+        
         return ft.Container(
             content=ft.Column([
                 ft.Text("--- 捨て札エリア (公開情報) ---", color="white", weight="bold"),
                 ft.Text(f"自分 ({len(my_groups)}組):", color="blue"), my_dis_display,
-                ft.Text(f"相手 ({len(op_groups)}組):", color="red"), op_dis_display
+                ft.Text(f"相手 ({len(op_groups)}組):", color="red"), op_dis_display,
+                ft.Divider(color="grey"),
+                ft.Text("【ゲーム外】最初に除外された3枚:", color="yellow", weight="bold"),
+                excluded_row
             ]), padding=10, bgcolor="#111111"
         )
 
@@ -377,8 +393,9 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         op_needs = 6 - (len(true_op_hand) - len(removed))
                         
                         if (my_needs + op_needs) > len(game.deck):
-                            msg = f"お互いに合計 {my_needs + op_needs} 枚の補充が必要ですが、山札が残り{len(game.deck)}枚のため補充できなくなりました。"
-                            game.trigger_draw(msg)
+                            msg = f"お互いに合計 {my_needs + op_needs} 枚の補充が必要ですが、山札が残り{len(game.deck)}枚のため補充できなくなりました"
+                            # ★修正：引き分けではなく、山札切れと同じ「勝敗判定」に回す
+                            game.trigger_endgame(msg)
                             sync()
                             return
                             

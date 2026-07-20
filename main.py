@@ -239,15 +239,15 @@ def main(page: ft.Page):
 
                 new_controls.append(get_dashboard())
                 
-                game.set_hand("p1", game.sort_hand(game.p1_hand))
-                game.set_hand("p2", game.sort_hand(game.p2_hand))
-                
                 my_role = user_data["role"]
                 op_role = game.get_op_role(my_role)
-                my_hand = game.get_hand(my_role)
-                op_hand = game.get_hand(op_role)
                 
-                new_controls.append(ft.Text(f"相手の手札枚数: {len(op_hand)}枚 / 山札: {len(game.deck)}枚", color="red", weight="bold"))
+                # ★修正ポイント：画面表示用の手札を「コピーして並び替え」するだけに留め、
+                # サーバーの本当のデータ（game.p1_handなど）は絶対に書き換えないようにしました。
+                display_my_hand = game.sort_hand(game.get_hand(my_role))
+                display_op_hand = game.get_hand(op_role) # 相手の手札は裏向きなのでそのまま
+                
+                new_controls.append(ft.Text(f"相手の手札枚数: {len(display_op_hand)}枚 / 山札: {len(game.deck)}枚", color="red", weight="bold"))
                 
                 if game.turn_step in ["GAME_CLEAR", "GAME_OVER"]:
                     new_controls.append(ft.Text(f"ログ: {game.log_message}", color="orange", size=18, weight="bold"))
@@ -256,7 +256,7 @@ def main(page: ft.Page):
                     
                 is_my_turn = (game.current_turn == my_role)
                 
-                if game.turn_step not in ["GAME_CLEAR", "GAME_OVER"] and game.check_esper(my_hand):
+                if game.turn_step not in ["GAME_CLEAR", "GAME_OVER"] and game.check_esper(display_my_hand):
                     def on_esper_declare(e):
                         game.turn_step = "GAME_CLEAR"
                         game.log_message = f"🎉【決着】プレイヤー{1 if my_role=='p1' else 2}が「エスパー！」を宣言しました！🎉"
@@ -268,7 +268,7 @@ def main(page: ft.Page):
                 if not is_my_turn and game.turn_step not in ["GAME_CLEAR", "GAME_OVER"]:
                     new_controls.append(ft.Text("⏳ 相手の操作を待っています...", color="grey", size=18))
                     hand_row = ft.Row(wrap=True)
-                    for card in my_hand:
+                    for card in display_my_hand:
                         hand_row.controls.append(ft.Button(card, disabled=True, bgcolor="#CFD8DC", color="black"))
                     new_controls.append(hand_row)
                     
@@ -281,7 +281,7 @@ def main(page: ft.Page):
                     if ability_name == "瞬間移動":
                         game.turn_step = "TELEPORT_SELECTION"
                     elif ability_name == "念動力":
-                        if op_hand:
+                        if display_op_hand:
                             game.turn_step = "PSY_DISCARD_SELECTION"
                             game.log_message = "「念動力」発動！捨てる相手の手札を選んでください。"
                         else:
@@ -307,7 +307,7 @@ def main(page: ft.Page):
                                     game.regen_pool.append({"owner": "p2", "g_idx": g_idx, "item_idx": item_idx, "name": c["name"], "is_face_up": c["is_face_up"]})
                             game.log_message = "「ヒーリング」発動！山札に戻すカードを選んでください。"
                     elif ability_name == "千里眼":
-                        if not op_hand:
+                        if not display_op_hand:
                             game.log_message = "「千里眼」発動！しかし相手の手札は空だった。"
                             game.fill_hand_to_6(my_role)
                             game.end_action(my_role)
@@ -331,37 +331,60 @@ def main(page: ft.Page):
                         game.fill_hand_to_6(my_role)
                         game.end_action(my_role)
 
+                # --- 手札の表示 ---
                 if game.turn_step == "DISCARD":
                     new_controls.append(ft.Text("【手札】 1枚選んで捨ててください", color="yellow"))
+                elif game.turn_step == "DRAW":
+                    new_controls.append(ft.Text("【手札】 (現在は確認のみ・クリック不可)", color="grey"))
                 elif game.turn_step in ["GAME_CLEAR", "GAME_OVER"]:
                     new_controls.append(ft.Text("【手札】 (ゲーム終了)", color="grey"))
                 else:
                     new_controls.append(ft.Text("【手札】 (現在は確認のみ・クリック不可)", color="grey"))
 
                 hand_row = ft.Row(wrap=True)
-                for i, card in enumerate(list(my_hand)):
-                    def make_on_click(idx=i):
+                for card in display_my_hand:
+                    # 以前はインデックス(位置)でカードを削除していましたが、
+                    # 確実を期すため「カードの名前そのもの」をサーバーに送って削除させる仕様に変更しました。
+                    def make_on_click(target_card=card):
                         def on_click(e):
                             if game.turn_step != "DISCARD": return
-                            c = my_hand.pop(idx)
-                            my_discard_groups = game.get_discard_groups(my_role)
                             
+                            # サーバーの本当の手札データから、該当のカードを1枚だけ確実に削除する
+                            true_hand = game.get_hand(my_role)
+                            true_hand.remove(target_card)
+                            
+                            my_discard_groups = game.get_discard_groups(my_role)
                             total_discarded = sum(len(g) for g in my_discard_groups)
                             is_face_up = total_discarded >= 5
                             
-                            my_discard_groups.append([{"name": c, "is_face_up": is_face_up, "owner": my_role}])
+                            my_discard_groups.append([{"name": target_card, "is_face_up": is_face_up, "owner": my_role}])
                             
-                            game.fill_hand_to_6(my_role)
-                            game.log_message = f"プレイヤー{1 if my_role=='p1' else 2}がカードを捨てました。"
-                            game.turn_step = "THINK"
+                            game.log_message = f"プレイヤー{1 if my_role=='p1' else 2}が【{target_card}】を捨てました。山札から補充してください。"
+                            game.turn_step = "DRAW"
                             sync()
                         return on_click
 
                     bg_color = "white" if game.turn_step == "DISCARD" else "#CFD8DC"
-                    hand_row.controls.append(ft.Button(card, on_click=make_on_click(i), color="black", bgcolor=bg_color))
+                    hand_row.controls.append(ft.Button(card, on_click=make_on_click(card), color="black", bgcolor=bg_color))
                 new_controls.append(hand_row)
 
-                if game.turn_step == "THINK":
+                # --- DRAWフェーズのUI ---
+                if game.turn_step == "DRAW":
+                    def on_draw(e):
+                        game.fill_hand_to_6(my_role)
+                        game.turn_step = "THINK"
+                        game.log_message = "手札を補充しました。能力を使いますか？"
+                        sync()
+                    
+                    new_controls.append(ft.Container(
+                        content=ft.Column([
+                            ft.Text("【補充】山札からカードを1枚引いてください", color="white", weight="bold"),
+                            ft.Button("山札から引く", on_click=on_draw, bgcolor="blue", color="white")
+                        ]), padding=15, bgcolor="#224422", border_radius=5
+                    ))
+
+                # --- THINKフェーズ（能力の使用） ---
+                elif game.turn_step == "THINK":
                     def on_go_ability(e):
                         game.turn_step = "ABILITY"
                         sync()
@@ -378,7 +401,7 @@ def main(page: ft.Page):
 
                 elif game.turn_step == "ABILITY":
                     decision_nodes = []
-                    counts = Counter(my_hand)
+                    counts = Counter(display_my_hand)
                     usable_abilities = [c for c, cnt in counts.items() if cnt >= 2 and c != "擬態"]
                     deck_len = len(game.deck)
                                         
@@ -390,8 +413,9 @@ def main(page: ft.Page):
                     for ability in usable_abilities:
                         def make_on_click(ab=ability):
                             def on_ability_click(e):
-                                my_hand.remove(ab)
-                                my_hand.remove(ab)
+                                true_hand = game.get_hand(my_role)
+                                true_hand.remove(ab)
+                                true_hand.remove(ab)
                                 group = [
                                     {"name": ab, "is_face_up": True, "owner": my_role},
                                     {"name": ab, "is_face_up": True, "owner": my_role}
@@ -409,7 +433,7 @@ def main(page: ft.Page):
                         decision_nodes.append(ft.Button(btn_text, on_click=make_on_click(ability), disabled=is_disabled))
                     
                     if counts.get("擬態", 0) >= 2:
-                        other_cards = list(set([c for c in my_hand if c != "擬態"]))
+                        other_cards = list(set([c for c in display_my_hand if c != "擬態"]))
                         if other_cards:
                             def on_mimic_start_click(e):
                                 game.turn_step = "MIMIC_SELECTION"
@@ -428,13 +452,14 @@ def main(page: ft.Page):
 
                 elif game.turn_step == "MIMIC_SELECTION":
                     mimic_nodes = []
-                    other_cards = list(set([c for c in my_hand if c != "擬態"]))
+                    other_cards = list(set([c for c in display_my_hand if c != "擬態"]))
                     for target in other_cards:
                         def make_on_mimic_target(t=target):
                             def on_mimic_execute(e):
-                                my_hand.remove("擬態")
-                                my_hand.remove("擬態")
-                                my_hand.remove(t)
+                                true_hand = game.get_hand(my_role)
+                                true_hand.remove("擬態")
+                                true_hand.remove("擬態")
+                                true_hand.remove(t)
                                 group = [
                                     {"name": "擬態", "is_face_up": True, "owner": my_role},
                                     {"name": "擬態", "is_face_up": True, "owner": my_role},
@@ -461,10 +486,11 @@ def main(page: ft.Page):
                     for t_name in game.types:
                         def make_tel_click(target_name=t_name):
                             def on_tel_click(e):
-                                removed = [c for c in op_hand if c == target_name]
+                                true_op_hand = game.get_hand(op_role)
+                                removed = [c for c in true_op_hand if c == target_name]
                                 
-                                my_needs = 6 - len(my_hand)
-                                op_needs = 6 - (len(op_hand) - len(removed))
+                                my_needs = 6 - len(display_my_hand)
+                                op_needs = 6 - (len(true_op_hand) - len(removed))
                                 
                                 if (my_needs + op_needs) > len(game.deck):
                                     msg = f"お互いに合計 {my_needs + op_needs} 枚の補充が必要ですが、山札が残り{len(game.deck)}枚のため補充できなくなりました。"
@@ -472,7 +498,7 @@ def main(page: ft.Page):
                                     sync()
                                     return
                                     
-                                game.set_hand(op_role, [c for c in op_hand if c != target_name])
+                                game.set_hand(op_role, [c for c in true_op_hand if c != target_name])
                                 
                                 if removed:
                                     group = [{"name": r, "is_face_up": True, "owner": op_role} for r in removed]
@@ -496,10 +522,11 @@ def main(page: ft.Page):
 
                 elif game.turn_step == "PSY_DISCARD_SELECTION":
                     discard_nodes = []
-                    for idx, c in enumerate(op_hand):
+                    for idx, c in enumerate(display_op_hand):
                         def make_discard_click(target_idx=idx, target_card=c):
                             def on_discard_click(e):
-                                discarded = op_hand.pop(target_idx)
+                                true_op_hand = game.get_hand(op_role)
+                                discarded = true_op_hand.pop(target_idx)
                                 op_groups = game.get_discard_groups(op_role)
                                 op_groups.append([{"name": discarded, "is_face_up": True, "owner": op_role}])
                                 
@@ -507,7 +534,7 @@ def main(page: ft.Page):
                                 
                                 if not face_down_discards:
                                     op_groups.pop() 
-                                    op_hand.append(discarded)
+                                    true_op_hand.append(discarded)
                                     game.log_message = f"相手の裏向きカードがないため、捨てさせた【{discarded}】は相手の手札に戻った！"
                                     game.fill_hand_to_6(my_role)
                                     game.end_action(my_role)
@@ -542,7 +569,8 @@ def main(page: ft.Page):
                                 if not op_groups[t_g_idx]:
                                     op_groups.pop(t_g_idx)
                                     
-                                op_hand.append(t_name)
+                                true_op_hand = game.get_hand(op_role)
+                                true_op_hand.append(t_name)
                                 game.log_message += " 続けて、相手に裏向きの捨て札を押し付けた！"
                                 game.fill_hand_to_6(my_role)
                                 game.end_action(my_role)
@@ -611,7 +639,7 @@ def main(page: ft.Page):
 
                 elif game.turn_step == "CLAIR_SELECTION":
                     clair_nodes = []
-                    for idx, c in enumerate(op_hand):
+                    for idx, c in enumerate(display_op_hand):
                         is_selected = idx in game.temp_selection
                         def make_clair_click(target_idx=idx):
                             def on_clair_click(e):
@@ -638,7 +666,7 @@ def main(page: ft.Page):
 
                 elif game.turn_step == "CLAIR_REVEAL":
                     reveal_nodes = []
-                    for idx, c in enumerate(op_hand):
+                    for idx, c in enumerate(display_op_hand):
                         if idx in game.temp_selection:
                             reveal_nodes.append(ft.Button(f"【透視】{c}", bgcolor="white", color="red"))
                         else:

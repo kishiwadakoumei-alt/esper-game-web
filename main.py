@@ -242,10 +242,8 @@ def main(page: ft.Page):
                 my_role = user_data["role"]
                 op_role = game.get_op_role(my_role)
                 
-                # ★修正ポイント：画面表示用の手札を「コピーして並び替え」するだけに留め、
-                # サーバーの本当のデータ（game.p1_handなど）は絶対に書き換えないようにしました。
                 display_my_hand = game.sort_hand(game.get_hand(my_role))
-                display_op_hand = game.get_hand(op_role) # 相手の手札は裏向きなのでそのまま
+                display_op_hand = game.get_hand(op_role)
                 
                 new_controls.append(ft.Text(f"相手の手札枚数: {len(display_op_hand)}枚 / 山札: {len(game.deck)}枚", color="red", weight="bold"))
                 
@@ -331,7 +329,6 @@ def main(page: ft.Page):
                         game.fill_hand_to_6(my_role)
                         game.end_action(my_role)
 
-                # --- 手札の表示 ---
                 if game.turn_step == "DISCARD":
                     new_controls.append(ft.Text("【手札】 1枚選んで捨ててください", color="yellow"))
                 elif game.turn_step == "DRAW":
@@ -343,19 +340,18 @@ def main(page: ft.Page):
 
                 hand_row = ft.Row(wrap=True)
                 for card in display_my_hand:
-                    # 以前はインデックス(位置)でカードを削除していましたが、
-                    # 確実を期すため「カードの名前そのもの」をサーバーに送って削除させる仕様に変更しました。
                     def make_on_click(target_card=card):
                         def on_click(e):
                             if game.turn_step != "DISCARD": return
                             
-                            # サーバーの本当の手札データから、該当のカードを1枚だけ確実に削除する
                             true_hand = game.get_hand(my_role)
                             true_hand.remove(target_card)
                             
                             my_discard_groups = game.get_discard_groups(my_role)
-                            total_discarded = sum(len(g) for g in my_discard_groups)
-                            is_face_up = total_discarded >= 5
+                            
+                            # ★修正ポイント：裏向きのカードだけをカウントして5枚判定を行う
+                            face_down_count = sum(1 for g in my_discard_groups for c in g if not c["is_face_up"])
+                            is_face_up = face_down_count >= 5
                             
                             my_discard_groups.append([{"name": target_card, "is_face_up": is_face_up, "owner": my_role}])
                             
@@ -368,7 +364,6 @@ def main(page: ft.Page):
                     hand_row.controls.append(ft.Button(card, on_click=make_on_click(card), color="black", bgcolor=bg_color))
                 new_controls.append(hand_row)
 
-                # --- DRAWフェーズのUI ---
                 if game.turn_step == "DRAW":
                     def on_draw(e):
                         game.fill_hand_to_6(my_role)
@@ -383,7 +378,6 @@ def main(page: ft.Page):
                         ]), padding=15, bgcolor="#224422", border_radius=5
                     ))
 
-                # --- THINKフェーズ（能力の使用） ---
                 elif game.turn_step == "THINK":
                     def on_go_ability(e):
                         game.turn_step = "ABILITY"
@@ -686,6 +680,7 @@ def main(page: ft.Page):
                         ]), padding=15, bgcolor="#222266", border_radius=5
                     ))
 
+                # ★修正ポイント：未来予知の厳密化
                 elif game.turn_step == "PRESCIENCE_SELECT_1":
                     nodes = []
                     for idx, c in enumerate(game.prescience_cards):
@@ -693,11 +688,16 @@ def main(page: ft.Page):
                             def on_click(e):
                                 game.prescience_ordered.append(card_name)
                                 game.prescience_cards.pop(target_idx)
-                                if game.prescience_cards:
+                                if len(game.prescience_ordered) < 2 and game.prescience_cards:
                                     game.turn_step = "PRESCIENCE_SELECT_2"
                                 else:
-                                    game.deck.extend(game.prescience_ordered)
+                                    true_hand = game.get_hand(my_role)
+                                    true_hand.extend(game.prescience_ordered)
                                     game.fill_hand_to_6(my_role)
+                                    for card in game.prescience_cards:
+                                        game.deck.append(card)
+                                    game.prescience_ordered = []
+                                    game.prescience_cards = []
                                     game.end_action(my_role)
                                 sync()
                             return on_click
@@ -717,11 +717,15 @@ def main(page: ft.Page):
                             def on_click(e):
                                 game.prescience_ordered.append(card_name)
                                 game.prescience_cards.pop(target_idx)
-                                game.prescience_ordered.extend(game.prescience_cards)
-                                game.prescience_cards = []
-                                for card in reversed(game.prescience_ordered):
-                                    game.deck.append(card)
+                                
+                                true_hand = game.get_hand(my_role)
+                                true_hand.extend(game.prescience_ordered)
                                 game.fill_hand_to_6(my_role)
+                                for card in game.prescience_cards:
+                                    game.deck.append(card)
+                                    
+                                game.prescience_ordered = []
+                                game.prescience_cards = []
                                 game.end_action(my_role)
                                 sync()
                             return on_click

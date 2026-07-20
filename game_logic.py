@@ -7,7 +7,6 @@ class EsperGame:
         self.deck = [c for c in self.types for _ in range(8)]
         random.shuffle(self.deck)
         
-        # ★追加：除外する3枚を専用のリストに保存
         self.excluded_cards = self.deck[:3]
         self.deck = self.deck[3:]
         
@@ -63,29 +62,37 @@ class EsperGame:
         while len(hand) < 6 and self.deck:
             hand.append(self.deck.pop())
 
+    # ★追加：ロール（p1/p2）からプレイヤーの実際の名前を取得する関数
+    def get_player_name(self, role):
+        if role == "p1" and len(self.players) > 0: return self.players[0]
+        if role == "p2" and len(self.players) > 1: return self.players[1]
+        return f"プレイヤー{1 if role=='p1' else 2}"
+
     def trigger_endgame(self, reason):
         self.turn_step = "GAME_OVER"
         p1_counts = Counter(self.p1_hand)
         p2_counts = Counter(self.p2_hand)
         
-        # ★修正：同種枚数が同じ場合の「セット数」での勝敗判定を追加
         p1_max = max(p1_counts.values()) if p1_counts else 0
         p1_max_sets = sum(1 for v in p1_counts.values() if v == p1_max)
         
         p2_max = max(p2_counts.values()) if p2_counts else 0
         p2_max_sets = sum(1 for v in p2_counts.values() if v == p2_max)
         
+        p1_name = self.get_player_name("p1")
+        p2_name = self.get_player_name("p2")
+        
         msg = f"【終了】{reason}。"
         
         if p1_max > p2_max:
-            self.log_message = msg + " 最大同種判定により、プレイヤー1の勝利！🎉"
+            self.log_message = msg + f" 最大同種判定により、{p1_name} の勝利！🎉"
         elif p2_max > p1_max:
-            self.log_message = msg + " 最大同種判定により、プレイヤー2の勝利！🎉"
+            self.log_message = msg + f" 最大同種判定により、{p2_name} の勝利！🎉"
         else:
             if p1_max_sets > p2_max_sets:
-                self.log_message = msg + f" 同数({p1_max}枚)ですが、セット数({p1_max_sets}対{p2_max_sets})でプレイヤー1の勝利！🎉"
+                self.log_message = msg + f" 同数({p1_max}枚)ですが、セット数({p1_max_sets}対{p2_max_sets})で {p1_name} の勝利！🎉"
             elif p2_max_sets > p1_max_sets:
-                self.log_message = msg + f" 同数({p1_max}枚)ですが、セット数({p2_max_sets}対{p1_max_sets})でプレイヤー2の勝利！🎉"
+                self.log_message = msg + f" 同数({p1_max}枚)ですが、セット数({p2_max_sets}対{p1_max_sets})で {p2_name} の勝利！🎉"
             else:
                 self.log_message = msg + " 最大同種もセット数も同じため、完全引き分け！⚖️"
 
@@ -93,7 +100,8 @@ class EsperGame:
         self.turn_step = "GAME_OVER"
         self.log_message = f"⚖️【引き分け】{reason}⚖️"
 
-    def end_action(self, current_role):
+    # ★修正：アクションメッセージを受け取り、次のターンの案内と合体させる
+    def end_action(self, current_role, action_msg=""):
         if len(self.deck) == 0:
             self.trigger_endgame("山札が尽きました")
             return
@@ -104,9 +112,16 @@ class EsperGame:
         
         if self.extra_turn:
             self.extra_turn = False
-            self.log_message = f"⏰ タイムリープ！続けてプレイヤー{1 if current_role=='p1' else 2}の番です。"
+            next_name = self.get_player_name(current_role)
+            turn_msg = f"⏰ タイムリープ！続けて {next_name} の番です。"
             self.turn_step = "DISCARD"
         else:
             self.current_turn = self.get_op_role(current_role)
             self.turn_step = "DISCARD"
-            self.log_message = f"プレイヤー{1 if self.current_turn=='p1' else 2}のターンです。カードを捨ててください。"
+            next_name = self.get_player_name(self.current_turn)
+            turn_msg = f"【{next_name} のターン】カードを捨ててください。"
+            
+        if action_msg:
+            self.log_message = f"{action_msg} ➔ {turn_msg}"
+        else:
+            self.log_message = turn_msg

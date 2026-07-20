@@ -280,7 +280,8 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             new_controls.append(ft.Container(
                 content=ft.Column([
                     ft.Text("【補充】山札からカードを1枚引いてください", color="white", weight="bold"),
-                    ft.Button("山札から引く", on_draw, bgcolor="blue", color="white")
+                    # ★修正箇所：on_click= を正しく追記しました
+                    ft.Button("山札から引く", on_click=on_draw, bgcolor="blue", color="white")
                 ]), padding=15, bgcolor="#224422", border_radius=5
             ))
 

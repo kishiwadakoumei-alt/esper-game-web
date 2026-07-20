@@ -2,7 +2,7 @@ import flet as ft
 import random
 from collections import Counter
 import traceback
-import os  # ★これを追加！
+import os
 
 class EsperGame:
     def __init__(self):
@@ -148,7 +148,6 @@ def main(page: ft.Page):
                 
                 show_game_screen()
 
-            # 警告回避のため ft.Button に変更
             join_btn = ft.Button("この合言葉で対戦部屋に入る 🚀", on_click=on_join_click, bgcolor="green", color="white", width=300, height=50)
             
             page.add(
@@ -228,15 +227,17 @@ def main(page: ft.Page):
                 )
 
             def refresh():
-                page.controls.clear()
-                page.add(room_info)
+                new_controls = []
+                new_controls.append(room_info)
                 
                 if game.turn_step == "WAITING":
-                    page.add(ft.Text("対戦相手の入室を待っています... (友達にURLと合言葉を教えてね！)", color="yellow", size=20))
+                    new_controls.append(ft.Text("対戦相手の入室を待っています... (友達にURLと合言葉を教えてね！)", color="yellow", size=20))
+                    page.controls.clear()
+                    page.controls.extend(new_controls)
                     page.update()
                     return
 
-                page.add(get_dashboard())
+                new_controls.append(get_dashboard())
                 
                 game.set_hand("p1", game.sort_hand(game.p1_hand))
                 game.set_hand("p2", game.sort_hand(game.p2_hand))
@@ -246,12 +247,12 @@ def main(page: ft.Page):
                 my_hand = game.get_hand(my_role)
                 op_hand = game.get_hand(op_role)
                 
-                page.add(ft.Text(f"相手の手札枚数: {len(op_hand)}枚 / 山札: {len(game.deck)}枚", color="red", weight="bold"))
+                new_controls.append(ft.Text(f"相手の手札枚数: {len(op_hand)}枚 / 山札: {len(game.deck)}枚", color="red", weight="bold"))
                 
                 if game.turn_step in ["GAME_CLEAR", "GAME_OVER"]:
-                    page.add(ft.Text(f"ログ: {game.log_message}", color="orange", size=18, weight="bold"))
+                    new_controls.append(ft.Text(f"ログ: {game.log_message}", color="orange", size=18, weight="bold"))
                 else:
-                    page.add(ft.Text(f"ログ: {game.log_message}", color="green", size=16))
+                    new_controls.append(ft.Text(f"ログ: {game.log_message}", color="green", size=16))
                     
                 is_my_turn = (game.current_turn == my_role)
                 
@@ -260,25 +261,82 @@ def main(page: ft.Page):
                         game.turn_step = "GAME_CLEAR"
                         game.log_message = f"🎉【決着】プレイヤー{1 if my_role=='p1' else 2}が「エスパー！」を宣言しました！🎉"
                         sync()
-                    page.add(
+                    new_controls.append(
                         ft.Button("🌟 エスパー宣言！ (同種5枚達成) 🌟", on_click=on_esper_declare, bgcolor="orange", color="black", width=400, height=50)
                     )
 
                 if not is_my_turn and game.turn_step not in ["GAME_CLEAR", "GAME_OVER"]:
-                    page.add(ft.Text("⏳ 相手の操作を待っています...", color="grey", size=18))
+                    new_controls.append(ft.Text("⏳ 相手の操作を待っています...", color="grey", size=18))
                     hand_row = ft.Row(wrap=True)
                     for card in my_hand:
                         hand_row.controls.append(ft.Button(card, disabled=True, bgcolor="#CFD8DC", color="black"))
-                    page.add(hand_row)
+                    new_controls.append(hand_row)
+                    
+                    page.controls.clear()
+                    page.controls.extend(new_controls)
                     page.update()
                     return
 
+                def route_ability(ability_name):
+                    if ability_name == "瞬間移動":
+                        game.turn_step = "TELEPORT_SELECTION"
+                    elif ability_name == "念動力":
+                        if op_hand:
+                            game.turn_step = "PSY_DISCARD_SELECTION"
+                            game.log_message = "「念動力」発動！捨てる相手の手札を選んでください。"
+                        else:
+                            game.log_message = "「念動力」発動！しかし相手の手札は空だった。"
+                            game.fill_hand_to_6(my_role)
+                            game.end_action(my_role)
+                    elif ability_name == "再生":
+                        flat_p1 = game.get_flat_discard("p1")
+                        flat_p2 = game.get_flat_discard("p2")
+                        if not flat_p1 and not flat_p2:
+                            game.log_message = "「ヒーリング」発動！しかし捨て札がなかった。"
+                            game.fill_hand_to_6(my_role)
+                            game.end_action(my_role)
+                        else:
+                            game.turn_step = "REGEN_SELECTION"
+                            game.temp_selection = []
+                            game.regen_pool = []
+                            for g_idx, group in enumerate(game.get_discard_groups("p1")):
+                                for item_idx, c in enumerate(group):
+                                    game.regen_pool.append({"owner": "p1", "g_idx": g_idx, "item_idx": item_idx, "name": c["name"], "is_face_up": c["is_face_up"]})
+                            for g_idx, group in enumerate(game.get_discard_groups("p2")):
+                                for item_idx, c in enumerate(group):
+                                    game.regen_pool.append({"owner": "p2", "g_idx": g_idx, "item_idx": item_idx, "name": c["name"], "is_face_up": c["is_face_up"]})
+                            game.log_message = "「ヒーリング」発動！山札に戻すカードを選んでください。"
+                    elif ability_name == "千里眼":
+                        if not op_hand:
+                            game.log_message = "「千里眼」発動！しかし相手の手札は空だった。"
+                            game.fill_hand_to_6(my_role)
+                            game.end_action(my_role)
+                        else:
+                            game.turn_step = "CLAIR_SELECTION"
+                            game.temp_selection = []
+                            game.log_message = "「千里眼」発動！透視する手札を選んでください。"
+                    elif ability_name == "未来予知":
+                        count = min(3, len(game.deck))
+                        if count == 0:
+                            game.log_message = "「未来予知」発動！しかし山札が空だった。"
+                            game.fill_hand_to_6(my_role)
+                            game.end_action(my_role)
+                        else:
+                            game.prescience_cards = [game.deck.pop() for _ in range(count)]
+                            game.prescience_ordered = []
+                            game.turn_step = "PRESCIENCE_SELECT_1"
+                            game.log_message = "「未来予知」発動！一番上に配置するカードを選んでください。"
+                    elif ability_name == "時間移動":
+                        game.extra_turn = True
+                        game.fill_hand_to_6(my_role)
+                        game.end_action(my_role)
+
                 if game.turn_step == "DISCARD":
-                    page.add(ft.Text("【手札】 1枚選んで捨ててください", color="yellow"))
+                    new_controls.append(ft.Text("【手札】 1枚選んで捨ててください", color="yellow"))
                 elif game.turn_step in ["GAME_CLEAR", "GAME_OVER"]:
-                    page.add(ft.Text("【手札】 (ゲーム終了)", color="grey"))
+                    new_controls.append(ft.Text("【手札】 (ゲーム終了)", color="grey"))
                 else:
-                    page.add(ft.Text("【手札】 (現在は確認のみ・クリック不可)", color="grey"))
+                    new_controls.append(ft.Text("【手札】 (現在は確認のみ・クリック不可)", color="grey"))
 
                 hand_row = ft.Row(wrap=True)
                 for i, card in enumerate(list(my_hand)):
@@ -288,7 +346,6 @@ def main(page: ft.Page):
                             c = my_hand.pop(idx)
                             my_discard_groups = game.get_discard_groups(my_role)
                             
-                            # 【修正】裏向きバグ修正。5枚目までは裏向き（is_face_up=False）にする
                             total_discarded = sum(len(g) for g in my_discard_groups)
                             is_face_up = total_discarded >= 5
                             
@@ -302,7 +359,7 @@ def main(page: ft.Page):
 
                     bg_color = "white" if game.turn_step == "DISCARD" else "#CFD8DC"
                     hand_row.controls.append(ft.Button(card, on_click=make_on_click(i), color="black", bgcolor=bg_color))
-                page.add(hand_row)
+                new_controls.append(hand_row)
 
                 if game.turn_step == "THINK":
                     def on_go_ability(e):
@@ -312,7 +369,7 @@ def main(page: ft.Page):
                         game.end_action(my_role)
                         sync()
 
-                    page.add(ft.Container(
+                    new_controls.append(ft.Container(
                         content=ft.Column([
                             ft.Text("【確認】新しい手札です。能力を使いますか？", color="white", size=16),
                             ft.Row([ft.Button("能力を使う", on_click=on_go_ability), ft.Button("ターン終了", on_click=on_pass)])
@@ -324,63 +381,12 @@ def main(page: ft.Page):
                     counts = Counter(my_hand)
                     usable_abilities = [c for c, cnt in counts.items() if cnt >= 2 and c != "擬態"]
                     deck_len = len(game.deck)
-                    
-                    def route_ability(ability_name):
-                        if ability_name == "瞬間移動":
-                            game.turn_step = "TELEPORT_SELECTION"
-                        elif ability_name == "念動力":
-                            if op_hand:
-                                game.turn_step = "PSY_DISCARD_SELECTION"
-                                game.log_message = "「念動力」発動！捨てる相手の手札を選んでください。"
-                            else:
-                                game.log_message = "「念動力」発動！しかし相手の手札は空だった。"
-                                game.fill_hand_to_6(my_role)
-                                game.end_action(my_role)
-                        elif ability_name == "再生":
-                            flat_p1 = game.get_flat_discard("p1")
-                            flat_p2 = game.get_flat_discard("p2")
-                            if not flat_p1 and not flat_p2:
-                                game.log_message = "「ヒーリング」発動！しかし捨て札がなかった。"
-                                game.fill_hand_to_6(my_role)
-                                game.end_action(my_role)
-                            else:
-                                game.turn_step = "REGEN_SELECTION"
-                                game.temp_selection = []
-                                game.regen_pool = []
-                                
-                                for g_idx, group in enumerate(game.get_discard_groups("p1")):
-                                    for item_idx, c in enumerate(group):
-                                        game.regen_pool.append({"owner": "p1", "g_idx": g_idx, "item_idx": item_idx, "name": c["name"], "is_face_up": c["is_face_up"]})
-                                for g_idx, group in enumerate(game.get_discard_groups("p2")):
-                                    for item_idx, c in enumerate(group):
-                                        game.regen_pool.append({"owner": "p2", "g_idx": g_idx, "item_idx": item_idx, "name": c["name"], "is_face_up": c["is_face_up"]})
                                         
-                                game.log_message = "「ヒーリング」発動！山札に戻すカードを選んでください。"
-                        elif ability_name == "千里眼":
-                            if not op_hand:
-                                game.log_message = "「千里眼」発動！しかし相手の手札は空だった。"
-                                game.fill_hand_to_6(my_role)
-                                game.end_action(my_role)
-                            else:
-                                game.turn_step = "CLAIR_SELECTION"
-                                game.temp_selection = []
-                                game.log_message = "「千里眼」発動！透視する手札を選んでください。"
-                        elif ability_name == "未来予知":
-                            count = min(3, len(game.deck))
-                            if count == 0:
-                                game.log_message = "「未来予知」発動！しかし山札が空だった。"
-                                game.fill_hand_to_6(my_role)
-                                game.end_action(my_role)
-                            else:
-                                game.prescience_cards = [game.deck.pop() for _ in range(count)]
-                                game.prescience_ordered = []
-                                game.turn_step = "PRESCIENCE_SELECT_1"
-                                game.log_message = "「未来予知」発動！一番上に配置するカードを選んでください。"
-                        elif ability_name == "時間移動":
-                            game.extra_turn = True
-                            game.fill_hand_to_6(my_role)
-                            game.end_action(my_role)
-
+                    def on_cancel(e):
+                        game.turn_step = "THINK"
+                        sync()
+                    decision_nodes.append(ft.Button("戻る", on_click=on_cancel))
+                    
                     for ability in usable_abilities:
                         def make_on_click(ab=ability):
                             def on_ability_click(e):
@@ -415,12 +421,7 @@ def main(page: ft.Page):
                                 mimic_text += " ⚠️山札不足"
                             decision_nodes.append(ft.Button(mimic_text, on_click=on_mimic_start_click, disabled=is_mimic_disabled))
                     
-                    def on_cancel(e):
-                        game.turn_step = "THINK"
-                        sync()
-                    decision_nodes.append(ft.Button("戻る", on_click=on_cancel))
-                    
-                    page.add(ft.Container(
+                    new_controls.append(ft.Container(
                         content=ft.Column([ft.Text("消費するペア：", color="white"), ft.Row(decision_nodes, wrap=True)]),
                         padding=15, bgcolor="#333333", border_radius=5
                     ))
@@ -450,7 +451,7 @@ def main(page: ft.Page):
                         sync()
                     mimic_nodes.append(ft.Button("キャンセル", on_click=on_cancel_mimic))
                     
-                    page.add(ft.Container(
+                    new_controls.append(ft.Container(
                         content=ft.Column([ft.Text("擬態2枚と一緒に捨てる手札：", color="white"), ft.Row(mimic_nodes, wrap=True)]),
                         padding=15, bgcolor="#442222", border_radius=5
                     ))
@@ -486,7 +487,7 @@ def main(page: ft.Page):
                             return on_tel_click
                         tel_nodes.append(ft.Button(t_name, on_click=make_tel_click(t_name)))
 
-                    page.add(ft.Container(
+                    new_controls.append(ft.Container(
                         content=ft.Column([
                             ft.Text("【テレポート】相手の手札から消し去るカード名（能力）を宣言してください：", color="white", weight="bold"),
                             ft.Row(tel_nodes, wrap=True)
@@ -517,7 +518,7 @@ def main(page: ft.Page):
                             return on_discard_click
                         discard_nodes.append(ft.Button(f"伏せカード {idx+1}", on_click=make_discard_click(idx, c)))
 
-                    page.add(ft.Container(
+                    new_controls.append(ft.Container(
                         content=ft.Column([
                             ft.Text("【念動力 1/2】相手の手札から捨てさせるカードを選んでください：", color="white", weight="bold"),
                             ft.Row(discard_nodes, wrap=True)
@@ -549,7 +550,7 @@ def main(page: ft.Page):
                             return on_psy_click
                         psy_nodes.append(ft.Button(f"裏向きの捨て札 {i+1}", on_click=make_psy_click(g_idx, item_idx, target_item["name"])))
 
-                    page.add(ft.Container(
+                    new_controls.append(ft.Container(
                         content=ft.Column([
                             ft.Text("【念動力 2/2】相手の手札に加える裏向きの捨て札を選んでください：", color="white", weight="bold"),
                             ft.Row(psy_nodes, wrap=True)
@@ -600,7 +601,7 @@ def main(page: ft.Page):
                         game.end_action(my_role)
                         sync()
 
-                    page.add(ft.Container(
+                    new_controls.append(ft.Container(
                         content=ft.Column([
                             ft.Text(f"【再生】山札に戻すカードを選んでください (現在: {len(game.temp_selection)}枚選択中)", color="white", weight="bold"),
                             ft.Row(reg_nodes, wrap=True),
@@ -627,7 +628,7 @@ def main(page: ft.Page):
                         game.log_message += " 相手のカードを透視しました！"
                         sync()
 
-                    page.add(ft.Container(
+                    new_controls.append(ft.Container(
                         content=ft.Column([
                             ft.Text(f"【千里眼】中身を見たい相手の手札を最大2枚まで選んでください (現在: {len(game.temp_selection)}枚選択中)", color="white", weight="bold"),
                             ft.Row(clair_nodes, wrap=True),
@@ -649,7 +650,7 @@ def main(page: ft.Page):
                         game.end_action(my_role)
                         sync()
 
-                    page.add(ft.Container(
+                    new_controls.append(ft.Container(
                         content=ft.Column([
                             ft.Text("【千里眼】透視結果です。確認したら完了ボタンを押してください。", color="white", weight="bold"),
                             ft.Row(reveal_nodes, wrap=True),
@@ -674,7 +675,7 @@ def main(page: ft.Page):
                             return on_click
                         nodes.append(ft.Button(c, on_click=make_click(idx)))
                     
-                    page.add(ft.Container(
+                    new_controls.append(ft.Container(
                         content=ft.Column([
                             ft.Text("【未来予知 1/2】一番上（次に引くカード）を選んでください：", color="white", weight="bold"),
                             ft.Row(nodes, wrap=True)
@@ -698,13 +699,15 @@ def main(page: ft.Page):
                             return on_click
                         nodes.append(ft.Button(c, on_click=make_click(idx)))
                         
-                    page.add(ft.Container(
+                    new_controls.append(ft.Container(
                         content=ft.Column([
                             ft.Text("【未来予知 2/2】山札の2枚目にしたいカードを選んでください：", color="white", weight="bold"),
                             ft.Row(nodes, wrap=True)
                         ]), padding=15, bgcolor="#666622", border_radius=5
                     ))
 
+                page.controls.clear()
+                page.controls.extend(new_controls)
                 page.update()
 
             refresh()
@@ -714,6 +717,5 @@ def main(page: ft.Page):
         page.add(ft.Text(f"システムエラー: {e}\n{traceback.format_exc()}", color="red"))
         page.update()
 
-# 【ネット公開用】最も安全な呼び出し方
 port = int(os.environ.get("PORT", 8000))
 ft.app(main, port=port, view=ft.AppView.WEB_BROWSER, host="0.0.0.0")

@@ -32,6 +32,8 @@ def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_ga
         # ゲーム画面へ遷移した後も、名前・部屋・roleを参照できる。
         user_data["name"] = name_input.value
         user_data["room_id"] = room_input.value
+        # 退室フラグをリセットしておく。
+        user_data["has_left"] = False
         
         # 同じ合言葉の部屋がまだなければ、新しいゲームを生成する。
         if user_data["room_id"] not in GAME_ROOMS:
@@ -184,6 +186,10 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
 
     def refresh():
         """共有ゲーム状態のturn_stepに応じて、現在必要な画面部品をすべて作り直す。"""
+        # ★追加：自分が退室済みの場合は、他人の操作による画面更新を受け付けない。
+        if user_data.get("has_left"):
+            return
+            
         # 毎回、新しい部品リストを作って最後にpage.controlsと入れ替える。
         new_controls = []
         new_controls.append(room_info)
@@ -210,7 +216,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
         # 相手の手札枚数と山札の残数を表示する。
         new_controls.append(ft.Text(f"相手の手札枚数: {len(display_op_hand)}枚 / 山札: {len(game.deck)}枚", color="red", weight="bold"))
         
-        # ★追加：ゲーム終了時のみ、相手の手札を公開する
         if game.turn_step in ["GAME_CLEAR", "GAME_OVER"]:
             new_controls.append(ft.Text("【公開された相手の手札】", color="red", weight="bold"))
             op_hand_row = ft.Row(wrap=True)
@@ -249,6 +254,38 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 hand_row.controls.append(ft.Button(card, disabled=True, bgcolor="#CFD8DC", color="black"))
             new_controls.append(hand_row)
             
+            # ★追加：ゲーム終了時専用の「再戦 / 退室」ボタン領域
+            if game.turn_step in ["GAME_CLEAR", "GAME_OVER"]:
+                if my_role in game.rematch_requests:
+                    # 自分がすでに再戦を押した場合は待機メッセージを出す。
+                    new_controls.append(ft.Text("⏳ 相手の再戦承認を待っています...", color="cyan", weight="bold"))
+                else:
+                    def on_rematch_click(e):
+                        """自分が再戦希望を出したことを記録し、両者揃えばリセットする。"""
+                        game.rematch_requests.add(my_role)
+                        if len(game.rematch_requests) == 2:
+                            game.reset_game()
+                        sync()
+                        
+                    def on_leave_click(e):
+                        """自分が退室し、部屋を初期状態に戻して相手に知らせる。"""
+                        user_data["has_left"] = True
+                        game.turn_step = "WAITING"
+                        game.players = []
+                        game.log_message = f"{my_name} が退室しました。新しいプレイヤーを待っています..."
+                        sync()
+                        # 自分の画面は空にして案内だけを表示する。
+                        page.controls.clear()
+                        page.add(ft.Text("退室しました。ブラウザを更新（F5）するとタイトル画面に戻ります。", color="white", size=20))
+                        page.update()
+                        
+                    new_controls.append(
+                        ft.Row([
+                            ft.Button("もう一度対戦する 🔄", on_click=on_rematch_click, bgcolor="blue", color="white", height=50),
+                            ft.Button("部屋を退出する 🚪", on_click=on_leave_click, bgcolor="red", color="white", height=50)
+                        ])
+                    )
+
             page.controls.clear()
             page.controls.extend(new_controls)
             page.update()
@@ -285,7 +322,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                     for g_idx, group in enumerate(game.get_discard_groups("p2")):
                         for item_idx, c in enumerate(group):
                             game.regen_pool.append({"owner": "p2", "g_idx": g_idx, "item_idx": item_idx, "name": c["name"], "is_face_up": c["is_face_up"]})
-                    game.log_message = "「ヒーリング」発発動！山札に戻すカードを選んでください。"
+                    game.log_message = "「ヒーリング」発動！山札に戻すカードを選んでください。"
             elif ability_name == "千里眼":
                 if not display_op_hand:
                     # 相手の手札が空なら見る対象がないため、能力処理を終了する。
@@ -581,7 +618,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                             game.end_action(my_role, f"「念動力」発動！{my_name} は相手の 伏せカード {target_idx+1} を指定したが、相手の場に裏向きカードがないため手札に戻った")
                         else:
                             # 裏向き捨て札があれば、相手へ押し付けるカードを選ぶ2段階目へ進む。
-                            game.log_message = f"「念動力」発動！{my_name} は相手の 伏せカード {target_idx+1} を捨てさせた！ 続けて押し付けるカードを選択中..."
+                            game.log_message = f"「念動力」発発動！{my_name} は相手の 伏せカード {target_idx+1} を捨てさせた！ 続けて押し付けるカードを選択中..."
                             game.turn_step = "PSY_PUSH_SELECTION"
                         sync()
                     return on_discard_click
@@ -839,6 +876,38 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                     ft.Row(nodes, wrap=True)
                 ]), padding=15, bgcolor="#666622", border_radius=5
             ))
+
+        # ★追加：ゲーム終了時専用の「再戦 / 退室」ボタン領域
+        if game.turn_step in ["GAME_CLEAR", "GAME_OVER"]:
+            if my_role in game.rematch_requests:
+                # 自分がすでに再戦を押した場合は待機メッセージを出す。
+                new_controls.append(ft.Text("⏳ 相手の再戦承認を待っています...", color="cyan", weight="bold"))
+            else:
+                def on_rematch_click(e):
+                    """自分が再戦希望を出したことを記録し、両者揃えばリセットする。"""
+                    game.rematch_requests.add(my_role)
+                    if len(game.rematch_requests) == 2:
+                        game.reset_game()
+                    sync()
+                    
+                def on_leave_click(e):
+                    """自分が退室し、部屋を初期状態に戻して相手に知らせる。"""
+                    user_data["has_left"] = True
+                    game.turn_step = "WAITING"
+                    game.players = []
+                    game.log_message = f"{my_name} が退室しました。新しいプレイヤーを待っています..."
+                    sync()
+                    # 自分の画面は空にして案内だけを表示する。
+                    page.controls.clear()
+                    page.add(ft.Text("退室しました。ブラウザを更新（F5）するとタイトル画面に戻ります。", color="white", size=20))
+                    page.update()
+                    
+                new_controls.append(
+                    ft.Row([
+                        ft.Button("もう一度対戦する 🔄", on_click=on_rematch_click, bgcolor="blue", color="white", height=50),
+                        ft.Button("部屋を退出する 🚪", on_click=on_leave_click, bgcolor="red", color="white", height=50)
+                    ])
+                )
 
         # このturn_step用に作った全画面部品で、現在の画面を丸ごと置き換える。
         page.controls.clear()

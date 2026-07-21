@@ -43,6 +43,9 @@ class EsperGame:
         self.prescience_cards = []
         self.prescience_ordered = []
         
+        # ★追加：再戦を希望したプレイヤーのroleを記録するセット
+        self.rematch_requests = set()
+        
         # 時間移動による追加ターンが予約されているかを表す。
         self.extra_turn = False
         # 先攻はp1。現在操作できるプレイヤーをこの値で判定する。
@@ -185,3 +188,32 @@ class EsperGame:
             self.log_message = f"{action_msg} ➔ {turn_msg}"
         else:
             self.log_message = turn_msg
+
+    # ★追加：再戦時にゲーム状態を初期化するメソッド
+    def reset_game(self):
+        """プレイヤー情報（名前・role）は維持したまま、カードと盤面だけを初期化して再戦する。"""
+        self.deck = [c for c in self.types for _ in range(8)]
+        random.shuffle(self.deck)
+        
+        self.excluded_cards = self.deck[:3]
+        self.deck = self.deck[3:]
+        
+        self.p1_hand = [self.deck.pop() for _ in range(6)]
+        self.p2_hand = [self.deck.pop() for _ in range(6)]
+        
+        self.p1_discard_groups = []
+        self.p2_discard_groups = []
+        
+        self.temp_selection = []
+        self.regen_pool = [] 
+        self.prescience_cards = []
+        self.prescience_ordered = []
+        
+        # 再戦希望リストも初期化する
+        self.rematch_requests = set()
+        
+        self.extra_turn = False
+        # ※先攻のランダム化は後のタスクで実装するため、一旦p1固定とする
+        self.current_turn = "p1"
+        self.turn_step = "DISCARD"
+        self.log_message = "再戦が開始されました！カードを選んで捨ててください。"

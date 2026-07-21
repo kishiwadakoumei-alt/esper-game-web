@@ -207,9 +207,19 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
         display_my_hand = game.sort_hand(game.get_hand(my_role))
         display_op_hand = game.get_hand(op_role)
         
-        # 相手のカード内容は伏せ、枚数だけを表示する。山札の残数は両者に公開する。
+        # 相手の手札枚数と山札の残数を表示する。
         new_controls.append(ft.Text(f"相手の手札枚数: {len(display_op_hand)}枚 / 山札: {len(game.deck)}枚", color="red", weight="bold"))
         
+        # ★追加：ゲーム終了時のみ、相手の手札を公開する
+        if game.turn_step in ["GAME_CLEAR", "GAME_OVER"]:
+            new_controls.append(ft.Text("【公開された相手の手札】", color="red", weight="bold"))
+            op_hand_row = ft.Row(wrap=True)
+            # 相手の手札も見やすいようにソートして表示する
+            sorted_op_hand = game.sort_hand(display_op_hand)
+            for card in sorted_op_hand:
+                op_hand_row.controls.append(ft.Button(card, disabled=True, bgcolor="#FFCDD2", color="black"))
+            new_controls.append(op_hand_row)
+
         if game.turn_step in ["GAME_CLEAR", "GAME_OVER"]:
             # 決着メッセージは目立つオレンジ色・太字で表示する。
             new_controls.append(ft.Text(f"ログ: {game.log_message}", color="orange", size=18, weight="bold"))
@@ -275,7 +285,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                     for g_idx, group in enumerate(game.get_discard_groups("p2")):
                         for item_idx, c in enumerate(group):
                             game.regen_pool.append({"owner": "p2", "g_idx": g_idx, "item_idx": item_idx, "name": c["name"], "is_face_up": c["is_face_up"]})
-                    game.log_message = "「ヒーリング」発動！山札に戻すカードを選んでください。"
+                    game.log_message = "「ヒーリング」発発動！山札に戻すカードを選んでください。"
             elif ability_name == "千里眼":
                 if not display_op_hand:
                     # 相手の手札が空なら見る対象がないため、能力処理を終了する。
@@ -309,7 +319,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
         elif game.turn_step == "DRAW":
             new_controls.append(ft.Text("【手札】 (現在は確認のみ・クリック不可)", color="grey"))
         elif game.turn_step in ["GAME_CLEAR", "GAME_OVER"]:
-            new_controls.append(ft.Text("【手札】 (ゲーム終了)", color="grey"))
+            new_controls.append(ft.Text("【自分の手札】", color="grey"))
         else:
             new_controls.append(ft.Text("【手札】 (現在は確認のみ・クリック不可)", color="grey"))
 
@@ -389,7 +399,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             # 擬態は専用処理があるため、通常能力一覧から除外する。
             usable_abilities = [c for c, cnt in counts.items() if cnt >= 2 and c != "擬態"]
             
-            # ★追加：山札の残り枚数を取得し、能力制限の判定に使用する。
             deck_len = len(game.deck)
                                 
             def on_cancel(e):
@@ -417,7 +426,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         sync()
                     return on_ability_click
                 
-                # ★修正：再生以外は発動後に山札の補充が必要なため、山札1枚以下では非活性にする。
                 is_disabled = False
                 btn_text = f"【発動】{ability} (2枚)"
                 if deck_len <= 1 and ability != "再生":
@@ -435,17 +443,13 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         game.turn_step = "MIMIC_SELECTION"
                         sync()
                         
-                    # ★修正：再生を代用する場合のみ、山札が2枚以下でも発動可能にする。
-                    # 手札に「再生」があるか、山札が3枚以上あればボタンを押せる状態にする。
                     can_mimic = (deck_len >= 3) or ("再生" in other_cards)
                     is_mimic_disabled = not can_mimic
                     mimic_text = "【発動】カモフラージュ (擬態2枚+1枚)"
                     
                     if is_mimic_disabled:
-                        # 山札2枚以下かつ「再生」を持っていない場合は完全に発動不可にする。
                         mimic_text += " ⚠️山札2枚以下のため不可"
                     elif deck_len <= 2:
-                        # 押せる状態だが山札が少ない場合、次の画面で再生しか選べないことを明記する。
                         mimic_text += " (再生のみ可能)"
                         
                     decision_nodes.append(ft.Button(mimic_text, on_click=on_mimic_start_click, disabled=is_mimic_disabled))
@@ -460,7 +464,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             mimic_nodes = []
             other_cards = list(set([c for c in display_my_hand if c != "擬態"]))
             
-            # ★追加：この段階でも山札の枚数を取得し、対象の制限に使用する。
             deck_len = len(game.deck) 
             
             for target in other_cards:
@@ -484,7 +487,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         sync()
                     return on_mimic_execute
                 
-                # ★修正：山札が2枚以下の時は、補充ができないため「再生」以外の選択肢を非活性にする。
                 is_target_disabled = False
                 target_text = f"{target} で発動"
                 if deck_len <= 2 and target != "再生":

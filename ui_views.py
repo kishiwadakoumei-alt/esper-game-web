@@ -76,24 +76,8 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
     def sync():
         page.pubsub.send_all_on_topic(user_data["room_id"], "update")
 
-    # 【修正箇所】抽選演出中（DECIDING_TURN）の場合も、相手の画面を同期してタイマーを動かす
     if len(game.players) == 2 and game.turn_step in ["DISCARD", "DECIDING_TURN"]:
         sync()
-
-    # ----- 先攻抽選のスレッド処理 -----
-    def execute_roulette():
-        time.sleep(1.5) # 1.5秒間ルーレット演出を見せる
-        game.current_turn = random.choice(["p1", "p2"])
-        game.turn_step = "DISCARD"
-        first_player_name = game.get_player_name(game.current_turn)
-        game.add_log(None, f"🎉 抽選結果：【{first_player_name}】の先攻でスタート！")
-        sync()
-
-    if game.turn_step == "DECIDING_TURN":
-        # p1の画面でのみ裏側でタイマーを起動させる（2重起動防止）
-        if my_role == "p1" and not getattr(game, "timer_started", False):
-            game.timer_started = True
-            threading.Thread(target=execute_roulette).start()
 
     room_info = ft.Container(
         content=ft.Row([
@@ -218,6 +202,20 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
 
         # ルーレット（先攻抽選）中の表示
         if game.turn_step == "DECIDING_TURN":
+            # 【修正箇所】タイマーの発火処理をrefresh内部に移動し、1人目の更新時に確実に実行させる
+            def execute_roulette():
+                time.sleep(1.5) # 1.5秒間ルーレット演出を見せる
+                game.current_turn = random.choice(["p1", "p2"])
+                game.turn_step = "DISCARD"
+                first_player_name = game.get_player_name(game.current_turn)
+                game.add_log(None, f"🎉 抽選結果：【{first_player_name}】の先攻でスタート！")
+                sync()
+
+            # p1の画面でのみ裏側でタイマーを起動させる（2重起動防止）
+            if my_role == "p1" and not getattr(game, "timer_started", False):
+                game.timer_started = True
+                threading.Thread(target=execute_roulette).start()
+
             new_controls.append(
                 ft.Container(
                     content=ft.Column([

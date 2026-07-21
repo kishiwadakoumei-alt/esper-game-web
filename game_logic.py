@@ -55,6 +55,9 @@ class EsperGame:
         # 両プレイヤーの画面に表示する進行状況メッセージ。
         self.log_message = "対戦相手の入室を待っています..."
 
+        # ★追加：部屋内のチャット履歴を保存するリスト（初期状態は空）
+        self.chat_history = []
+
     def sort_hand(self, hand):
         """同種カードをまとめ、多い種類から表示する順番に手札を並べ替える。"""
         # Counterの例: ["再生", "再生", "擬態"] -> {"再生": 2, "擬態": 1}
@@ -124,7 +127,7 @@ class EsperGame:
         p1_counts = Counter(self.p1_hand)
         p2_counts = Counter(self.p2_hand)
         
-        # ★修正：手札の構成を「枚数が多い順」のリストに変換する（例: [3, 2, 1] や [3, 1, 1, 1]）。
+        # 手札の構成を「枚数が多い順」のリストに変換する（例: [3, 2, 1] や [3, 1, 1, 1]）。
         p1_sorted_counts = sorted(p1_counts.values(), reverse=True)
         p2_sorted_counts = sorted(p2_counts.values(), reverse=True)
         
@@ -141,7 +144,7 @@ class EsperGame:
         p1_set_str = format_sets(p1_sorted_counts)
         p2_set_str = format_sets(p2_sorted_counts)
         
-        # ★修正：リスト同士を直接比較し、先頭（最大のセット）から順に勝敗を判定する。
+        # リスト同士を直接比較し、先頭（最大のセット）から順に勝敗を判定する。
         if p1_sorted_counts > p2_sorted_counts:
             self.log_message = msg + f" 手札構成（{p1_set_str} 対 {p2_set_str}）の差により、{p1_name} の勝利！🎉"
         elif p2_sorted_counts > p1_sorted_counts:
@@ -206,11 +209,12 @@ class EsperGame:
         self.prescience_cards = []
         self.prescience_ordered = []
         
-        # 再戦希望リストも初期化する
+        # ★ポイント：self.chat_history は再戦時も引き継ぐため、ここでは初期化しない。
+        
+        # 再戦希望リストを初期化する
         self.rematch_requests = set()
         
         self.extra_turn = False
-        # ※先攻のランダム化は後のタスクで実装するため、一旦p1固定とする
         self.current_turn = "p1"
         self.turn_step = "DISCARD"
         self.log_message = "再戦が開始されました！カードを選んで捨ててください。"

@@ -18,6 +18,8 @@ def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_ga
     # 同じroom_input.valueを入力した2人が同じ対戦部屋に参加する。
     title_text = ft.Text("🌟 超能力カードゲーム ESPER 🌐", size=32, weight="bold", color="orange")
     name_input = ft.TextField(label="あなたの名前", value="プレイヤー", width=300, bgcolor="#333333")
+    
+    # あいことばの誤字を修正
     room_input = ft.TextField(label="あいことば（ルームID）", hint_text="友達と同じ言葉を入れてね", width=300, bgcolor="#333333")
     
     def on_join_click(e):
@@ -84,6 +86,11 @@ def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_ga
 
 def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
     """入室済みプレイヤー向けに、対戦画面と全操作を表示する。"""
+    
+    # ★追加：タイトル画面に戻った後、再度ゲーム画面へ遷移できるようにするための関数を定義する。
+    def go_to_game():
+        show_game_screen(page, user_data, GAME_ROOMS)
+
     # タイトル画面を消してからゲーム画面の描画を始める。
     page.controls.clear()
     page.update() 
@@ -193,7 +200,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
         # 相手が退出して部屋が解散された場合の専用画面
         if getattr(game, "turn_step", "") == "ROOM_DISBANDED":
             def on_return_title(e):
-                # ★修正：引数を1つのみ（ルームID）に変更しました
+                # 引数を1つのみ（ルームID）に変更しました
                 page.pubsub.unsubscribe_topic(user_data["room_id"])
                 show_title_screen(page, user_data, GAME_ROOMS, go_to_game)
                 
@@ -206,7 +213,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         ft.Button("タイトル画面に戻る", on_click=on_return_title, bgcolor="blue", color="white", width=300, height=50)
                     ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                     padding=50,
-                    # ★修正：ft.Alignment.CENTER（大文字）に修正しました
                     alignment=ft.Alignment.CENTER
                 )
             )
@@ -299,7 +305,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         if user_data["room_id"] in GAME_ROOMS:
                             del GAME_ROOMS[user_data["room_id"]]
                             
-                        # ★修正：引数を1つのみ（ルームID）に変更しました
+                        # 引数を1つのみ（ルームID）に変更しました
                         page.pubsub.unsubscribe_topic(user_data["room_id"])
                         show_title_screen(page, user_data, GAME_ROOMS, go_to_game)
                         
@@ -924,7 +930,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                     if user_data["room_id"] in GAME_ROOMS:
                         del GAME_ROOMS[user_data["room_id"]]
                         
-                    # 通信の受信を解除し、自分はタイトル画面に戻る
+                    # 引数を1つのみ（ルームID）に変更しました
                     page.pubsub.unsubscribe_topic(user_data["room_id"])
                     show_title_screen(page, user_data, GAME_ROOMS, go_to_game)
                     

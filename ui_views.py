@@ -7,7 +7,6 @@ import threading
 import time
 from game_logic import EsperGame
 
-# 変換用の辞書（ログや説明用）
 NAME_MAP = {
     "クレヤボヤンス": "クレヤボヤンス(千里眼)",
     "タイムリープ": "タイムリープ(時間移動)",
@@ -97,7 +96,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
         padding=10, bgcolor="#333333", border_radius=5
     )
 
-    # 簡易能力説明（ヘルプパネル）：カタカナ(漢字)表記に準拠
     help_panel = ft.ExpansionTile(
         title=ft.Text("❓ 能力一覧（タップして開く）", color="yellow", weight="bold"),
         affinity=ft.TileAffinity.LEADING,
@@ -140,7 +138,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             chips = []
             for idx, card_data in enumerate(group):
                 is_mine = (user_data["role"] == card_data["owner"])
-                # カード上はカタカナ名のみ
                 show_name = card_data["name"] if (card_data["is_face_up"] or is_mine) else "？"
                 color, bg = ("black", "#E0E0E0") if card_data["is_face_up"] else ("white", "#555555")
                 chips.append(
@@ -250,7 +247,8 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             new_controls.append(ft.Text("【公開された相手の手札】", color="red", weight="bold"))
             op_hand_row = ft.Row(wrap=True)
             for card in display_op_hand:
-                op_hand_row.controls.append(ft.Button(card, disabled=True, bgcolor="#FFCDD2", color="black"))
+                # ★修正: 文字サイズを小さくし、パディングを狭めて枠内に収める
+                op_hand_row.controls.append(ft.ElevatedButton(card, disabled=True, bgcolor="#FFCDD2", color="black", style=ft.ButtonStyle(padding=5, text_style=ft.TextStyle(size=12))))
             new_controls.append(op_hand_row)
             
         is_my_turn = (game.current_turn == my_role)
@@ -266,12 +264,12 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             new_controls.append(ft.Text("⏳ 相手の操作を待っています...", color="grey", size=18))
             hand_row = ft.Row(wrap=True)
             for card in display_my_hand:
-                hand_row.controls.append(ft.Button(card, disabled=True, bgcolor="#CFD8DC", color="black"))
+                # ★修正: 手札ボタンも同様に調整
+                hand_row.controls.append(ft.ElevatedButton(card, disabled=True, bgcolor="#CFD8DC", color="black", style=ft.ButtonStyle(padding=5, text_style=ft.TextStyle(size=12))))
             new_controls.append(hand_row)
 
         else:
             def route_ability(ability_name):
-                # ログ等用に漢字つき名称に変換
                 ability_display = NAME_MAP.get(ability_name, ability_name)
 
                 if ability_name == "テレポート":
@@ -358,7 +356,8 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                     return on_click
 
                 bg_color = "white" if game.turn_step == "DISCARD" else "#CFD8DC"
-                hand_row.controls.append(ft.Button(card, on_click=make_on_click(card), color="black", bgcolor=bg_color))
+                # ★修正: 自分の手札ボタンの文字サイズとパディングを調整
+                hand_row.controls.append(ft.ElevatedButton(card, on_click=make_on_click(card), color="black", bgcolor=bg_color, style=ft.ButtonStyle(padding=5, text_style=ft.TextStyle(size=12))))
             new_controls.append(hand_row)
 
             if game.turn_step == "DRAW":

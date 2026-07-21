@@ -76,6 +76,10 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
     def sync():
         page.pubsub.send_all_on_topic(user_data["room_id"], "update")
 
+    # 【修正箇所】抽選演出中（DECIDING_TURN）の場合も、相手の画面を同期してタイマーを動かす
+    if len(game.players) == 2 and game.turn_step in ["DISCARD", "DECIDING_TURN"]:
+        sync()
+
     # ----- 先攻抽選のスレッド処理 -----
     def execute_roulette():
         time.sleep(1.5) # 1.5秒間ルーレット演出を見せる
@@ -121,10 +125,8 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
 
     # ----- 折りたたみ式ログ -----
     def get_log_ui():
-        # 最新のログ1行
         latest_text = game.log_message if hasattr(game, "log_message") else ""
         
-        # 履歴リスト
         history_controls = []
         for log in getattr(game, "log_history", []):
             text_color = "cyan" if log["role"] == "p1" else ("pink" if log["role"] == "p2" else "yellow")
@@ -236,7 +238,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
         op_role = game.get_op_role(my_role)
         display_my_hand = game.sort_hand(game.get_hand(my_role))
         
-        # 【修正点】相手の手札はソートせず、実際のインデックス順（ランダム）のまま取得する
         true_op_hand = game.get_hand(op_role)
         
         new_controls.append(ft.Text(f"相手の手札枚数: {len(true_op_hand)}枚 / 山札: {len(game.deck)}枚", color="red", weight="bold"))
@@ -293,7 +294,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 elif ability_name == "千里眼":
                     game.turn_step = "CLAIR_SELECTION"
                     game.temp_selection = []
-                    # 【修正】千里眼の対象候補（手札 ＋ 裏向き捨て札）を作成する
                     game.clair_pool = []
                     for idx, c in enumerate(true_op_hand):
                         game.clair_pool.append({"type": "hand", "idx": idx, "name": c, "label": f"相手の伏せ手札 {idx+1}"})
@@ -466,7 +466,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 for t_name in game.types:
                     def make_tel_click(target_name=t_name):
                         def on_tel_click(e):
-                            # 【修正】リスト自体を確実に上書き・更新する
                             removed = [c for c in true_op_hand if c == target_name]
                             my_needs = 6 - len(display_my_hand)
                             op_needs = 6 - (len(true_op_hand) - len(removed))
@@ -476,7 +475,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                                 sync()
                                 return
                                 
-                            # インプレースで相手の手札を更新し確実に消去する
                             new_op_hand = [c for c in true_op_hand if c != target_name]
                             true_op_hand.clear()
                             true_op_hand.extend(new_op_hand)
@@ -503,7 +501,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
 
             elif game.turn_step == "PSY_DISCARD_SELECTION":
                 discard_nodes = []
-                # 【修正】ソートされていない本物の手札インデックスを使う
                 for idx, c in enumerate(true_op_hand):
                     def make_discard_click(target_idx=idx, target_card=c):
                         def on_discard_click(e):
@@ -511,7 +508,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                             op_groups = game.get_discard_groups(op_role)
                             op_groups.append([{"name": discarded, "is_face_up": True, "owner": op_role}])
                             
-                            # 【修正】念力の戻す条件「重なっていない（要素が1つのグループの）裏向きカード」
                             face_down_discards = [item for group in op_groups if len(group) == 1 for item in group if not item["is_face_up"]]
                             
                             if not face_down_discards:
@@ -538,7 +534,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 face_down_discards = []
                 op_groups = game.get_discard_groups(op_role)
                 for g_idx, group in enumerate(op_groups):
-                    # 【修正】重なっているカードは手札に戻せない
                     if len(group) == 1 and not group[0]["is_face_up"]:
                         face_down_discards.append((g_idx, 0, group[0]))
                         
@@ -617,7 +612,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
 
             elif game.turn_step == "CLAIR_SELECTION":
                 clair_nodes = []
-                # 【修正】千里眼の対象（手札＋裏向き捨て札）から選ぶ
                 for list_idx, item in enumerate(game.clair_pool):
                     is_selected = list_idx in game.temp_selection
                     def make_clair_click(target_idx=list_idx):
@@ -723,7 +717,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                     ]), padding=15, bgcolor="#666622", border_radius=5
                 ))
 
-        # チャットエリア
         chat_messages = ft.ListView(height=150, spacing=2, auto_scroll=True)
         for c_msg in getattr(game, "chat_history", []):
             chat_messages.controls.append(ft.Text(c_msg, color="white", size=14))
@@ -748,11 +741,9 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             )
         )
 
-        # 終了・再戦判定
         if getattr(game, "turn_step", "") in ["GAME_CLEAR", "GAME_OVER"]:
             rematch_requests = getattr(game, "rematch_requests", set())
             
-            # 【修正】再戦の意思が相手にも伝わるようにメッセージを出し分ける
             if my_role in rematch_requests:
                 new_controls.insert(-1, ft.Text("⏳ 相手の再戦承認を待っています...", color="cyan", weight="bold"))
             elif len(rematch_requests) > 0:

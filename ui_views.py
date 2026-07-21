@@ -388,6 +388,8 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             counts = Counter(display_my_hand)
             # 擬態は専用処理があるため、通常能力一覧から除外する。
             usable_abilities = [c for c, cnt in counts.items() if cnt >= 2 and c != "擬態"]
+            
+            # ★追加：山札の残り枚数を取得し、能力制限の判定に使用する。
             deck_len = len(game.deck)
                                 
             def on_cancel(e):
@@ -415,9 +417,9 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         sync()
                     return on_ability_click
                 
+                # ★修正：再生以外は発動後に山札の補充が必要なため、山札1枚以下では非活性にする。
                 is_disabled = False
                 btn_text = f"【発動】{ability} (2枚)"
-                # 再生以外は能力コスト後の補充が必要なため、山札1枚以下では発動不可にする。
                 if deck_len <= 1 and ability != "再生":
                     is_disabled = True
                     btn_text += " ⚠️山札1枚以下のため不可"
@@ -432,12 +434,20 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         # 擬態と一緒に捨てる能力カードを選ぶ段階へ進む。
                         game.turn_step = "MIMIC_SELECTION"
                         sync()
-                    is_mimic_disabled = False
+                        
+                    # ★修正：再生を代用する場合のみ、山札が2枚以下でも発動可能にする。
+                    # 手札に「再生」があるか、山札が3枚以上あればボタンを押せる状態にする。
+                    can_mimic = (deck_len >= 3) or ("再生" in other_cards)
+                    is_mimic_disabled = not can_mimic
                     mimic_text = "【発動】カモフラージュ (擬態2枚+1枚)"
-                    # 3枚消費後に手札を補充するため、山札2枚以下では発動不可にする。
-                    if deck_len <= 2:
-                        is_mimic_disabled = True
+                    
+                    if is_mimic_disabled:
+                        # 山札2枚以下かつ「再生」を持っていない場合は完全に発動不可にする。
                         mimic_text += " ⚠️山札2枚以下のため不可"
+                    elif deck_len <= 2:
+                        # 押せる状態だが山札が少ない場合、次の画面で再生しか選べないことを明記する。
+                        mimic_text += " (再生のみ可能)"
+                        
                     decision_nodes.append(ft.Button(mimic_text, on_click=on_mimic_start_click, disabled=is_mimic_disabled))
             
             new_controls.append(ft.Container(
@@ -449,6 +459,10 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             # 擬態で代用して発動する能力を、現在の手札から選ぶ。
             mimic_nodes = []
             other_cards = list(set([c for c in display_my_hand if c != "擬態"]))
+            
+            # ★追加：この段階でも山札の枚数を取得し、対象の制限に使用する。
+            deck_len = len(game.deck) 
+            
             for target in other_cards:
                 def make_on_mimic_target(t=target):
                     """選択対象の能力名を固定した、擬態発動ボタン用の関数を作る。"""
@@ -469,7 +483,15 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         route_ability(t)
                         sync()
                     return on_mimic_execute
-                mimic_nodes.append(ft.Button(f"{target} で発動", on_click=make_on_mimic_target(target)))
+                
+                # ★修正：山札が2枚以下の時は、補充ができないため「再生」以外の選択肢を非活性にする。
+                is_target_disabled = False
+                target_text = f"{target} で発動"
+                if deck_len <= 2 and target != "再生":
+                    is_target_disabled = True
+                    target_text += " ⚠️山札不足"
+                    
+                mimic_nodes.append(ft.Button(target_text, on_click=make_on_mimic_target(target), disabled=is_target_disabled))
             
             def on_cancel_mimic(e):
                 # まだカードは消費していないため、そのまま通常の能力一覧へ戻れる。

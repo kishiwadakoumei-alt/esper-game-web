@@ -36,7 +36,6 @@ def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_ga
             user_data["role"] = "p2"
             game.players.append(user_data["name"])
             
-            # 2人揃ったら抽選演出へ移行する
             game.turn_step = "DECIDING_TURN"
             game.timer_started = False
         else:
@@ -87,7 +86,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
         padding=10, bgcolor="#333333", border_radius=5
     )
 
-    # ----- 簡易能力説明（ヘルプパネル） -----
     help_panel = ft.ExpansionTile(
         title=ft.Text("❓ 能力一覧（タップして開く）", color="yellow", weight="bold"),
         affinity=ft.TileAffinity.LEADING,
@@ -107,10 +105,8 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
         ]
     )
 
-    # ----- 折りたたみ式ログ -----
     def get_log_ui():
         latest_text = game.log_message if hasattr(game, "log_message") else ""
-        
         history_controls = []
         for log in getattr(game, "log_history", []):
             text_color = "cyan" if log["role"] == "p1" else ("pink" if log["role"] == "p2" else "yellow")
@@ -122,10 +118,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             affinity=ft.TileAffinity.LEADING,
             collapsed_bgcolor="#111133", bgcolor="#111122",
             controls=[
-                ft.Container(
-                    content=ft.Column(history_controls, spacing=2),
-                    height=200, padding=10, 
-                )
+                ft.Container(content=ft.Column(history_controls, spacing=2), height=200, padding=10)
             ]
         )
 
@@ -200,18 +193,15 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             page.update()
             return
 
-        # ルーレット（先攻抽選）中の表示
         if game.turn_step == "DECIDING_TURN":
-            # 【修正箇所】タイマーの発火処理をrefresh内部に移動し、1人目の更新時に確実に実行させる
             def execute_roulette():
-                time.sleep(1.5) # 1.5秒間ルーレット演出を見せる
+                time.sleep(1.5)
                 game.current_turn = random.choice(["p1", "p2"])
                 game.turn_step = "DISCARD"
                 first_player_name = game.get_player_name(game.current_turn)
                 game.add_log(None, f"🎉 抽選結果：【{first_player_name}】の先攻でスタート！")
                 sync()
 
-            # p1の画面でのみ裏側でタイマーを起動させる（2重起動防止）
             if my_role == "p1" and not getattr(game, "timer_started", False):
                 game.timer_started = True
                 threading.Thread(target=execute_roulette).start()
@@ -236,14 +226,18 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
         op_role = game.get_op_role(my_role)
         display_my_hand = game.sort_hand(game.get_hand(my_role))
         
+        # 画面に並ぶ相手の手札（ソート済み）に合わせてインデックスを組むための準備
         true_op_hand = game.get_hand(op_role)
+        display_op_hand = game.sort_hand(true_op_hand)
         
         new_controls.append(ft.Text(f"相手の手札枚数: {len(true_op_hand)}枚 / 山札: {len(game.deck)}枚", color="red", weight="bold"))
         
+        # ★【修正点】勝敗結果はここ（公開手札の直前）に大きな文字で表示する
         if game.turn_step in ["GAME_CLEAR", "GAME_OVER"]:
+            new_controls.append(ft.Text(game.log_message, color="orange", size=20, weight="bold"))
             new_controls.append(ft.Text("【公開された相手の手札】", color="red", weight="bold"))
             op_hand_row = ft.Row(wrap=True)
-            for card in game.sort_hand(true_op_hand):
+            for card in display_op_hand:
                 op_hand_row.controls.append(ft.Button(card, disabled=True, bgcolor="#FFCDD2", color="black"))
             new_controls.append(op_hand_row)
             
@@ -277,7 +271,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                     flat_p1 = game.get_flat_discard("p1")
                     flat_p2 = game.get_flat_discard("p2")
                     if not flat_p1 and not flat_p2:
-                        game.end_action(my_role, f"「ヒーリング」発動！しかし捨て札がなかった")
+                        game.end_action(my_role, f"「再生」発動！しかし捨て札がなかった")
                     else:
                         game.turn_step = "REGEN_SELECTION"
                         game.temp_selection = []
@@ -288,12 +282,13 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         for g_idx, group in enumerate(game.get_discard_groups("p2")):
                             for item_idx, c in enumerate(group):
                                 game.regen_pool.append({"owner": "p2", "g_idx": g_idx, "item_idx": item_idx, "name": c["name"], "is_face_up": c["is_face_up"]})
-                        game.log_message = "「ヒーリング」発動！山札に戻すカードを選んでください。"
+                        game.log_message = "「再生」発動！山札に戻すカードを選んでください。"
                 elif ability_name == "千里眼":
                     game.turn_step = "CLAIR_SELECTION"
                     game.temp_selection = []
                     game.clair_pool = []
-                    for idx, c in enumerate(true_op_hand):
+                    # ★【修正点】相手の画面に並んでいる順番（ソート済み）と完全にリンクさせる
+                    for idx, c in enumerate(display_op_hand):
                         game.clair_pool.append({"type": "hand", "idx": idx, "name": c, "label": f"相手の伏せ手札 {idx+1}"})
                     for g_idx, group in enumerate(game.get_discard_groups(op_role)):
                         if not group[0]["is_face_up"]:
@@ -316,6 +311,10 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                     game.extra_turn = True
                     game.fill_hand_to_6(my_role)
                     game.end_action(my_role, f"「時間移動」発動！{my_name} は追加ターンを得た")
+
+            # ★【修正点】通常のゲームログを過去の定位置（自分の手札操作エリアの直前）に復旧
+            if game.turn_step not in ["GAME_CLEAR", "GAME_OVER"]:
+                new_controls.append(ft.Text(f"ログ: {game.log_message}", color="green", size=16))
 
             if game.turn_step == "DISCARD":
                 new_controls.append(ft.Text("【手札】 1枚選んで捨ててください", color="yellow"))
@@ -464,28 +463,28 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 for t_name in game.types:
                     def make_tel_click(target_name=t_name):
                         def on_tel_click(e):
-                            removed = [c for c in true_op_hand if c == target_name]
+                            # ★【修正点】手札から確実に該当カードを消し去る
+                            removed_count = true_op_hand.count(target_name)
                             my_needs = 6 - len(display_my_hand)
-                            op_needs = 6 - (len(true_op_hand) - len(removed))
+                            op_needs = 6 - (len(true_op_hand) - removed_count)
                             
                             if (my_needs + op_needs) > len(game.deck):
                                 game.trigger_draw(f"補充に必要な山札が足りなくなりました")
                                 sync()
                                 return
                                 
-                            new_op_hand = [c for c in true_op_hand if c != target_name]
-                            true_op_hand.clear()
-                            true_op_hand.extend(new_op_hand)
+                            for _ in range(removed_count):
+                                true_op_hand.remove(target_name)
                             
-                            if removed:
-                                group = [{"name": r, "is_face_up": True, "owner": op_role} for r in removed]
+                            if removed_count > 0:
+                                group = [{"name": target_name, "is_face_up": True, "owner": op_role} for _ in range(removed_count)]
                                 game.get_discard_groups(op_role).append(group)
                                 
                             for _ in range(op_needs):
                                 if game.deck: true_op_hand.append(game.deck.pop())
                             game.fill_hand_to_6(my_role)
                             
-                            game.end_action(my_role, f"「瞬間移動」発動！【{target_name}】を指定し、相手から {len(removed)} 枚捨てさせた！")
+                            game.end_action(my_role, f"「瞬間移動」発動！【{target_name}】を宣言し、相手から {removed_count} 枚捨てさせた！（その後、お互いに手札を補充）")
                             sync()
                         return on_tel_click
                     tel_nodes.append(ft.Button(t_name, on_click=make_tel_click(t_name)))
@@ -499,18 +498,21 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
 
             elif game.turn_step == "PSY_DISCARD_SELECTION":
                 discard_nodes = []
-                for idx, c in enumerate(true_op_hand):
-                    def make_discard_click(target_idx=idx, target_card=c):
+                # ★【修正点】画面の並び順（display_op_hand）に合わせて番号を振る
+                for idx, c in enumerate(display_op_hand):
+                    def make_discard_click(target_card=c):
                         def on_discard_click(e):
-                            discarded = true_op_hand.pop(target_idx)
+                            # カードの「名前」を直接指定して手札から抜き取ることで、ズレを完全に防止
+                            true_op_hand.remove(target_card)
+                            
                             op_groups = game.get_discard_groups(op_role)
-                            op_groups.append([{"name": discarded, "is_face_up": True, "owner": op_role}])
+                            op_groups.append([{"name": target_card, "is_face_up": True, "owner": op_role}])
                             
                             face_down_discards = [item for group in op_groups if len(group) == 1 for item in group if not item["is_face_up"]]
                             
                             if not face_down_discards:
                                 op_groups.pop() 
-                                true_op_hand.append(discarded)
+                                true_op_hand.append(target_card)
                                 game.fill_hand_to_6(my_role)
                                 game.end_action(my_role, f"「念力」発動！しかし相手の場に戻せる裏向きカードがないため手札に戻った")
                             else:
@@ -518,7 +520,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                                 game.turn_step = "PSY_PUSH_SELECTION"
                             sync()
                         return on_discard_click
-                    discard_nodes.append(ft.Button(f"伏せカード {idx+1}", on_click=make_discard_click(idx, c)))
+                    discard_nodes.append(ft.Button(f"伏せカード {idx+1}", on_click=make_discard_click(c)))
 
                 new_controls.append(ft.Container(
                     content=ft.Column([

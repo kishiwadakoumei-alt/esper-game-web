@@ -18,13 +18,15 @@ def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_ga
     # 同じroom_input.valueを入力した2人が同じ対戦部屋に参加する。
     title_text = ft.Text("🌟 超能力カードゲーム ESPER 🌐", size=32, weight="bold", color="orange")
     name_input = ft.TextField(label="あなたの名前", value="プレイヤー", width=300, bgcolor="#333333")
-    room_input = ft.TextField(label="あいのことば（ルームID）", hint_text="友達と同じ言葉を入れてね", width=300, bgcolor="#333333")
+    
+    # ★修正：「あいのことば」の誤字を修正
+    room_input = ft.TextField(label="あいことば（ルームID）", hint_text="友達と同じ言葉を入れてね", width=300, bgcolor="#333333")
     
     def on_join_click(e):
         """入室ボタンが押されたとき、入力確認・部屋作成・役割決定を行う。"""
         # 合言葉が空では部屋を特定できないため、エラーを表示して処理を中断する。
         if not room_input.value:
-            room_input.error_text = "合言葉を入力してください！"
+            room_input.error_text = "あいことばを入力してください！"
             page.update()
             return
         
@@ -32,8 +34,6 @@ def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_ga
         # ゲーム画面へ遷移した後も、名前・部屋・roleを参照できる。
         user_data["name"] = name_input.value
         user_data["room_id"] = room_input.value
-        # 退室フラグをリセットしておく。
-        user_data["has_left"] = False
         
         # 同じ合言葉の部屋がまだなければ、新しいゲームを生成する。
         if user_data["room_id"] not in GAME_ROOMS:
@@ -62,7 +62,7 @@ def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_ga
         go_to_game()
 
     # on_clickに関数を渡すことで、クリック時にon_join_clickが実行される。
-    join_btn = ft.Button("この合言葉で対戦部屋に入る 🚀", on_click=on_join_click, bgcolor="green", color="white", width=300, height=50)
+    join_btn = ft.Button("このあいことばで対戦部屋に入る 🚀", on_click=on_join_click, bgcolor="green", color="white", width=300, height=50)
     
     # Columnで部品を縦に並べ、外側のRowで画面中央へ配置する。
     # Containerは空白（スペーサー）としても使用している。
@@ -112,7 +112,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
     room_info = ft.Container(
         content=ft.Row([
             ft.Text(f"👤 {my_name} (プレイヤー{1 if user_data['role']=='p1' else 2})", color="white", weight="bold"),
-            ft.Text(f"🔑 合言葉: {user_data['room_id']}", color="orange", weight="bold"),
+            ft.Text(f"🔑 あいことば: {user_data['room_id']}", color="orange", weight="bold"),
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
         padding=10, bgcolor="#333333", border_radius=5
     )
@@ -160,7 +160,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
         # ゲーム開始時に除外された3枚の表示部品を作る。
         excluded_ui = []
         for card in game.excluded_cards:
-            if game.turn_step in ["GAME_CLEAR", "GAME_OVER"]:
+            if getattr(game, "turn_step", "") in ["GAME_CLEAR", "GAME_OVER"]:
                 # 決着後は除外カードの内容を公開する。
                 excluded_ui.append(
                     ft.Container(content=ft.Text(card, color="black", weight="bold", size=10), padding=5, bgcolor="#E0E0E0", border_radius=5)
@@ -186,8 +186,26 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
 
     def refresh():
         """共有ゲーム状態のturn_stepに応じて、現在必要な画面部品をすべて作り直す。"""
-        # ★追加：自分が退室済みの場合は、他人の操作による画面更新を受け付けない。
-        if user_data.get("has_left"):
+        # ★追加：相手が退出して部屋が解散された場合の専用画面
+        if getattr(game, "turn_step", "") == "ROOM_DISBANDED":
+            def on_return_title(e):
+                # 完全に通信を切り離し、タイトル画面へ戻る
+                page.pubsub.unsubscribe_topic(user_data["room_id"], on_message)
+                show_title_screen(page, user_data, GAME_ROOMS, go_to_game)
+                
+            page.controls.clear()
+            page.controls.append(
+                ft.Container(
+                    content=ft.Column([
+                        ft.Text("対戦相手が退出したため、部屋が解散されました。", color="red", size=20, weight="bold"),
+                        ft.Container(height=20),
+                        ft.Button("タイトル画面に戻る", on_click=on_return_title, bgcolor="blue", color="white", width=300, height=50)
+                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                    padding=50,
+                    alignment=ft.alignment.center
+                )
+            )
+            page.update()
             return
             
         # 毎回、新しい部品リストを作って最後にpage.controlsと入れ替える。
@@ -196,7 +214,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
         
         if game.turn_step == "WAITING":
             # p1だけ入室している状態では、部屋情報と待機メッセージだけを表示する。
-            new_controls.append(ft.Text("対戦相手の入室を待っています... (友達にURLと合言葉を教えてね！)", color="yellow", size=20))
+            new_controls.append(ft.Text("対戦相手の入室を待っています... (友達にURLとあいことばを教えてね！)", color="yellow", size=20))
             page.controls.clear()
             page.controls.extend(new_controls)
             page.update()
@@ -254,9 +272,8 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 hand_row.controls.append(ft.Button(card, disabled=True, bgcolor="#CFD8DC", color="black"))
             new_controls.append(hand_row)
             
-            # ★追加：ゲーム終了時専用の「再戦 / 退室」ボタン領域
             if game.turn_step in ["GAME_CLEAR", "GAME_OVER"]:
-                if my_role in game.rematch_requests:
+                if my_role in getattr(game, "rematch_requests", set()):
                     # 自分がすでに再戦を押した場合は待機メッセージを出す。
                     new_controls.append(ft.Text("⏳ 相手の再戦承認を待っています...", color="cyan", weight="bold"))
                 else:
@@ -268,16 +285,18 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         sync()
                         
                     def on_leave_click(e):
-                        """自分が退室し、部屋を初期状態に戻して相手に知らせる。"""
-                        user_data["has_left"] = True
-                        game.turn_step = "WAITING"
-                        game.players = []
-                        game.log_message = f"{my_name} が退室しました。新しいプレイヤーを待っています..."
+                        """自分が退室し、部屋を解散して相手にもタイトルへ戻るよう促す。"""
+                        # 部屋を解散状態にする
+                        game.turn_step = "ROOM_DISBANDED"
                         sync()
-                        # 自分の画面は空にして案内だけを表示する。
-                        page.controls.clear()
-                        page.add(ft.Text("退室しました。ブラウザを更新（F5）するとタイトル画面に戻ります。", color="white", size=20))
-                        page.update()
+                        
+                        # 共有データからこの部屋のデータを完全に削除する（同じIDで新しく作れるようにする）
+                        if user_data["room_id"] in GAME_ROOMS:
+                            del GAME_ROOMS[user_data["room_id"]]
+                            
+                        # 通信の受信を解除し、自分はタイトル画面に戻る
+                        page.pubsub.unsubscribe_topic(user_data["room_id"], on_message)
+                        show_title_screen(page, user_data, GAME_ROOMS, go_to_game)
                         
                     new_controls.append(
                         ft.Row([
@@ -618,7 +637,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                             game.end_action(my_role, f"「念動力」発動！{my_name} は相手の 伏せカード {target_idx+1} を指定したが、相手の場に裏向きカードがないため手札に戻った")
                         else:
                             # 裏向き捨て札があれば、相手へ押し付けるカードを選ぶ2段階目へ進む。
-                            game.log_message = f"「念動力」発発動！{my_name} は相手の 伏せカード {target_idx+1} を捨てさせた！ 続けて押し付けるカードを選択中..."
+                            game.log_message = f"「念動力」発動！{my_name} は相手の 伏せカード {target_idx+1} を捨てさせた！ 続けて押し付けるカードを選択中..."
                             game.turn_step = "PSY_PUSH_SELECTION"
                         sync()
                     return on_discard_click
@@ -878,8 +897,8 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             ))
 
         # ★追加：ゲーム終了時専用の「再戦 / 退室」ボタン領域
-        if game.turn_step in ["GAME_CLEAR", "GAME_OVER"]:
-            if my_role in game.rematch_requests:
+        if getattr(game, "turn_step", "") in ["GAME_CLEAR", "GAME_OVER"]:
+            if my_role in getattr(game, "rematch_requests", set()):
                 # 自分がすでに再戦を押した場合は待機メッセージを出す。
                 new_controls.append(ft.Text("⏳ 相手の再戦承認を待っています...", color="cyan", weight="bold"))
             else:
@@ -891,16 +910,18 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                     sync()
                     
                 def on_leave_click(e):
-                    """自分が退室し、部屋を初期状態に戻して相手に知らせる。"""
-                    user_data["has_left"] = True
-                    game.turn_step = "WAITING"
-                    game.players = []
-                    game.log_message = f"{my_name} が退室しました。新しいプレイヤーを待っています..."
+                    """自分が退室し、部屋を解散して相手にもタイトルへ戻るよう促す。"""
+                    # 部屋を解散状態にする
+                    game.turn_step = "ROOM_DISBANDED"
                     sync()
-                    # 自分の画面は空にして案内だけを表示する。
-                    page.controls.clear()
-                    page.add(ft.Text("退室しました。ブラウザを更新（F5）するとタイトル画面に戻ります。", color="white", size=20))
-                    page.update()
+                    
+                    # 共有データからこの部屋のデータを完全に削除する（同じIDで新しく作れるようにする）
+                    if user_data["room_id"] in GAME_ROOMS:
+                        del GAME_ROOMS[user_data["room_id"]]
+                        
+                    # 通信の受信を解除し、自分はタイトル画面に戻る
+                    page.pubsub.unsubscribe_topic(user_data["room_id"], on_message)
+                    show_title_screen(page, user_data, GAME_ROOMS, go_to_game)
                     
                 new_controls.append(
                     ft.Row([

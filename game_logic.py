@@ -48,14 +48,15 @@ class EsperGame:
         
         # 時間移動による追加ターンが予約されているかを表す。
         self.extra_turn = False
-        # 先攻はp1。現在操作できるプレイヤーをこの値で判定する。
+        
+        # UI側で2人目が揃ったときに再設定されるため、ここは仮置きでOK。
         self.current_turn = "p1"
         # UIの現在段階。2人目が入るまではWAITINGとする。
         self.turn_step = "WAITING"
         # 両プレイヤーの画面に表示する進行状況メッセージ。
         self.log_message = "対戦相手の入室を待っています..."
 
-        # ★追加：部屋内のチャット履歴を保存するリスト（初期状態は空）
+        # 部屋内のチャット履歴を保存するリスト（初期状態は空）
         self.chat_history = []
 
     def sort_hand(self, hand):
@@ -209,12 +210,17 @@ class EsperGame:
         self.prescience_cards = []
         self.prescience_ordered = []
         
-        # ★ポイント：self.chat_history は再戦時も引き継ぐため、ここでは初期化しない。
+        # ポイント：self.chat_history は再戦時も引き継ぐため、ここでは初期化しない。
         
         # 再戦希望リストを初期化する
         self.rematch_requests = set()
         
         self.extra_turn = False
-        self.current_turn = "p1"
+        
+        # ★修正：再戦時の先攻をランダムに決定する
+        self.current_turn = random.choice(["p1", "p2"])
         self.turn_step = "DISCARD"
-        self.log_message = "再戦が開始されました！カードを選んで捨ててください。"
+        
+        # 選ばれた先攻のプレイヤー名を取得してログに出力する
+        first_player_name = self.get_player_name(self.current_turn)
+        self.log_message = f"再戦が開始されました！ {first_player_name} の先攻です！カードを選んで捨ててください。"

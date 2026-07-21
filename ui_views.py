@@ -45,15 +45,19 @@ def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_ga
         game = GAME_ROOMS[user_data["room_id"]]
         
         if len(game.players) == 0:
-            # 最初に入室した人をp1（先攻）として登録する。
+            # 最初に入室した人をp1として登録する。まだ待機状態。
             user_data["role"] = "p1"
             game.players.append(user_data["name"])
         elif len(game.players) == 1:
-            # 2人目をp2として登録し、待機状態から最初の捨て札操作へ進める。
+            # 2人目をp2として登録し、最初の捨て札操作へ進める。
             user_data["role"] = "p2"
             game.players.append(user_data["name"])
             game.turn_step = "DISCARD"
-            game.log_message = f"対戦相手が見つかりました！ {game.players[0]} の先行で開始します。"
+            
+            # ★修正：2人揃った時点で、先攻（p1かp2）をランダムに決定する。
+            game.current_turn = random.choice(["p1", "p2"])
+            first_player_name = game.get_player_name(game.current_turn)
+            game.log_message = f"対戦相手が見つかりました！ {first_player_name} の先攻で開始します。"
         else:
             # 3人目以降は参加させず、入力欄に満員エラーを表示する。
             room_input.error_text = "その部屋はすでに満員です！"
@@ -283,40 +287,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 hand_row.controls.append(ft.Button(card, disabled=True, bgcolor="#CFD8DC", color="black"))
             new_controls.append(hand_row)
             
-            if getattr(game, "turn_step", "") in ["GAME_CLEAR", "GAME_OVER"]:
-                if my_role in getattr(game, "rematch_requests", set()):
-                    # 自分がすでに再戦を押した場合は待機メッセージを出す。
-                    new_controls.append(ft.Text("⏳ 相手の再戦承認を待っています...", color="cyan", weight="bold"))
-                else:
-                    def on_rematch_click(e):
-                        """自分が再戦希望を出したことを記録し、両者揃えばリセットする。"""
-                        game.rematch_requests.add(my_role)
-                        if len(game.rematch_requests) == 2:
-                            game.reset_game()
-                        sync()
-                        
-                    def on_leave_click(e):
-                        """自分が退室し、部屋を解散して相手にもタイトルへ戻るよう促す。"""
-                        # 部屋を解散状態にする
-                        game.turn_step = "ROOM_DISBANDED"
-                        sync()
-                        
-                        # 共有データからこの部屋のデータを完全に削除する（同じIDで新しく作れるようにする）
-                        if user_data["room_id"] in GAME_ROOMS:
-                            del GAME_ROOMS[user_data["room_id"]]
-                            
-                        # 引数を1つのみ（ルームID）に変更しました
-                        page.pubsub.unsubscribe_topic(user_data["room_id"])
-                        show_title_screen(page, user_data, GAME_ROOMS, go_to_game)
-                        
-                    new_controls.append(
-                        ft.Row([
-                            ft.Button("もう一度対戦する 🔄", on_click=on_rematch_click, bgcolor="blue", color="white", height=50),
-                            ft.Button("部屋を退出する 🚪", on_click=on_leave_click, bgcolor="red", color="white", height=50)
-                        ])
-                    )
-
-            # 後述のチャットエリア追加処理へ進むため、ここでは return せずにスキップする
+            # チャットエリア追加処理へ進むため、ここでは return せずにスキップする
             pass
 
         else:
@@ -907,37 +878,25 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                     ]), padding=15, bgcolor="#666622", border_radius=5
                 ))
 
-        # ★追加：チャット表示・入力領域
-        # 画面の高さが限られているため、ListViewにして自動で一番下へスクロールさせる
+        # チャット表示・入力領域
         chat_messages = ft.ListView(height=150, spacing=2, auto_scroll=True)
-        # 共有されている履歴から、古い順にすべてのチャットを読み込んで並べる
         for c_msg in getattr(game, "chat_history", []):
             chat_messages.controls.append(ft.Text(c_msg, color="white", size=14))
             
-        # 入力枠は横幅いっぱい（expand=True）に広げる
         chat_input = ft.TextField(hint_text="チャットを入力してEnter...", expand=True, bgcolor="#444444", color="white")
         
         def on_chat_send(e):
-            """チャット送信時の処理。入力が空でなければ履歴に追加し、全員の画面を更新する。"""
-            # strip()で前後の空白を消し、本当に空なら何もしない
             if chat_input.value.strip() == "":
                 return
-                
-            # 何らかの理由でリストが消えていた時のための安全策
             if not hasattr(game, "chat_history"):
                 game.chat_history = []
-                
-            # 自分の名前とメッセージを結合して、ゲーム本体の履歴に保存する
             game.chat_history.append(f"💬 {my_name}: {chat_input.value}")
-            # 次の入力ができるよう、入力欄を空に戻す
             chat_input.value = ""
             sync()
             
-        # Enterキーを押した時にも on_chat_send が呼ばれるようにする
         chat_input.on_submit = on_chat_send
         chat_send_btn = ft.Button("送信", on_click=on_chat_send, bgcolor="green", color="white")
         
-        # チャットエリア全体をまとめるコンテナ
         chat_area = ft.Container(
             content=ft.Column([
                 ft.Divider(color="grey"),
@@ -947,38 +906,27 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             ]), padding=10, bgcolor="#222222", border_radius=5
         )
         
-        # 準備したチャットエリアを、画面の一番最後（下部）へ追加する
         new_controls.append(chat_area)
 
         # ゲーム終了時専用の「再戦 / 退室」ボタン領域
-        # （チャットエリアより上に表示したいため、あえて判定順序を調整しています）
         if getattr(game, "turn_step", "") in ["GAME_CLEAR", "GAME_OVER"]:
             if my_role in getattr(game, "rematch_requests", set()):
-                # 自分がすでに再戦を押した場合は待機メッセージを出す。
                 new_controls.insert(-1, ft.Text("⏳ 相手の再戦承認を待っています...", color="cyan", weight="bold"))
             else:
                 def on_rematch_click(e):
-                    """自分が再戦希望を出したことを記録し、両者揃えばリセットする。"""
                     game.rematch_requests.add(my_role)
                     if len(game.rematch_requests) == 2:
                         game.reset_game()
                     sync()
                     
                 def on_leave_click(e):
-                    """自分が退室し、部屋を解散して相手にもタイトルへ戻るよう促す。"""
-                    # 部屋を解散状態にする
                     game.turn_step = "ROOM_DISBANDED"
                     sync()
-                    
-                    # 共有データからこの部屋のデータを完全に削除する（同じIDで新しく作れるようにする）
                     if user_data["room_id"] in GAME_ROOMS:
                         del GAME_ROOMS[user_data["room_id"]]
-                        
-                    # 引数を1つのみ（ルームID）に変更しました
                     page.pubsub.unsubscribe_topic(user_data["room_id"])
                     show_title_screen(page, user_data, GAME_ROOMS, go_to_game)
                     
-                # チャットエリア（一番最後）の直前に、再戦・退出ボタンを割り込ませる
                 new_controls.insert(-1, 
                     ft.Row([
                         ft.Button("もう一度対戦する 🔄", on_click=on_rematch_click, bgcolor="blue", color="white", height=50),
@@ -986,11 +934,8 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                     ])
                 )
 
-        # このturn_step用に作った全画面部品で、現在の画面を丸ごと置き換える。
         page.controls.clear()
         page.controls.extend(new_controls)
-        # 変更内容をブラウザへ反映する。
         page.update()
 
-    # ゲーム画面へ入った直後の初回描画を実行する。
     refresh()

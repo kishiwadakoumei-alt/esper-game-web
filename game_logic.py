@@ -43,7 +43,7 @@ class EsperGame:
         self.prescience_cards = []
         self.prescience_ordered = []
         
-        # ★追加：再戦を希望したプレイヤーのroleを記録するセット
+        # 再戦を希望したプレイヤーのroleを記録するセット
         self.rematch_requests = set()
         
         # 時間移動による追加ターンが予約されているかを表す。
@@ -116,20 +116,17 @@ class EsperGame:
         return f"プレイヤー{1 if role=='p1' else 2}"
 
     def trigger_endgame(self, reason):
-        """通常の終了条件を処理し、手札の最大同種枚数で勝敗を決める。"""
+        """終了条件を処理し、手札の役構成（セットの大きさ順）で勝敗を決める。"""
         # 以降の操作を止め、UIをゲーム終了表示へ切り替える。
         self.turn_step = "GAME_OVER"
+        
         # 各プレイヤーの手札を種類別に集計する。
         p1_counts = Counter(self.p1_hand)
         p2_counts = Counter(self.p2_hand)
         
-        # 最も多く持っている同種カードの枚数。手札が空なら0枚とする。
-        p1_max = max(p1_counts.values()) if p1_counts else 0
-        # 最大枚数と同数の種類がいくつあるかを、同点時の第2判定に使う。
-        p1_max_sets = sum(1 for v in p1_counts.values() if v == p1_max)
-        
-        p2_max = max(p2_counts.values()) if p2_counts else 0
-        p2_max_sets = sum(1 for v in p2_counts.values() if v == p2_max)
+        # ★修正：手札の構成を「枚数が多い順」のリストに変換する（例: [3, 2, 1] や [3, 1, 1, 1]）。
+        p1_sorted_counts = sorted(p1_counts.values(), reverse=True)
+        p2_sorted_counts = sorted(p2_counts.values(), reverse=True)
         
         # 結果メッセージにはp1/p2ではなく、入力されたプレイヤー名を使う。
         p1_name = self.get_player_name("p1")
@@ -137,20 +134,21 @@ class EsperGame:
         
         msg = f"【終了】{reason}。"
         
-        # 第1判定: 最大同種枚数が多いプレイヤーの勝利。
-        if p1_max > p2_max:
-            self.log_message = msg + f" 最大同種判定により、{p1_name} の勝利！🎉"
-        elif p2_max > p1_max:
-            self.log_message = msg + f" 最大同種判定により、{p2_name} の勝利！🎉"
+        # UIに表示するため、役の構成をわかりやすい文字列にする（例: "3枚・2枚・1枚"）。
+        def format_sets(counts_list):
+            return "・".join([f"{c}枚" for c in counts_list])
+            
+        p1_set_str = format_sets(p1_sorted_counts)
+        p2_set_str = format_sets(p2_sorted_counts)
+        
+        # ★修正：リスト同士を直接比較し、先頭（最大のセット）から順に勝敗を判定する。
+        if p1_sorted_counts > p2_sorted_counts:
+            self.log_message = msg + f" 手札構成（{p1_set_str} 対 {p2_set_str}）の差により、{p1_name} の勝利！🎉"
+        elif p2_sorted_counts > p1_sorted_counts:
+            self.log_message = msg + f" 手札構成（{p2_set_str} 対 {p1_set_str}）の差により、{p2_name} の勝利！🎉"
         else:
-            # 第2判定: 最大同種枚数が同じなら、その最大セットを多く持つ側の勝利。
-            if p1_max_sets > p2_max_sets:
-                self.log_message = msg + f" 同数({p1_max}枚)ですが、セット数({p1_max_sets}対{p2_max_sets})で {p1_name} の勝利！🎉"
-            elif p2_max_sets > p1_max_sets:
-                self.log_message = msg + f" 同数({p1_max}枚)ですが、セット数({p2_max_sets}対{p1_max_sets})で {p2_name} の勝利！🎉"
-            else:
-                # 第2判定まで同じ場合は引き分け。
-                self.log_message = msg + " 最大同種もセット数も同じため、完全引き分け！⚖️"
+            # 構成が完全に同じ（例: お互いに [3, 2, 1]）の場合のみ引き分けとする。
+            self.log_message = msg + f" 手札構成（お互い {p1_set_str}）が完全に同じため、引き分け！⚖️"
 
     def trigger_draw(self, reason):
         """能力処理などが続行不能になった場合、理由付きで引き分け終了にする。"""
@@ -189,7 +187,6 @@ class EsperGame:
         else:
             self.log_message = turn_msg
 
-    # ★追加：再戦時にゲーム状態を初期化するメソッド
     def reset_game(self):
         """プレイヤー情報（名前・role）は維持したまま、カードと盤面だけを初期化して再戦する。"""
         self.deck = [c for c in self.types for _ in range(8)]

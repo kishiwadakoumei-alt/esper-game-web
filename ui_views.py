@@ -55,7 +55,8 @@ def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_ga
         
         go_to_game()
 
-    def on_cpu_click(e):
+    # CPU戦の難易度別スタート処理
+    def start_cpu_game(level, name_suffix):
         user_data["name"] = name_input.value
         user_data["room_id"] = f"cpu_room_{int(time.time())}"
         user_data["has_left"] = False
@@ -63,17 +64,24 @@ def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_ga
         GAME_ROOMS[user_data["room_id"]] = EsperGame()
         game = GAME_ROOMS[user_data["room_id"]]
         game.is_cpu = True
+        game.cpu_level = level
         
         user_data["role"] = "p1"
         game.players.append(user_data["name"])
-        game.players.append("CPU（中級）")
+        game.players.append(f"CPU（{name_suffix}）")
         
         game.turn_step = "DECIDING_TURN"
         game.timer_started = False
         go_to_game()
 
+    def on_cpu_easy(e): start_cpu_game("easy", "初級")
+    def on_cpu_normal(e): start_cpu_game("normal", "中級")
+    def on_cpu_hard(e): start_cpu_game("hard", "上級")
+
     join_btn = ft.Button("このあいことばで対戦部屋に入る 🚀", on_click=on_join_click, bgcolor="green", color="white", width=300, height=50)
-    cpu_btn = ft.Button("1人プレイ（vs CPU 中級） 🤖", on_click=on_cpu_click, bgcolor="purple", color="white", width=300, height=50)
+    cpu_easy_btn = ft.Button("1人プレイ（vs CPU 初級） 🔰", on_click=on_cpu_easy, bgcolor="cyan", color="black", width=300)
+    cpu_normal_btn = ft.Button("1人プレイ（vs CPU 中級） 🤖", on_click=on_cpu_normal, bgcolor="blue", color="white", width=300)
+    cpu_hard_btn = ft.Button("1人プレイ（vs CPU 上級） 👹", on_click=on_cpu_hard, bgcolor="purple", color="white", width=300)
     
     page.add(
         ft.Row([
@@ -83,7 +91,7 @@ def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_ga
                 ft.Divider(color="grey"),
                 room_input, join_btn,
                 ft.Divider(color="grey"),
-                cpu_btn
+                cpu_easy_btn, cpu_normal_btn, cpu_hard_btn
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
         ], alignment=ft.MainAxisAlignment.CENTER)
     )
@@ -108,7 +116,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
     def sync():
         page.pubsub.send_all_on_topic(user_data["room_id"], "update")
 
-    # ----- 画面同期とCPU用状態のチェック -----
     cpu_active_steps = [
         "DISCARD", "DRAW", "THINK", "ABILITY", "TELEPORT_SELECTION",
         "PSY_DISCARD_SELECTION", "PSY_PUSH_SELECTION", "REGEN_SELECTION",
@@ -171,7 +178,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 chips.append(
                     ft.Container(
                         content=ft.Text(show_name, color=color, weight="bold", size=10),
-                        padding=ft.padding.symmetric(horizontal=6, vertical=4),
+                        padding=4, # ←★エラーの原因だった `ft.padding.symmetric` を削除し、安全な数値に修正しました
                         bgcolor=bg, border_radius=4, left=idx * 6, top=idx * 6
                     )
                 )
@@ -225,15 +232,15 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             return
 
         # ==========================================
-        # CPU（中級）の自動行動ロジック（能力発動対応）
+        # CPUの自動行動ロジック（難易度別）
         # ==========================================
         if getattr(game, "is_cpu", False) and game.current_turn == "p2" and game.turn_step in cpu_active_steps:
             if not getattr(game, "cpu_acting", False):
                 game.cpu_acting = True
                 def run_cpu():
-                    time.sleep(1.0) # プレイヤーがログを読みやすい適度な待機時間
+                    time.sleep(1.0) 
+                    cpu_lvl = getattr(game, "cpu_level", "normal")
 
-                    # エスパー達成チェック（CPUが勝利条件を満たした場合）
                     if game.turn_step not in ["GAME_CLEAR", "GAME_OVER"] and game.check_esper(game.p2_hand):
                         game.add_log("p2", f"🎉【決着】CPU が「エスパー！」を宣言しました！")
                         game.turn_step = "GAME_CLEAR"
@@ -255,20 +262,23 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         game.turn_step = "THINK"
 
                     elif game.turn_step == "THINK":
-                        counts = Counter(game.p2_hand)
-                        deck_len = len(game.deck)
-                        usable = []
-                        for c, cnt in counts.items():
-                            # 山札1枚以下なら再生(ヒーリング)以外は使えないルールをCPUにも適用
-                            if cnt >= 2 and c != "カモフラージュ":
-                                if deck_len <= 1 and c != "ヒーリング": continue
-                                usable.append(c)
-                                
-                        # 中級CPU：能力を使えるなら70%の確率で発動する
-                        if usable and random.random() < 0.7:
-                            game.turn_step = "ABILITY"
-                        else:
+                        if cpu_lvl == "easy":
                             game.end_action("p2", "CPUはターンを終了しました。")
+                        else:
+                            counts = Counter(game.p2_hand)
+                            deck_len = len(game.deck)
+                            usable = []
+                            for c, cnt in counts.items():
+                                if cnt >= 2 and c != "カモフラージュ":
+                                    if deck_len <= 1 and c != "ヒーリング": continue
+                                    usable.append(c)
+                                    
+                            # 難易度による能力発動確率
+                            chance = 0.7 if cpu_lvl == "normal" else 0.95
+                            if usable and random.random() < chance:
+                                game.turn_step = "ABILITY"
+                            else:
+                                game.end_action("p2", "CPUはターンを終了しました。")
 
                     elif game.turn_step == "ABILITY":
                         counts = Counter(game.p2_hand)

@@ -55,7 +55,6 @@ def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_ga
         
         go_to_game()
 
-    # CPU戦の難易度別スタート処理
     def start_cpu_game(level, name_suffix):
         user_data["name"] = name_input.value
         user_data["room_id"] = f"cpu_room_{int(time.time())}"
@@ -79,9 +78,9 @@ def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_ga
     def on_cpu_hard(e): start_cpu_game("hard", "上級")
 
     join_btn = ft.Button("このあいことばで対戦部屋に入る 🚀", on_click=on_join_click, bgcolor="green", color="white", width=300, height=50)
-    cpu_easy_btn = ft.Button("1人プレイ（vs CPU 初級） 🔰", on_click=on_cpu_easy, bgcolor="cyan", color="black", width=300)
-    cpu_normal_btn = ft.Button("1人プレイ（vs CPU 中級） 🤖", on_click=on_cpu_normal, bgcolor="blue", color="white", width=300)
-    cpu_hard_btn = ft.Button("1人プレイ（vs CPU 上級） 👹", on_click=on_cpu_hard, bgcolor="purple", color="white", width=300)
+    cpu_easy_btn = ft.Button("１人プレイ（vs CPU 初級） 🔰", on_click=on_cpu_easy, bgcolor="cyan", color="black", width=300)
+    cpu_normal_btn = ft.Button("１人プレイ（vs CPU 中級） 🤖", on_click=on_cpu_normal, bgcolor="blue", color="white", width=300)
+    cpu_hard_btn = ft.Button("１人プレイ（vs CPU 上級） 👹", on_click=on_cpu_hard, bgcolor="purple", color="white", width=300)
     
     page.add(
         ft.Row([
@@ -178,7 +177,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 chips.append(
                     ft.Container(
                         content=ft.Text(show_name, color=color, weight="bold", size=10),
-                        padding=4, # ←★エラーの原因だった `ft.padding.symmetric` を削除し、安全な数値に修正しました
+                        padding=5,
                         bgcolor=bg, border_radius=4, left=idx * 6, top=idx * 6
                     )
                 )
@@ -203,7 +202,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 ft.Text(f"自分 ({len(my_groups)}組):", color="blue"), my_dis_display,
                 ft.Text(f"相手 ({len(op_groups)}組):", color="red"), op_dis_display,
                 ft.Divider(color="grey"),
-                ft.Text("【ゲーム外】最初に除外された3枚:", color="yellow", weight="bold"),
+                ft.Text("【ゲーム外】最初に除外された３枚:", color="yellow", weight="bold"),
                 ft.Row(excluded_ui, wrap=True)
             ]), padding=10, bgcolor="#111111"
         )
@@ -249,7 +248,26 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         return
 
                     if game.turn_step == "DISCARD":
-                        card = random.choice(game.p2_hand)
+                        # ★ご指摘の修正：上級AIのカモフラージュ保持戦略
+                        if cpu_lvl == "hard":
+                            counts = Counter(game.p2_hand)
+                            
+                            # カモフラージュが3枚以上ある場合は手札圧迫の原因になるため優先して捨てる
+                            if counts.get("カモフラージュ", 0) >= 3:
+                                card = "カモフラージュ"
+                            else:
+                                candidates = [c for c in game.p2_hand if c != "カモフラージュ"]
+                                if not candidates: 
+                                    candidates = game.p2_hand
+                                    
+                                # カモフラージュ以外のカードの中で、一番枚数が少ないものを特定する
+                                min_count = min(counts[c] for c in candidates)
+                                # パターン化を防ぐため、同率最下位のものからランダムで選ぶ
+                                min_candidates = [c for c in candidates if counts[c] == min_count]
+                                card = random.choice(min_candidates)
+                        else:
+                            card = random.choice(game.p2_hand)
+                            
                         game.p2_hand.remove(card)
                         face_down_count = sum(1 for g in game.p2_discard_groups for c in g if not c["is_face_up"])
                         game.p2_discard_groups.append([{"name": card, "is_face_up": (face_down_count >= 5), "owner": "p2"}])
@@ -273,7 +291,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                                     if deck_len <= 1 and c != "ヒーリング": continue
                                     usable.append(c)
                                     
-                            # 難易度による能力発動確率
                             chance = 0.7 if cpu_lvl == "normal" else 0.95
                             if usable and random.random() < chance:
                                 game.turn_step = "ABILITY"
@@ -341,7 +358,29 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                                 game.end_action("p2", f"CPUが「{ability_display}」を発動！追加ターンを得た")
 
                     elif game.turn_step == "TELEPORT_SELECTION":
-                        target_name = random.choice(game.types)
+                        if cpu_lvl == "hard":
+                            visible_counts = Counter()
+                            for c in game.p2_hand: visible_counts[c] += 1
+                            for g in game.p2_discard_groups:
+                                for c in g:
+                                    if c["is_face_up"]: visible_counts[c["name"]] += 1
+                            for g in game.p1_discard_groups:
+                                for c in g:
+                                    if c["is_face_up"]: visible_counts[c["name"]] += 1
+                            for c in game.excluded_cards:
+                                visible_counts[c] += 1
+                            
+                            best_target = game.types[0]
+                            max_invisible = -1
+                            for t in game.types:
+                                inv = 8 - visible_counts[t]
+                                if inv > max_invisible:
+                                    max_invisible = inv
+                                    best_target = t
+                            target_name = best_target
+                        else:
+                            target_name = random.choice(game.types)
+                            
                         removed_count = game.p1_hand.count(target_name)
                         my_needs = 6 - len(game.p2_hand)
                         op_needs = 6 - (len(game.p1_hand) - removed_count)
@@ -387,8 +426,24 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         game.end_action("p2", f"CPUが「サイコキネシス(念力)」であなたに裏向きのカードを押し付けた！")
 
                     elif game.turn_step == "REGEN_SELECTION":
-                        count = min(3, len(game.regen_pool))
-                        selected_indices = random.sample(range(len(game.regen_pool)), count)
+                        if cpu_lvl == "hard":
+                            my_hand_types = set(game.p2_hand)
+                            priority_items = []
+                            normal_items = []
+                            for i, item in enumerate(game.regen_pool):
+                                if item["name"] in my_hand_types or item["name"] == "カモフラージュ":
+                                    priority_items.append(i)
+                                else:
+                                    normal_items.append(i)
+                            random.shuffle(priority_items)
+                            random.shuffle(normal_items)
+                            candidates = priority_items + normal_items
+                            count = min(3, len(candidates))
+                            selected_indices = candidates[:count]
+                        else:
+                            count = min(3, len(game.regen_pool))
+                            selected_indices = random.sample(range(len(game.regen_pool)), count)
+                            
                         selected_items = [game.regen_pool[i] for i in selected_indices]
                         
                         def get_sort_key(item): return (item["g_idx"], item["item_idx"])
@@ -417,7 +472,18 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         game.end_action("p2", f"CPUが「クレヤボヤンス(千里眼)」であなたのカードを透視した！")
 
                     elif game.turn_step == "PRESCIENCE_SELECT_1":
-                        c = random.choice(game.prescience_cards)
+                        if cpu_lvl == "hard":
+                            my_hand_types = set(game.p2_hand)
+                            best_c = None
+                            for c in game.prescience_cards:
+                                if c in my_hand_types or c == "カモフラージュ":
+                                    best_c = c
+                                    break
+                            if not best_c: best_c = game.prescience_cards[0]
+                            c = best_c
+                        else:
+                            c = random.choice(game.prescience_cards)
+                            
                         game.prescience_ordered.append(c)
                         game.prescience_cards.remove(c)
                         if len(game.prescience_ordered) < 2 and game.prescience_cards:
@@ -431,7 +497,18 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                             game.end_action("p2", f"CPUが「プリサイエンス(未来予知)」を発動し、未来を覗き見た！")
 
                     elif game.turn_step == "PRESCIENCE_SELECT_2":
-                        c = random.choice(game.prescience_cards)
+                        if cpu_lvl == "hard":
+                            my_hand_types = set(game.p2_hand)
+                            best_c = None
+                            for c in game.prescience_cards:
+                                if c in my_hand_types or c == "カモフラージュ":
+                                    best_c = c
+                                    break
+                            if not best_c: best_c = game.prescience_cards[0]
+                            c = best_c
+                        else:
+                            c = random.choice(game.prescience_cards)
+                            
                         game.prescience_ordered.append(c)
                         game.prescience_cards.remove(c)
                         game.p2_hand.extend(game.prescience_ordered)
@@ -539,7 +616,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 elif ability_name == "サイコキネシス":
                     if true_op_hand:
                         game.turn_step = "PSY_DISCARD_SELECTION"
-                        game.log_message = f"「{ability_display}」発動！捨てる相手の伏せカードを選んでください。"
+                        game.log_message = f"「{ability_display}」発発動！捨てる相手の伏せカードを選んでください。"
                     else:
                         game.end_action(my_role, f"「{ability_display}」発動！しかし相手の手札は空だった")
                 elif ability_name == "ヒーリング":

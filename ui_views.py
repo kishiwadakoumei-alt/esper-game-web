@@ -55,12 +55,36 @@ def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_ga
         
         go_to_game()
 
+    # CPU戦用の参加ロジック
+    def on_cpu_click(e):
+        user_data["name"] = name_input.value
+        user_data["room_id"] = f"cpu_room_{int(time.time())}"
+        user_data["has_left"] = False
+        
+        GAME_ROOMS[user_data["room_id"]] = EsperGame()
+        game = GAME_ROOMS[user_data["room_id"]]
+        game.is_cpu = True
+        
+        user_data["role"] = "p1"
+        game.players.append(user_data["name"])
+        game.players.append("CPU（初級）")
+        
+        game.turn_step = "DECIDING_TURN"
+        game.timer_started = False
+        go_to_game()
+
     join_btn = ft.Button("このあいことばで対戦部屋に入る 🚀", on_click=on_join_click, bgcolor="green", color="white", width=300, height=50)
+    cpu_btn = ft.Button("1人プレイ（vs CPU 初級） 🤖", on_click=on_cpu_click, bgcolor="purple", color="white", width=300, height=50)
+    
     page.add(
         ft.Row([
             ft.Column([
                 ft.Container(height=50), title_text, ft.Container(height=20),
-                name_input, room_input, ft.Container(height=10), join_btn
+                name_input, 
+                ft.Divider(color="grey"),
+                room_input, join_btn,
+                ft.Divider(color="grey"),
+                cpu_btn
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
         ], alignment=ft.MainAxisAlignment.CENTER)
     )
@@ -85,7 +109,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
     def sync():
         page.pubsub.send_all_on_topic(user_data["room_id"], "update")
 
-    if len(game.players) == 2 and game.turn_step in ["DISCARD", "DECIDING_TURN"]:
+    if len(game.players) == 2 and game.turn_step in ["DISCARD", "DECIDING_TURN", "DRAW", "THINK"]:
         sync()
 
     room_info = ft.Container(
@@ -103,13 +127,13 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
         controls=[
             ft.Container(
                 content=ft.Column([
-                    ft.Text("• クレヤボヤンス(千里眼)：相手の手札または相手の場にある裏向きのカードの中から二枚選び見る。", color="white"),
+                    ft.Text("• クレヤボヤンス(千里眼)：相手の手札または相手の場にある裏向きのカードの中から２枚選び見る。", color="white"),
                     ft.Text("• タイムリープ(時間移動)：このターンの後にもう１度自分のターンを行う。そのターン中も能力は使える。", color="white"),
                     ft.Text("• サイコキネシス(念力)：相手の手札を１枚選び表向きで捨てさせ相手の裏向きのカードから１枚選び手札に戻す。ただし、重なっているカードは手札に戻せない。", color="white"),
                     ft.Text("• プリサイエンス(未来予知)：山札の上から３枚みて好きな順番に変えて戻す。", color="white"),
-                    ft.Text("• テレポート(瞬間移動)：好きな能力を1つ宣言する。相手は手札にあるその能力のカードをすべて捨てる。", color="white"),
-                    ft.Text("• ヒーリング(再生)：場にあるカードを3枚まで選び、山札に加えてシャッフルする。このとき裏向きのカードも選べる。", color="white"),
-                    ft.Text("• カモフラージュ(擬態)：このターン中のみ好きなカード1枚として使える。そのカードで更に能力を発動でき、エスパー宣言もできる。", color="white"),
+                    ft.Text("• テレポート(瞬間移動)：好きな能力を１つ宣言する。相手は手札にあるその能力のカードをすべて捨てる。", color="white"),
+                    ft.Text("• ヒーリング(再生)：場にあるカードを３枚まで選び、山札に加えてシャッフルする。このとき裏向きのカードも選べる。", color="white"),
+                    ft.Text("• カモフラージュ(擬態)：このターン中のみ好きなカード１枚として使える。そのカードで更に能力を発動でき、エスパー宣言もできる。", color="white"),
                 ]), padding=10
             )
         ]
@@ -143,10 +167,11 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 chips.append(
                     ft.Container(
                         content=ft.Text(show_name, color=color, weight="bold", size=10),
-                        padding=5, bgcolor=bg, border_radius=5, left=idx * 5, top=idx * 5
+                        padding=ft.padding.symmetric(horizontal=6, vertical=4),
+                        bgcolor=bg, border_radius=4, left=idx * 6, top=idx * 6
                     )
                 )
-            return ft.Stack(chips, width=60 + (len(group) * 5), height=50 + (len(group) * 5))
+            return ft.Stack(chips, width=80 + (len(group) * 6), height=40 + (len(group) * 6))
 
         my_groups = game.get_discard_groups(user_data["role"])
         op_groups = game.get_discard_groups(game.get_op_role(user_data["role"]))
@@ -185,7 +210,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             page.controls.append(
                 ft.Container(
                     content=ft.Column([
-                        ft.Text("対戦相手が退出したため、部屋が解散されました。", color="red", size=20, weight="bold"),
+                        ft.Text("対戦が終了し、部屋が解散されました。", color="red", size=20, weight="bold"),
                         ft.Container(height=20),
                         ft.Button("タイトル画面に戻る", on_click=on_return_title, bgcolor="blue", color="white", width=300, height=50)
                     ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
@@ -194,6 +219,33 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             )
             page.update()
             return
+
+        # ==========================================
+        # CPU（初級）の自動行動ロジック
+        # ==========================================
+        if getattr(game, "is_cpu", False) and game.current_turn == "p2" and game.turn_step in ["DISCARD", "DRAW", "THINK"]:
+            if not getattr(game, "cpu_acting", False):
+                game.cpu_acting = True
+                def run_cpu():
+                    time.sleep(1.5) # 人間らしさを出すための待機
+                    if game.turn_step == "DISCARD":
+                        card = random.choice(game.p2_hand)
+                        game.p2_hand.remove(card)
+                        face_down_count = sum(1 for g in game.p2_discard_groups for c in g if not c["is_face_up"])
+                        game.p2_discard_groups.append([{"name": card, "is_face_up": (face_down_count >= 5), "owner": "p2"}])
+                        game.add_log("p2", f"CPU（初級）がカードを捨てました。")
+                        game.turn_step = "DRAW"
+                    elif game.turn_step == "DRAW":
+                        game.fill_hand_to_6("p2")
+                        game.add_log("p2", f"CPU（初級）が手札を補充しました。")
+                        game.turn_step = "THINK"
+                    elif game.turn_step == "THINK":
+                        game.end_action("p2", "CPU（初級）は能力を使わずにターンを終了しました。")
+                    
+                    game.cpu_acting = False
+                    sync()
+                
+                threading.Thread(target=run_cpu).start()
             
         new_controls = [room_info, help_panel]
         
@@ -247,9 +299,17 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             new_controls.append(ft.Text("【公開された相手の手札】", color="red", weight="bold"))
             op_hand_row = ft.Row(wrap=True)
             for card in display_op_hand:
-                # ★修正: 文字サイズを小さくし、パディングを狭めて枠内に収める
-                op_hand_row.controls.append(ft.ElevatedButton(card, disabled=True, bgcolor="#FFCDD2", color="black", style=ft.ButtonStyle(padding=5, text_style=ft.TextStyle(size=12))))
+                op_hand_row.controls.append(
+                    ft.Container(
+                        content=ft.Text(card, size=12, weight="bold", color="black"),
+                        bgcolor="#FFCDD2", padding=ft.padding.symmetric(horizontal=12, vertical=8), border_radius=5
+                    )
+                )
             new_controls.append(op_hand_row)
+            
+            # CPU戦なら、CPUは常に再戦を承諾する
+            if getattr(game, "is_cpu", False):
+                game.rematch_requests.add("p2")
             
         is_my_turn = (game.current_turn == my_role)
         
@@ -258,14 +318,18 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 game.add_log(my_role, f"🎉【決着】{my_name} が「エスパー！」を宣言しました！")
                 game.turn_step = "GAME_CLEAR"
                 sync()
-            new_controls.append(ft.Button("🌟 エスパー宣言！ (同種5枚達成) 🌟", on_click=on_esper_declare, bgcolor="orange", color="black", width=400, height=50))
+            new_controls.append(ft.Button("🌟 エスパー宣言！ (同種５枚達成) 🌟", on_click=on_esper_declare, bgcolor="orange", color="black", width=400, height=50))
 
         if not is_my_turn and game.turn_step not in ["GAME_CLEAR", "GAME_OVER"]:
             new_controls.append(ft.Text("⏳ 相手の操作を待っています...", color="grey", size=18))
             hand_row = ft.Row(wrap=True)
             for card in display_my_hand:
-                # ★修正: 手札ボタンも同様に調整
-                hand_row.controls.append(ft.ElevatedButton(card, disabled=True, bgcolor="#CFD8DC", color="black", style=ft.ButtonStyle(padding=5, text_style=ft.TextStyle(size=12))))
+                hand_row.controls.append(
+                    ft.Container(
+                        content=ft.Text(card, size=12, weight="bold", color="black"),
+                        bgcolor="#CFD8DC", padding=ft.padding.symmetric(horizontal=12, vertical=8), border_radius=5
+                    )
+                )
             new_controls.append(hand_row)
 
         else:
@@ -328,7 +392,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 new_controls.append(ft.Text(f"ログ: {game.log_message}", color="green", size=16))
 
             if game.turn_step == "DISCARD":
-                new_controls.append(ft.Text("【手札】 1枚選んで捨ててください", color="yellow"))
+                new_controls.append(ft.Text("【手札】 １枚選んで捨ててください", color="yellow"))
             elif game.turn_step == "DRAW":
                 new_controls.append(ft.Text("【手札】 (現在は確認のみ・クリック不可)", color="grey"))
             elif game.turn_step in ["GAME_CLEAR", "GAME_OVER"]:
@@ -350,14 +414,21 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         
                         my_discard_groups.append([{"name": target_card, "is_face_up": is_face_up, "owner": my_role}])
                         
-                        game.log_message = f"{my_name} がカードを1枚捨てました。山札から補充してください。"
+                        game.log_message = f"{my_name} がカードを１枚捨てました。山札から補充してください。"
                         game.turn_step = "DRAW"
                         sync()
                     return on_click
 
                 bg_color = "white" if game.turn_step == "DISCARD" else "#CFD8DC"
-                # ★修正: 自分の手札ボタンの文字サイズとパディングを調整
-                hand_row.controls.append(ft.ElevatedButton(card, on_click=make_on_click(card), color="black", bgcolor=bg_color, style=ft.ButtonStyle(padding=5, text_style=ft.TextStyle(size=12))))
+                # ボタンではなく、自由にサイズ指定できるContainerに変更してはみ出しを防止
+                hand_row.controls.append(
+                    ft.Container(
+                        content=ft.Text(card, size=12, weight="bold", color="black"),
+                        bgcolor=bg_color, padding=ft.padding.symmetric(horizontal=12, vertical=8),
+                        border_radius=5, ink=True,
+                        on_click=make_on_click(card) if game.turn_step == "DISCARD" else None
+                    )
+                )
             new_controls.append(hand_row)
 
             if game.turn_step == "DRAW":
@@ -368,7 +439,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                     sync()
                 new_controls.append(ft.Container(
                     content=ft.Column([
-                        ft.Text("【補充】山札からカードを1枚引いてください", color="white", weight="bold"),
+                        ft.Text("【補充】山札からカードを１枚引いてください", color="white", weight="bold"),
                         ft.Button("山札から引く", on_click=on_draw, bgcolor="blue", color="white")
                     ]), padding=15, bgcolor="#224422", border_radius=5
                 ))
@@ -412,10 +483,10 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                     
                     is_disabled = False
                     ab_display = NAME_MAP.get(ability, ability)
-                    btn_text = f"【発動】{ab_display} (2枚)"
+                    btn_text = f"【発動】{ab_display} (２枚)"
                     if deck_len <= 1 and ability != "ヒーリング":
                         is_disabled = True
-                        btn_text += " ⚠️山札1枚以下のため不可"
+                        btn_text += " ⚠️山札１枚以下のため不可"
                     decision_nodes.append(ft.Button(btn_text, on_click=make_on_click(ability), disabled=is_disabled))
                 
                 if counts.get("カモフラージュ", 0) >= 2:
@@ -426,8 +497,8 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                             sync()
                         can_mimic = (deck_len >= 3) or ("ヒーリング" in other_cards)
                         is_mimic_disabled = not can_mimic
-                        mimic_text = "【発動】カモフラージュ(擬態) (2枚+1枚)"
-                        if is_mimic_disabled: mimic_text += " ⚠️山札2枚以下のため不可"
+                        mimic_text = "【発動】カモフラージュ(擬態) (２枚+１枚)"
+                        if is_mimic_disabled: mimic_text += " ⚠️山札２枚以下のため不可"
                         elif deck_len <= 2: mimic_text += " (ヒーリングのみ可能)"
                         decision_nodes.append(ft.Button(mimic_text, on_click=on_mimic_start_click, disabled=is_mimic_disabled))
                 
@@ -468,7 +539,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 mimic_nodes.append(ft.Button("キャンセル", on_click=on_cancel_mimic))
                 
                 new_controls.append(ft.Container(
-                    content=ft.Column([ft.Text("カモフラージュ2枚と一緒に捨てる手札：", color="white"), ft.Row(mimic_nodes, wrap=True)]),
+                    content=ft.Column([ft.Text("カモフラージュ２枚と一緒に捨てる手札：", color="white"), ft.Row(mimic_nodes, wrap=True)]),
                     padding=15, bgcolor="#442222", border_radius=5
                 ))
 
@@ -643,7 +714,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
 
                 new_controls.append(ft.Container(
                     content=ft.Column([
-                        ft.Text(f"【クレヤボヤンス(千里眼)】中身を見たいカードを最大2枚まで選んでください (現在: {len(game.temp_selection)}枚選択中)", color="white", weight="bold"),
+                        ft.Text(f"【クレヤボヤンス(千里眼)】中身を見たいカードを最大２枚まで選んでください (現在: {len(game.temp_selection)}枚選択中)", color="white", weight="bold"),
                         ft.Row(clair_nodes, wrap=True),
                         ft.Button("選択完了", on_click=on_confirm_clair, bgcolor="blue", color="white")
                     ]), padding=15, bgcolor="#222266", border_radius=5
@@ -724,7 +795,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                     
                 new_controls.append(ft.Container(
                     content=ft.Column([
-                        ft.Text("【プリサイエンス(未来予知) 2/2】山札の2枚目にしたいカードを選んでください：", color="white", weight="bold"),
+                        ft.Text("【プリサイエンス(未来予知) 2/2】山札の２枚目にしたいカードを選んでください：", color="white", weight="bold"),
                         ft.Row(nodes, wrap=True)
                     ]), padding=15, bgcolor="#666622", border_radius=5
                 ))

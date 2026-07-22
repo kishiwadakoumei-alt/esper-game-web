@@ -6,7 +6,6 @@ from datetime import datetime
 
 class EsperGame:
     def __init__(self):
-        # カードの基本名（カタカナ）
         self.types = ["クレヤボヤンス", "タイムリープ", "サイコキネシス", "プリサイエンス", "テレポート", "ヒーリング", "カモフラージュ"]
         self.deck = [c for c in self.types for _ in range(8)]
         random.shuffle(self.deck)
@@ -31,6 +30,10 @@ class EsperGame:
         self.rematch_requests = set()
         self.extra_turn = False
         
+        # CPU戦用のフラグ
+        self.is_cpu = False
+        self.cpu_acting = False
+        
         self.current_turn = "p1"
         self.turn_step = "WAITING"
         self.log_message = "対戦相手の入室を待っています..."
@@ -44,7 +47,6 @@ class EsperGame:
 
     def check_esper(self, hand):
         counts = Counter(hand)
-        # カモフラージュ（旧：擬態）をワイルドカードとして判定
         mimic_count = counts.get("カモフラージュ", 0)
         if mimic_count >= 5: return True
         wildcard_count = mimic_count // 2 
@@ -108,9 +110,9 @@ class EsperGame:
         if p1_esper and p2_esper:
             self.add_log(None, msg + f" なんとお互いにESPER達成（{p1_set_str} 対 {p2_set_str}）のため、完全引き分け！⚖️")
         elif p1_esper:
-            self.add_log(None, msg + f" 🌟【ESPER達成】{p1_name} が同種5枚を揃えていたため、{p1_name} の大勝利！🎉")
+            self.add_log(None, msg + f" 🌟【ESPER達成】{p1_name} が同種５枚を揃えていたため、{p1_name} の大勝利！🎉")
         elif p2_esper:
-            self.add_log(None, msg + f" 🌟【ESPER達成】{p2_name} が同種5枚を揃えていたため、{p2_name} の大勝利！🎉")
+            self.add_log(None, msg + f" 🌟【ESPER達成】{p2_name} が同種５枚を揃えていたため、{p2_name} の大勝利！🎉")
         else:
             if p1_sorted_counts > p2_sorted_counts:
                 self.add_log(None, msg + f" 構成（{p1_set_str} 対 {p2_set_str}）により、{p1_name} の勝利！🎉")
@@ -166,3 +168,4 @@ class EsperGame:
         
         self.turn_step = "DECIDING_TURN"
         self.timer_started = False
+        self.cpu_acting = False

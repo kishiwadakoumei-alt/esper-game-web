@@ -55,7 +55,6 @@ def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_ga
         
         go_to_game()
 
-    # CPU戦用の参加ロジック
     def on_cpu_click(e):
         user_data["name"] = name_input.value
         user_data["room_id"] = f"cpu_room_{int(time.time())}"
@@ -167,7 +166,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 chips.append(
                     ft.Container(
                         content=ft.Text(show_name, color=color, weight="bold", size=10),
-                        padding=ft.padding.symmetric(horizontal=6, vertical=4),
+                        padding=5,
                         bgcolor=bg, border_radius=4, left=idx * 6, top=idx * 6
                     )
                 )
@@ -220,14 +219,11 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             page.update()
             return
 
-        # ==========================================
-        # CPU（初級）の自動行動ロジック
-        # ==========================================
         if getattr(game, "is_cpu", False) and game.current_turn == "p2" and game.turn_step in ["DISCARD", "DRAW", "THINK"]:
             if not getattr(game, "cpu_acting", False):
                 game.cpu_acting = True
                 def run_cpu():
-                    time.sleep(1.5) # 人間らしさを出すための待機
+                    time.sleep(1.5)
                     if game.turn_step == "DISCARD":
                         card = random.choice(game.p2_hand)
                         game.p2_hand.remove(card)
@@ -302,12 +298,11 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 op_hand_row.controls.append(
                     ft.Container(
                         content=ft.Text(card, size=12, weight="bold", color="black"),
-                        bgcolor="#FFCDD2", padding=ft.padding.symmetric(horizontal=12, vertical=8), border_radius=5
+                        bgcolor="#FFCDD2", padding=5, border_radius=5
                     )
                 )
             new_controls.append(op_hand_row)
             
-            # CPU戦なら、CPUは常に再戦を承諾する
             if getattr(game, "is_cpu", False):
                 game.rematch_requests.add("p2")
             
@@ -327,7 +322,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 hand_row.controls.append(
                     ft.Container(
                         content=ft.Text(card, size=12, weight="bold", color="black"),
-                        bgcolor="#CFD8DC", padding=ft.padding.symmetric(horizontal=12, vertical=8), border_radius=5
+                        bgcolor="#CFD8DC", padding=5, border_radius=5
                     )
                 )
             new_controls.append(hand_row)
@@ -420,11 +415,10 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                     return on_click
 
                 bg_color = "white" if game.turn_step == "DISCARD" else "#CFD8DC"
-                # ボタンではなく、自由にサイズ指定できるContainerに変更してはみ出しを防止
                 hand_row.controls.append(
                     ft.Container(
                         content=ft.Text(card, size=12, weight="bold", color="black"),
-                        bgcolor=bg_color, padding=ft.padding.symmetric(horizontal=12, vertical=8),
+                        bgcolor=bg_color, padding=5,
                         border_radius=5, ink=True,
                         on_click=make_on_click(card) if game.turn_step == "DISCARD" else None
                     )

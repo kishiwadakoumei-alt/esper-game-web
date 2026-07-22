@@ -66,14 +66,14 @@ def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_ga
         
         user_data["role"] = "p1"
         game.players.append(user_data["name"])
-        game.players.append("CPU（初級）")
+        game.players.append("CPU（中級）")
         
         game.turn_step = "DECIDING_TURN"
         game.timer_started = False
         go_to_game()
 
     join_btn = ft.Button("このあいことばで対戦部屋に入る 🚀", on_click=on_join_click, bgcolor="green", color="white", width=300, height=50)
-    cpu_btn = ft.Button("1人プレイ（vs CPU 初級） 🤖", on_click=on_cpu_click, bgcolor="purple", color="white", width=300, height=50)
+    cpu_btn = ft.Button("1人プレイ（vs CPU 中級） 🤖", on_click=on_cpu_click, bgcolor="purple", color="white", width=300, height=50)
     
     page.add(
         ft.Row([
@@ -108,7 +108,13 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
     def sync():
         page.pubsub.send_all_on_topic(user_data["room_id"], "update")
 
-    if len(game.players) == 2 and game.turn_step in ["DISCARD", "DECIDING_TURN", "DRAW", "THINK"]:
+    # ----- 画面同期とCPU用状態のチェック -----
+    cpu_active_steps = [
+        "DISCARD", "DRAW", "THINK", "ABILITY", "TELEPORT_SELECTION",
+        "PSY_DISCARD_SELECTION", "PSY_PUSH_SELECTION", "REGEN_SELECTION",
+        "CLAIR_SELECTION", "CLAIR_REVEAL", "PRESCIENCE_SELECT_1", "PRESCIENCE_SELECT_2"
+    ]
+    if len(game.players) == 2 and game.turn_step in ["DECIDING_TURN"] + cpu_active_steps:
         sync()
 
     room_info = ft.Container(
@@ -141,7 +147,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
     def get_log_ui():
         latest_text = game.log_message if hasattr(game, "log_message") else ""
         history_controls = []
-        
         for log in getattr(game, "log_history", [])[::-1]:
             text_color = "cyan" if log["role"] == "p1" else ("pink" if log["role"] == "p2" else "yellow")
             history_controls.append(ft.Text(f"[{log['time']}] {log['icon']} {log['name']}: {log['text']}", color=text_color, size=14))
@@ -166,7 +171,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 chips.append(
                     ft.Container(
                         content=ft.Text(show_name, color=color, weight="bold", size=10),
-                        padding=5,
+                        padding=ft.padding.symmetric(horizontal=6, vertical=4),
                         bgcolor=bg, border_radius=4, left=idx * 6, top=idx * 6
                     )
                 )
@@ -219,25 +224,213 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             page.update()
             return
 
-        if getattr(game, "is_cpu", False) and game.current_turn == "p2" and game.turn_step in ["DISCARD", "DRAW", "THINK"]:
+        # ==========================================
+        # CPU（中級）の自動行動ロジック（能力発動対応）
+        # ==========================================
+        if getattr(game, "is_cpu", False) and game.current_turn == "p2" and game.turn_step in cpu_active_steps:
             if not getattr(game, "cpu_acting", False):
                 game.cpu_acting = True
                 def run_cpu():
-                    time.sleep(1.5)
+                    time.sleep(1.0) # プレイヤーがログを読みやすい適度な待機時間
+
+                    # エスパー達成チェック（CPUが勝利条件を満たした場合）
+                    if game.turn_step not in ["GAME_CLEAR", "GAME_OVER"] and game.check_esper(game.p2_hand):
+                        game.add_log("p2", f"🎉【決着】CPU が「エスパー！」を宣言しました！")
+                        game.turn_step = "GAME_CLEAR"
+                        game.cpu_acting = False
+                        sync()
+                        return
+
                     if game.turn_step == "DISCARD":
                         card = random.choice(game.p2_hand)
                         game.p2_hand.remove(card)
                         face_down_count = sum(1 for g in game.p2_discard_groups for c in g if not c["is_face_up"])
                         game.p2_discard_groups.append([{"name": card, "is_face_up": (face_down_count >= 5), "owner": "p2"}])
-                        game.add_log("p2", f"CPU（初級）がカードを捨てました。")
+                        game.add_log("p2", f"CPUがカードを１枚捨てました。")
                         game.turn_step = "DRAW"
+
                     elif game.turn_step == "DRAW":
                         game.fill_hand_to_6("p2")
-                        game.add_log("p2", f"CPU（初級）が手札を補充しました。")
+                        game.add_log("p2", f"CPUが手札を補充しました。")
                         game.turn_step = "THINK"
+
                     elif game.turn_step == "THINK":
-                        game.end_action("p2", "CPU（初級）は能力を使わずにターンを終了しました。")
-                    
+                        counts = Counter(game.p2_hand)
+                        deck_len = len(game.deck)
+                        usable = []
+                        for c, cnt in counts.items():
+                            # 山札1枚以下なら再生(ヒーリング)以外は使えないルールをCPUにも適用
+                            if cnt >= 2 and c != "カモフラージュ":
+                                if deck_len <= 1 and c != "ヒーリング": continue
+                                usable.append(c)
+                                
+                        # 中級CPU：能力を使えるなら70%の確率で発動する
+                        if usable and random.random() < 0.7:
+                            game.turn_step = "ABILITY"
+                        else:
+                            game.end_action("p2", "CPUはターンを終了しました。")
+
+                    elif game.turn_step == "ABILITY":
+                        counts = Counter(game.p2_hand)
+                        usable = [c for c, cnt in counts.items() if cnt >= 2 and c != "カモフラージュ"]
+                        if usable:
+                            ab = random.choice(usable)
+                            game.p2_hand.remove(ab)
+                            game.p2_hand.remove(ab)
+                            game.p2_discard_groups.append([{"name": ab, "is_face_up": True, "owner": "p2"}, {"name": ab, "is_face_up": True, "owner": "p2"}])
+                            
+                            ability_display = NAME_MAP.get(ab, ab)
+                            if ab == "テレポート":
+                                game.turn_step = "TELEPORT_SELECTION"
+                            elif ab == "サイコキネシス":
+                                if game.p1_hand:
+                                    game.turn_step = "PSY_DISCARD_SELECTION"
+                                    game.log_message = f"CPUが「{ability_display}」を発動！"
+                                else:
+                                    game.end_action("p2", f"CPUが「{ability_display}」を発動！しかし相手の手札は空だった")
+                            elif ab == "ヒーリング":
+                                flat_p1 = game.get_flat_discard("p1")
+                                flat_p2 = game.get_flat_discard("p2")
+                                if not flat_p1 and not flat_p2:
+                                    game.end_action("p2", f"CPUが「{ability_display}」を発動！しかし捨て札がなかった")
+                                else:
+                                    game.turn_step = "REGEN_SELECTION"
+                                    game.temp_selection = []
+                                    game.regen_pool = []
+                                    for g_idx, group in enumerate(game.p1_discard_groups):
+                                        for item_idx, c in enumerate(group):
+                                            game.regen_pool.append({"owner": "p1", "g_idx": g_idx, "item_idx": item_idx, "name": c["name"], "is_face_up": c["is_face_up"]})
+                                    for g_idx, group in enumerate(game.p2_discard_groups):
+                                        for item_idx, c in enumerate(group):
+                                            game.regen_pool.append({"owner": "p2", "g_idx": g_idx, "item_idx": item_idx, "name": c["name"], "is_face_up": c["is_face_up"]})
+                                    game.log_message = f"CPUが「{ability_display}」を発動！"
+                            elif ab == "クレヤボヤンス":
+                                game.turn_step = "CLAIR_SELECTION"
+                                game.temp_selection = []
+                                game.clair_pool = []
+                                for idx, c in enumerate(game.p1_hand):
+                                    game.clair_pool.append({"type": "hand", "idx": idx, "name": c, "label": f"あなたの伏せ手札"})
+                                for g_idx, group in enumerate(game.p1_discard_groups):
+                                    if not group[0]["is_face_up"]:
+                                        game.clair_pool.append({"type": "discard", "g_idx": g_idx, "name": group[0]["name"], "label": f"あなたの裏向き捨て札"})
+                                if not game.clair_pool:
+                                    game.end_action("p2", f"CPUが「{ability_display}」を発動！しかし対象になるカードがなかった")
+                                else:
+                                    game.log_message = f"CPUが「{ability_display}」を発動！"
+                            elif ab == "プリサイエンス":
+                                count = min(3, len(game.deck))
+                                if count == 0:
+                                    game.end_action("p2", f"CPUが「{ability_display}」を発動！しかし山札が空だった")
+                                else:
+                                    game.prescience_cards = [game.deck.pop() for _ in range(count)]
+                                    game.prescience_ordered = []
+                                    game.turn_step = "PRESCIENCE_SELECT_1"
+                            elif ab == "タイムリープ":
+                                game.extra_turn = True
+                                game.fill_hand_to_6("p2")
+                                game.end_action("p2", f"CPUが「{ability_display}」を発動！追加ターンを得た")
+
+                    elif game.turn_step == "TELEPORT_SELECTION":
+                        target_name = random.choice(game.types)
+                        removed_count = game.p1_hand.count(target_name)
+                        my_needs = 6 - len(game.p2_hand)
+                        op_needs = 6 - (len(game.p1_hand) - removed_count)
+                        
+                        if (my_needs + op_needs) > len(game.deck):
+                            game.trigger_draw(f"補充に必要な山札が足りなくなりました")
+                        else:
+                            for _ in range(removed_count):
+                                game.p1_hand.remove(target_name)
+                            if removed_count > 0:
+                                game.p1_discard_groups.append([{"name": target_name, "is_face_up": True, "owner": "p1"} for _ in range(removed_count)])
+                            for _ in range(op_needs):
+                                if game.deck: game.p1_hand.append(game.deck.pop())
+                            game.fill_hand_to_6("p2")
+                            
+                            t_display = NAME_MAP.get(target_name, target_name)
+                            game.end_action("p2", f"CPUが「テレポート(瞬間移動)」発動！【{t_display}】を宣言し、あなたから {removed_count} 枚捨てさせた！")
+
+                    elif game.turn_step == "PSY_DISCARD_SELECTION":
+                        target_card = random.choice(game.p1_hand)
+                        game.p1_hand.remove(target_card)
+                        game.p1_discard_groups.append([{"name": target_card, "is_face_up": True, "owner": "p1"}])
+                        
+                        face_down_discards = [item for group in game.p1_discard_groups if len(group) == 1 for item in group if not item["is_face_up"]]
+                        if not face_down_discards:
+                            game.p1_discard_groups.pop() 
+                            game.p1_hand.append(target_card)
+                            game.fill_hand_to_6("p2")
+                            game.end_action("p2", f"CPUが「サイコキネシス(念力)」発動！しかし戻せる裏向きカードがないため手札に戻った")
+                        else:
+                            game.turn_step = "PSY_PUSH_SELECTION"
+
+                    elif game.turn_step == "PSY_PUSH_SELECTION":
+                        face_down_discards = []
+                        for g_idx, group in enumerate(game.p1_discard_groups):
+                            if len(group) == 1 and not group[0]["is_face_up"]:
+                                face_down_discards.append((g_idx, group[0]["name"]))
+                        
+                        t_g_idx, t_name = random.choice(face_down_discards)
+                        game.p1_discard_groups.pop(t_g_idx)
+                        game.p1_hand.append(t_name)
+                        game.fill_hand_to_6("p2")
+                        game.end_action("p2", f"CPUが「サイコキネシス(念力)」であなたに裏向きのカードを押し付けた！")
+
+                    elif game.turn_step == "REGEN_SELECTION":
+                        count = min(3, len(game.regen_pool))
+                        selected_indices = random.sample(range(len(game.regen_pool)), count)
+                        selected_items = [game.regen_pool[i] for i in selected_indices]
+                        
+                        def get_sort_key(item): return (item["g_idx"], item["item_idx"])
+                        p1_items = sorted([item for item in selected_items if item["owner"] == "p1"], key=get_sort_key, reverse=True)
+                        p2_items = sorted([item for item in selected_items if item["owner"] == "p2"], key=get_sort_key, reverse=True)
+                        
+                        for item in p1_items:
+                            game.deck.append(game.p1_discard_groups[item["g_idx"]].pop(item["item_idx"])["name"])
+                            if not game.p1_discard_groups[item["g_idx"]]: game.p1_discard_groups.pop(item["g_idx"])
+                        for item in p2_items:
+                            game.deck.append(game.p2_discard_groups[item["g_idx"]].pop(item["item_idx"])["name"])
+                            if not game.p2_discard_groups[item["g_idx"]]: game.p2_discard_groups.pop(item["g_idx"])
+                        
+                        random.shuffle(game.deck)
+                        game.fill_hand_to_6("p2")
+                        game.end_action("p2", f"CPUが「ヒーリング(再生)」で {count} 枚のカードを山札に戻した！")
+
+                    elif game.turn_step == "CLAIR_SELECTION":
+                        count = min(2, len(game.clair_pool))
+                        game.temp_selection = random.sample(range(len(game.clair_pool)), count)
+                        game.turn_step = "CLAIR_REVEAL"
+
+                    elif game.turn_step == "CLAIR_REVEAL":
+                        game.temp_selection = []
+                        game.fill_hand_to_6("p2")
+                        game.end_action("p2", f"CPUが「クレヤボヤンス(千里眼)」であなたのカードを透視した！")
+
+                    elif game.turn_step == "PRESCIENCE_SELECT_1":
+                        c = random.choice(game.prescience_cards)
+                        game.prescience_ordered.append(c)
+                        game.prescience_cards.remove(c)
+                        if len(game.prescience_ordered) < 2 and game.prescience_cards:
+                            game.turn_step = "PRESCIENCE_SELECT_2"
+                        else:
+                            game.p2_hand.extend(game.prescience_ordered)
+                            game.fill_hand_to_6("p2")
+                            game.deck.extend(game.prescience_cards)
+                            game.prescience_ordered = []
+                            game.prescience_cards = []
+                            game.end_action("p2", f"CPUが「プリサイエンス(未来予知)」を発動し、未来を覗き見た！")
+
+                    elif game.turn_step == "PRESCIENCE_SELECT_2":
+                        c = random.choice(game.prescience_cards)
+                        game.prescience_ordered.append(c)
+                        game.prescience_cards.remove(c)
+                        game.p2_hand.extend(game.prescience_ordered)
+                        game.fill_hand_to_6("p2")
+                        game.deck.extend(game.prescience_cards)
+                        game.prescience_ordered = []
+                        game.prescience_cards = []
+                        game.end_action("p2", f"CPUが「プリサイエンス(未来予知)」を発動し、未来を覗き見た！")
+
                     game.cpu_acting = False
                     sync()
                 

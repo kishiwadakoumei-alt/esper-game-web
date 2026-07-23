@@ -116,6 +116,24 @@ function confirmDiscard(card, index, onAction) {
   }
 }
 
+function confirmAbility(card, label, cardCount, onConfirm) {
+  const dialog = byId("ability-dialog");
+  byId("ability-dialog-name").textContent = label;
+  byId("ability-dialog-card-count").textContent = cardCount;
+  byId("ability-dialog-effect").textContent =
+    CARD_EFFECTS[card] || "この能力には説明がありません。";
+
+  byId("ability-cancel-button").onclick = () => dialog.close();
+  byId("ability-confirm-button").onclick = () => {
+    dialog.close();
+    onConfirm();
+  };
+
+  if (!dialog.open) {
+    dialog.showModal();
+  }
+}
+
 function renderHand(state, onAction) {
   const container = byId("my-hand");
   clear(container);
@@ -235,7 +253,14 @@ function renderActions(state, handlers) {
       addAction(
         list,
         `【発動】${ability.label}`,
-        () => handlers.action("activate_ability", { card: ability.card }),
+        () =>
+          confirmAbility(
+            ability.card,
+            ability.label,
+            "2枚（同名カード2枚）",
+            () =>
+              handlers.action("activate_ability", { card: ability.card }),
+          ),
         { kind: "secondary", disabled: ability.disabled },
       );
     });
@@ -243,7 +268,13 @@ function renderActions(state, handlers) {
       addAction(
         list,
         "【発動】カモフラージュ（擬態）",
-        () => handlers.action("open_mimic_selection"),
+        () =>
+          confirmAbility(
+            "カモフラージュ",
+            "カモフラージュ（擬態）",
+            "2枚（続けて能力カード1枚を選択）",
+            () => handlers.action("open_mimic_selection"),
+          ),
         { kind: "secondary" },
       );
     }
@@ -259,7 +290,14 @@ function renderActions(state, handlers) {
       addAction(
         list,
         `${target.label}として発動`,
-        () => handlers.action("activate_mimic", { card: target.card }),
+        () =>
+          confirmAbility(
+            target.card,
+            target.label,
+            `3枚（カモフラージュ2枚＋${target.card}1枚）`,
+            () =>
+              handlers.action("activate_mimic", { card: target.card }),
+          ),
         { kind: "secondary", disabled: target.disabled },
       );
     });
@@ -474,6 +512,13 @@ export function renderGame(state, handlers) {
     !state.available_actions.includes("discard_card")
   ) {
     discardDialog.close();
+  }
+  const abilityDialog = byId("ability-dialog");
+  if (
+    abilityDialog.open &&
+    !["ABILITY", "MIMIC_SELECTION"].includes(state.game.turn_step)
+  ) {
+    abilityDialog.close();
   }
   byId("room-player").textContent =
     `${state.viewer.name} / プレイヤー${state.viewer.role === "p1" ? "1" : "2"}`;

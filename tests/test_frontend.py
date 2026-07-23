@@ -76,6 +76,26 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("confirmDiscard(card, option.index, onAction)", renderer)
         self.assertIn("onAction(\"discard_card\", { index })", renderer)
 
+    def test_ability_confirmation_modal_shows_usage_before_action(self):
+        html = (FRONTEND_ROOT / "index.html").read_text()
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+        renderer = (
+            FRONTEND_ROOT / "static" / "js" / "render.js"
+        ).read_text()
+
+        self.assertIn("ability-dialog-name", html)
+        self.assertIn("ability-dialog-effect", html)
+        self.assertIn("ability-dialog-card-count", html)
+        self.assertIn("ability-cancel-button", html)
+        self.assertIn("ability-confirm-button", html)
+        self.assertIn(".ability-dialog", css)
+        self.assertIn("confirmAbility(", renderer)
+        self.assertIn("2枚（同名カード2枚）", renderer)
+        self.assertIn("3枚（カモフラージュ2枚＋", renderer)
+        self.assertIn("onConfirm();", renderer)
+
     def test_html_css_and_javascript_have_distinct_responsibilities(self):
         html = (FRONTEND_ROOT / "index.html").read_text()
         css = (

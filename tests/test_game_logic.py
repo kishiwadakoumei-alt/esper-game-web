@@ -191,6 +191,22 @@ class EsperGameTurnTests(unittest.TestCase):
         self.assertEqual(self.game.current_turn, "p1")
         self.assertEqual(self.game.turn_step, "DISCARD")
         self.assertFalse(self.game.extra_turn)
+        self.assertEqual(self.game.extra_turn_chain, 1)
+
+    def test_extra_turn_chain_increments_to_four_and_then_resets(self):
+        self.game.current_turn = "p1"
+
+        for expected_count in range(1, 5):
+            self.game.extra_turn = True
+            self.game.end_action("p1")
+
+            self.assertEqual(self.game.current_turn, "p1")
+            self.assertEqual(self.game.extra_turn_chain, expected_count)
+
+        self.game.end_action("p1")
+
+        self.assertEqual(self.game.current_turn, "p2")
+        self.assertEqual(self.game.extra_turn_chain, 0)
 
     def test_end_action_ends_game_when_deck_is_empty(self):
         self.game.deck = []
@@ -231,6 +247,7 @@ class EsperGameResetTests(unittest.TestCase):
         game.prescience_ordered = ["D"]
         game.rematch_requests = {"p1", "p2"}
         game.extra_turn = True
+        game.extra_turn_chain = 4
         game.cpu_acting = True
 
         with patch("game_logic.random.shuffle", side_effect=lambda cards: None):
@@ -240,6 +257,7 @@ class EsperGameResetTests(unittest.TestCase):
         self.assertFalse(game.timer_started)
         self.assertFalse(game.cpu_acting)
         self.assertFalse(game.extra_turn)
+        self.assertEqual(game.extra_turn_chain, 0)
         self.assertEqual(game.p1_discard_groups, [])
         self.assertEqual(game.p2_discard_groups, [])
         self.assertEqual(game.temp_selection, [])

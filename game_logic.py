@@ -29,6 +29,7 @@ class EsperGame:
         
         self.rematch_requests = set()
         self.extra_turn = False
+        self.extra_turn_chain = 0
         
         # CPU戦用のフラグ
         self.is_cpu = False
@@ -86,6 +87,8 @@ class EsperGame:
         self.log_message = msg
 
     def trigger_endgame(self, reason):
+        self.extra_turn = False
+        self.extra_turn_chain = 0
         self.turn_step = "GAME_OVER"
         p1_counts = Counter(self.p1_hand)
         p2_counts = Counter(self.p2_hand)
@@ -122,6 +125,8 @@ class EsperGame:
                 self.add_log(None, msg + f" 構成（お互い {p1_set_str}）が同じため、完全引き分け！⚖️")
 
     def trigger_draw(self, reason):
+        self.extra_turn = False
+        self.extra_turn_chain = 0
         self.turn_step = "GAME_OVER"
         self.add_log(None, f"⚖️【引き分け】{reason}⚖️")
 
@@ -139,8 +144,10 @@ class EsperGame:
         
         if self.extra_turn:
             self.extra_turn = False
+            self.extra_turn_chain += 1
             self.turn_step = "DISCARD"
         else:
+            self.extra_turn_chain = 0
             self.current_turn = self.get_op_role(current_role)
             self.turn_step = "DISCARD"
 
@@ -165,6 +172,7 @@ class EsperGame:
         
         self.rematch_requests = set()
         self.extra_turn = False
+        self.extra_turn_chain = 0
         
         self.turn_step = "DECIDING_TURN"
         self.timer_started = False

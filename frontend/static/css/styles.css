@@ -453,6 +453,106 @@ input:focus {
   color: var(--orange-soft);
 }
 
+.room-player-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.extra-turn-level-1 {
+  --extra-turn-color: #56d8e4;
+  --extra-turn-glow: rgba(86, 216, 228, 0.22);
+}
+
+.extra-turn-level-2 {
+  --extra-turn-color: #858cff;
+  --extra-turn-glow: rgba(133, 140, 255, 0.25);
+}
+
+.extra-turn-level-3 {
+  --extra-turn-color: #f472b6;
+  --extra-turn-glow: rgba(244, 114, 182, 0.26);
+}
+
+.extra-turn-level-4 {
+  --extra-turn-color: #ff7a45;
+  --extra-turn-glow: rgba(255, 122, 69, 0.3);
+}
+
+.extra-turn-badge {
+  padding: 5px 8px;
+  border: 1px solid var(--extra-turn-color);
+  border-radius: 999px;
+  color: var(--extra-turn-color);
+  background: var(--extra-turn-glow);
+  box-shadow: 0 0 16px var(--extra-turn-glow);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.extra-turn-overlay {
+  position: fixed;
+  z-index: 30;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: min(430px, calc(100% - 32px));
+  min-height: 250px;
+  padding: 32px;
+  place-content: center;
+  border: 1px solid var(--extra-turn-color);
+  border-radius: 8px;
+  color: var(--text);
+  text-align: center;
+  background:
+    radial-gradient(circle, var(--extra-turn-glow), transparent 64%),
+    rgba(8, 13, 25, 0.97);
+  box-shadow: 0 0 80px var(--extra-turn-glow), var(--shadow);
+  transform: translate(-50%, -50%);
+  animation: extra-turn-arrive 300ms ease-out;
+}
+
+.extra-turn-symbol {
+  color: var(--extra-turn-color);
+  font-size: 48px;
+  line-height: 1;
+  text-shadow: 0 0 25px var(--extra-turn-color);
+}
+
+.extra-turn-overlay p {
+  margin: 14px 0 5px;
+  color: var(--extra-turn-color);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.28em;
+}
+
+.extra-turn-overlay strong {
+  font-family: Georgia, "Yu Mincho", serif;
+  font-size: 30px;
+  font-weight: 500;
+}
+
+.extra-turn-overlay small {
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+@keyframes extra-turn-arrive {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -46%) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
 .phase-banner {
   min-height: 45px;
   margin-bottom: 14px;
@@ -461,6 +561,13 @@ input:focus {
   color: #c8d4e8;
   background: rgba(86, 216, 228, 0.07);
   font-size: 13px;
+}
+
+.phase-banner.extra-turn {
+  border-color: var(--extra-turn-color);
+  color: var(--text);
+  background: var(--extra-turn-glow);
+  box-shadow: inset 0 0 28px var(--extra-turn-glow);
 }
 
 .phase-banner.attention {

@@ -43,6 +43,8 @@ class GameService:
             role,
             f"🎉【決着】{player_name} が「エスパー！」を宣言しました！",
         )
+        game.extra_turn = False
+        game.extra_turn_chain = 0
         game.turn_step = "GAME_CLEAR"
 
     @staticmethod

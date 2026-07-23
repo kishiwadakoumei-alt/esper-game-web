@@ -40,6 +40,7 @@ class StateService:
                 "is_my_turn": game.current_turn == viewer_role,
                 "is_cpu": game.is_cpu,
                 "deck_count": len(game.deck),
+                "extra_turn_chain": game.extra_turn_chain,
                 "latest_log": game.log_message,
                 "finished": is_finished,
             },

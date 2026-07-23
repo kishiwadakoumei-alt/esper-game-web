@@ -46,6 +46,7 @@ def make_game() -> EsperGame:
 class StateServiceVisibilityTests(unittest.TestCase):
     def test_normal_state_hides_all_opponent_and_deck_secrets(self):
         game = make_game()
+        game.extra_turn_chain = 4
 
         state = StateService.build_public_state(
             game,
@@ -55,6 +56,7 @@ class StateServiceVisibilityTests(unittest.TestCase):
         encoded = json.dumps(state, ensure_ascii=False)
 
         self.assertEqual(state["room_id"], "room")
+        self.assertEqual(state["game"]["extra_turn_chain"], 4)
         self.assertEqual(state["opponent"]["hand_count"], 2)
         self.assertIsNone(state["opponent"]["hand"])
         self.assertEqual(state["excluded_cards"], [None, None, None])

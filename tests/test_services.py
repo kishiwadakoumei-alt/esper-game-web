@@ -114,6 +114,7 @@ class GameServiceTurnTests(unittest.TestCase):
 
         self.assertEqual(game.current_turn, "p1")
         self.assertEqual(game.turn_step, "DISCARD")
+        self.assertEqual(game.extra_turn_chain, 1)
         self.assertEqual(game.p1_hand, ["A", "B", "C", "D", "F", "E"])
         self.assertEqual(game.deck, ["REMAIN"])
         self.assertEqual(len(game.p1_discard_groups[-1]), 2)

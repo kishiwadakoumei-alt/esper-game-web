@@ -37,6 +37,8 @@ const CARD_EFFECTS = {
 };
 
 let prescienceOrder = [];
+let lastExtraTurnCount = 0;
+let extraTurnOverlayTimer = null;
 
 function byId(id) {
   return document.getElementById(id);
@@ -600,9 +602,59 @@ function renderChat(state) {
   list.scrollTop = list.scrollHeight;
 }
 
+function extraTurnLevel(count) {
+  return Math.min(Math.max(count, 1), 4);
+}
+
+function renderExtraTurnIndicators(state) {
+  const count = state.game.extra_turn_chain || 0;
+  const badge = byId("extra-turn-badge");
+  const overlay = byId("extra-turn-overlay");
+
+  if (count === 0) {
+    badge.hidden = true;
+    lastExtraTurnCount = 0;
+    return;
+  }
+
+  const levelClass = `extra-turn-level-${extraTurnLevel(count)}`;
+  badge.hidden = false;
+  badge.className = `extra-turn-badge ${levelClass}`;
+  badge.textContent = `EXTRA TURN ×${count}`;
+
+  if (count === lastExtraTurnCount) {
+    return;
+  }
+  lastExtraTurnCount = count;
+  window.clearTimeout(extraTurnOverlayTimer);
+  overlay.className = `extra-turn-overlay ${levelClass}`;
+  byId("extra-turn-overlay-title").textContent = state.game.is_my_turn
+    ? "追加ターンが始まります"
+    : `${state.opponent.name}の追加ターン`;
+  byId("extra-turn-overlay-count").textContent =
+    `TIME LEAP CHAIN ${count}`;
+  overlay.hidden = false;
+  extraTurnOverlayTimer = window.setTimeout(() => {
+    overlay.hidden = true;
+  }, 1600);
+}
+
 function renderPhase(state) {
   const banner = byId("phase-banner");
   const step = state.game.turn_step;
+  const extraTurnCount = state.game.extra_turn_chain || 0;
+  if (extraTurnCount > 0 && !state.game.finished) {
+    const owner = state.game.is_my_turn
+      ? `タイムリープによる${extraTurnCount}回目の追加ターン`
+      : `相手のタイムリープ追加ターン（${extraTurnCount}回目）`;
+    banner.textContent = `${owner} — ${PHASE_MESSAGES[step] || ""}`;
+    banner.className =
+      `phase-banner extra-turn extra-turn-level-${
+        extraTurnLevel(extraTurnCount)
+      }`;
+    return;
+  }
+
   const prefix =
     state.game.finished
       ? ""
@@ -707,6 +759,7 @@ export function renderGame(state, handlers) {
   byId("deck-count").textContent = state.game.deck_count;
   byId("deck-count-center").textContent = state.game.deck_count;
 
+  renderExtraTurnIndicators(state);
   renderPhase(state);
   const clairHighlights = clairvoyanceHighlights(state);
   const regenHighlights = healingHighlights(state);

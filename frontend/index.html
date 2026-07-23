@@ -99,7 +99,12 @@
         <header class="room-bar">
           <div>
             <p class="eyebrow">CURRENT SESSION</p>
-            <h1 id="room-player">プレイヤー</h1>
+            <div class="room-player-line">
+              <h1 id="room-player">プレイヤー</h1>
+              <span id="extra-turn-badge" class="extra-turn-badge" hidden>
+                EXTRA TURN
+              </span>
+            </div>
           </div>
           <div class="room-meta">
             <span id="connection-status" class="connection-status">
@@ -325,6 +330,19 @@
         </button>
       </div>
     </dialog>
+
+    <div
+      id="extra-turn-overlay"
+      class="extra-turn-overlay"
+      role="status"
+      aria-live="assertive"
+      hidden
+    >
+      <div class="extra-turn-symbol" aria-hidden="true">↻</div>
+      <p>TIME LEAP</p>
+      <strong id="extra-turn-overlay-title">追加ターン</strong>
+      <small id="extra-turn-overlay-count"></small>
+    </div>
 
     <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
     <script type="module" src="/static/js/app.js"></script>

@@ -57,6 +57,25 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertNotIn("game_logic", javascript)
         self.assertNotIn("flet", javascript.lower())
 
+    def test_discard_confirmation_modal_is_separated_from_action(self):
+        html = (FRONTEND_ROOT / "index.html").read_text()
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+        renderer = (
+            FRONTEND_ROOT / "static" / "js" / "render.js"
+        ).read_text()
+
+        self.assertIn("discard-dialog", html)
+        self.assertIn("discard-card-name", html)
+        self.assertIn("discard-card-effect", html)
+        self.assertIn("discard-cancel-button", html)
+        self.assertIn("discard-confirm-button", html)
+        self.assertIn(".discard-dialog", css)
+        self.assertIn("CARD_EFFECTS", renderer)
+        self.assertIn("confirmDiscard(card, option.index, onAction)", renderer)
+        self.assertIn("onAction(\"discard_card\", { index })", renderer)
+
     def test_html_css_and_javascript_have_distinct_responsibilities(self):
         html = (FRONTEND_ROOT / "index.html").read_text()
         css = (

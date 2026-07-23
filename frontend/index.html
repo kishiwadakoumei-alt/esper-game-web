@@ -220,6 +220,32 @@
       </div>
     </dialog>
 
+    <dialog id="discard-dialog" class="discard-dialog">
+      <div class="discard-dialog-accent" aria-hidden="true">✦</div>
+      <p class="eyebrow">CONFIRM DISCARD</p>
+      <h2>このカードを捨てますか？</h2>
+      <div class="discard-card-preview">
+        <span>選択したカード</span>
+        <strong id="discard-card-name"></strong>
+      </div>
+      <div class="discard-effect">
+        <span>カードの効果</span>
+        <p id="discard-card-effect"></p>
+      </div>
+      <div class="dialog-actions">
+        <button id="discard-cancel-button" class="action-button" type="button">
+          戻る
+        </button>
+        <button
+          id="discard-confirm-button"
+          class="action-button primary"
+          type="button"
+        >
+          捨てる
+        </button>
+      </div>
+    </dialog>
+
     <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
     <script type="module" src="/static/js/app.js"></script>
   </body>

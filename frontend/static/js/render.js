@@ -19,6 +19,23 @@ const PHASE_MESSAGES = {
   ROOM_DISBANDED: "対戦相手が退出し、ルームが解散されました。",
 };
 
+const CARD_EFFECTS = {
+  クレヤボヤンス:
+    "相手の手札または相手の場にある裏向きのカードから、2枚まで選んで内容を確認します。",
+  タイムリープ:
+    "このターンの終了後、もう一度自分のターンを行います。追加ターンでも能力を使用できます。",
+  サイコキネシス:
+    "相手の手札を1枚捨てさせ、相手の裏向きの捨て札から1枚を手札へ戻します。",
+  プリサイエンス:
+    "山札の上から3枚を見て、好きな順番に並べ替えて山札の上へ戻します。",
+  テレポート:
+    "能力を1つ宣言し、相手の手札にあるその能力のカードをすべて捨てさせます。",
+  ヒーリング:
+    "場にあるカードを3枚まで選び、山札へ加えてシャッフルします。",
+  カモフラージュ:
+    "このターン中のみ好きなカード1枚として使えます。そのカードで能力を発動でき、ESPER宣言にも使用できます。",
+};
+
 function byId(id) {
   return document.getElementById(id);
 }
@@ -82,6 +99,23 @@ function renderDiscardGroups(container, groups) {
   });
 }
 
+function confirmDiscard(card, index, onAction) {
+  const dialog = byId("discard-dialog");
+  byId("discard-card-name").textContent = card;
+  byId("discard-card-effect").textContent =
+    CARD_EFFECTS[card] || "このカードには個別の能力説明がありません。";
+
+  byId("discard-cancel-button").onclick = () => dialog.close();
+  byId("discard-confirm-button").onclick = () => {
+    dialog.close();
+    onAction("discard_card", { index });
+  };
+
+  if (!dialog.open) {
+    dialog.showModal();
+  }
+}
+
 function renderHand(state, onAction) {
   const container = byId("my-hand");
   clear(container);
@@ -97,9 +131,9 @@ function renderHand(state, onAction) {
     const button = create("button", "card", card);
     button.type = "button";
     button.title = `${card}を捨てる`;
-    button.addEventListener("click", () => {
-      onAction("discard_card", { index: option.index });
-    });
+    button.addEventListener("click", () =>
+      confirmDiscard(card, option.index, onAction),
+    );
     container.append(button);
   });
 }
@@ -434,6 +468,13 @@ function renderPhase(state) {
 }
 
 export function renderGame(state, handlers) {
+  const discardDialog = byId("discard-dialog");
+  if (
+    discardDialog.open &&
+    !state.available_actions.includes("discard_card")
+  ) {
+    discardDialog.close();
+  }
   byId("room-player").textContent =
     `${state.viewer.name} / プレイヤー${state.viewer.role === "p1" ? "1" : "2"}`;
   byId("room-code").textContent = state.room_id;

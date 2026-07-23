@@ -836,6 +836,89 @@ button.card:hover {
   backdrop-filter: blur(8px);
 }
 
+.discard-dialog {
+  width: min(460px, calc(100% - 30px));
+  padding: 30px;
+  border: 1px solid rgba(255, 157, 46, 0.42);
+  border-radius: 6px;
+  color: var(--text);
+  background:
+    linear-gradient(150deg, rgba(255, 157, 46, 0.08), transparent 46%),
+    #101827;
+  box-shadow: var(--shadow);
+}
+
+.discard-dialog::backdrop {
+  background: rgba(2, 6, 14, 0.84);
+  backdrop-filter: blur(8px);
+}
+
+.discard-dialog-accent {
+  position: absolute;
+  top: 23px;
+  right: 27px;
+  color: var(--orange);
+  font-size: 28px;
+}
+
+.discard-dialog h2 {
+  margin: 0 0 24px;
+  font-family: Georgia, "Yu Mincho", serif;
+  font-size: 25px;
+  font-weight: 500;
+}
+
+.discard-card-preview,
+.discard-effect {
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: rgba(7, 12, 22, 0.64);
+}
+
+.discard-card-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-left: 3px solid var(--orange);
+}
+
+.discard-card-preview span,
+.discard-effect span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.discard-card-preview strong {
+  color: var(--orange-soft);
+  text-align: right;
+  font-size: 17px;
+}
+
+.discard-effect {
+  margin-top: 10px;
+}
+
+.discard-effect p {
+  margin: 9px 0 0;
+  color: #c4cedd;
+  font-size: 12px;
+  line-height: 1.75;
+}
+
+.dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.dialog-actions .action-button {
+  text-align: center;
+}
+
 .dialog-close {
   position: absolute;
   top: 15px;

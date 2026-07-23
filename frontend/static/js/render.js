@@ -68,29 +68,46 @@ function cardNode(name, { hidden = false, selected = false } = {}) {
   return node;
 }
 
-function renderCards(container, cards, { hiddenCount = 0 } = {}) {
+function renderCards(
+  container,
+  cards,
+  { hiddenCount = 0, selectedIndices = new Set() } = {},
+) {
   clear(container);
   if (cards) {
-    cards.forEach((card) => container.append(cardNode(card)));
+    cards.forEach((card, index) =>
+      container.append(
+        cardNode(card, { selected: selectedIndices.has(index) }),
+      ),
+    );
     return;
   }
   for (let index = 0; index < hiddenCount; index += 1) {
-    container.append(cardNode(null, { hidden: true }));
+    container.append(
+      cardNode(null, {
+        hidden: true,
+        selected: selectedIndices.has(index),
+      }),
+    );
   }
 }
 
-function renderDiscardGroups(container, groups) {
+function renderDiscardGroups(container, groups, selectedGroups = new Set()) {
   clear(container);
   if (!groups.length) {
     container.append(emptyNote());
     return;
   }
 
-  groups.forEach((group) => {
+  groups.forEach((group, groupIndex) => {
     const stack = create("div", "discard-stack");
+    const selected = selectedGroups.has(groupIndex);
     stack.style.height = `${43 + Math.max(0, group.length - 1) * 5}px`;
     group.forEach((card, index) => {
-      const node = cardNode(card.name, { hidden: card.name === null });
+      const node = cardNode(card.name, {
+        hidden: card.name === null,
+        selected,
+      });
       node.style.left = `${index * 5}px`;
       node.style.top = `${index * 5}px`;
       stack.append(node);
@@ -505,6 +522,31 @@ function renderPhase(state) {
   }`;
 }
 
+function clairvoyanceHighlights(state) {
+  const highlights = {
+    hand: new Set(),
+    discards: new Set(),
+  };
+  const interaction = state.interaction;
+  if (
+    !interaction ||
+    !["clairvoyance", "clairvoyance_reveal"].includes(interaction.kind)
+  ) {
+    return highlights;
+  }
+
+  interaction.options
+    .filter((option) => option.selected && option.target)
+    .forEach((option) => {
+      if (option.target.zone === "opponent_hand") {
+        highlights.hand.add(option.target.index);
+      } else if (option.target.zone === "opponent_discard") {
+        highlights.discards.add(option.target.index);
+      }
+    });
+  return highlights;
+}
+
 export function renderGame(state, handlers) {
   const discardDialog = byId("discard-dialog");
   if (
@@ -529,8 +571,10 @@ export function renderGame(state, handlers) {
   byId("deck-count-center").textContent = state.game.deck_count;
 
   renderPhase(state);
+  const clairHighlights = clairvoyanceHighlights(state);
   renderCards(byId("opponent-hand"), state.opponent.hand, {
     hiddenCount: state.opponent.hand_count,
+    selectedIndices: clairHighlights.hand,
   });
   renderCards(byId("excluded-cards"), state.excluded_cards.map((card) => card), {
     hiddenCount: 0,
@@ -541,7 +585,11 @@ export function renderGame(state, handlers) {
       node.classList.add("hidden-card");
     }
   });
-  renderDiscardGroups(byId("opponent-discards"), state.discards.opponent);
+  renderDiscardGroups(
+    byId("opponent-discards"),
+    state.discards.opponent,
+    clairHighlights.discards,
+  );
   renderDiscardGroups(byId("my-discards"), state.discards.mine);
   renderHand(state, handlers.action);
 

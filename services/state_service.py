@@ -340,11 +340,23 @@ class StateService:
         reveal = game.turn_step == "CLAIR_REVEAL"
         for index, item in enumerate(game.clair_pool):
             selected = index in game.temp_selection
+            target = None
+            if item.get("type") == "hand":
+                target = {
+                    "zone": "opponent_hand",
+                    "index": item["idx"],
+                }
+            elif item.get("type") == "discard":
+                target = {
+                    "zone": "opponent_discard",
+                    "index": item["g_idx"],
+                }
             options.append({
                 "index": index,
                 "label": item["label"],
                 "selected": selected,
                 "name": item["name"] if reveal and selected else None,
+                "target": target,
             })
         return {
             "kind": "clairvoyance_reveal" if reveal else "clairvoyance",

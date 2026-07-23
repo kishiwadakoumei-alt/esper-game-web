@@ -96,6 +96,24 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("3枚（カモフラージュ2枚＋", renderer)
         self.assertIn("onConfirm();", renderer)
 
+    def test_clairvoyance_selection_highlights_opponent_board(self):
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+        renderer = (
+            FRONTEND_ROOT / "static" / "js" / "render.js"
+        ).read_text()
+
+        self.assertIn("clairvoyanceHighlights", renderer)
+        self.assertIn("option.target.zone === \"opponent_hand\"", renderer)
+        self.assertIn(
+            "option.target.zone === \"opponent_discard\"",
+            renderer,
+        )
+        self.assertIn("selectedIndices: clairHighlights.hand", renderer)
+        self.assertIn("clairHighlights.discards", renderer)
+        self.assertIn(".card.hidden-card.selected", css)
+
     def test_html_css_and_javascript_have_distinct_responsibilities(self):
         html = (FRONTEND_ROOT / "index.html").read_text()
         css = (

@@ -626,6 +626,16 @@ button.card:hover {
   box-shadow: inset 0 0 0 2px var(--orange), 0 0 18px rgba(255, 157, 46, 0.2);
 }
 
+.card.hidden-card.selected {
+  color: #fff4df;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      #6f431b 0 7px,
+      #8b5520 7px 8px
+    );
+}
+
 .compact .card {
   min-width: 60px;
   min-height: 37px;

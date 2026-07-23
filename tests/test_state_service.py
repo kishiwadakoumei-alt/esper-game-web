@@ -154,10 +154,14 @@ class StateServiceInteractionTests(unittest.TestCase):
         game.turn_step = "CLAIR_SELECTION"
         game.clair_pool = [
             {
+                "type": "hand",
+                "idx": 1,
                 "label": "伏せカード 1",
                 "name": "SECRET_CLAIR_A",
             },
             {
+                "type": "discard",
+                "g_idx": 3,
                 "label": "伏せカード 2",
                 "name": "SECRET_CLAIR_B",
             },
@@ -167,6 +171,14 @@ class StateServiceInteractionTests(unittest.TestCase):
         selection_state = StateService.build_public_state(game, "p1")
         self.assertIsNone(
             selection_state["interaction"]["options"][0]["name"]
+        )
+        self.assertEqual(
+            selection_state["interaction"]["options"][0]["target"],
+            {"zone": "opponent_hand", "index": 1},
+        )
+        self.assertEqual(
+            selection_state["interaction"]["options"][1]["target"],
+            {"zone": "opponent_discard", "index": 3},
         )
 
         game.turn_step = "CLAIR_REVEAL"

@@ -181,13 +181,19 @@
               <div id="action-content"></div>
             </section>
 
-            <details class="log-panel" open>
-              <summary>
-                <span>バトルログ</span>
-                <small id="latest-log"></small>
-              </summary>
-              <div id="log-list" class="log-list"></div>
-            </details>
+            <section class="log-panel">
+              <button
+                id="log-toggle-button"
+                class="log-toggle-button"
+                type="button"
+                aria-expanded="false"
+                aria-controls="log-list"
+              >
+                <span id="log-toggle-label">バトルログを見る</span>
+                <span class="log-toggle-icon" aria-hidden="true">⌄</span>
+              </button>
+              <div id="log-list" class="log-list" hidden></div>
+            </section>
 
             <section class="chat-panel">
               <h2>チャット</h2>

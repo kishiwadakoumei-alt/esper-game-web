@@ -19,6 +19,18 @@ const chatForm = document.getElementById("chat-form");
 const chatInput = document.getElementById("chat-message");
 const toast = document.getElementById("toast");
 const rulesDialog = document.getElementById("rules-dialog");
+const logToggleButton = document.getElementById("log-toggle-button");
+const logToggleLabel = document.getElementById("log-toggle-label");
+const logList = document.getElementById("log-list");
+
+function setBattleLogOpen(open) {
+  logList.hidden = !open;
+  logToggleButton.setAttribute("aria-expanded", String(open));
+  logToggleLabel.textContent = open
+    ? "バトルログを閉じる"
+    : "バトルログを見る";
+  logToggleButton.classList.toggle("open", open);
+}
 
 function showToast(message) {
   window.clearTimeout(toastTimer);
@@ -44,6 +56,7 @@ function setBusy(value) {
 function showLanding() {
   currentState = null;
   resetRenderState();
+  setBattleLogOpen(false);
   gameScreen.hidden = true;
   landingScreen.hidden = false;
   setConnectionStatus(false);
@@ -186,6 +199,10 @@ chatForm.addEventListener("submit", async (event) => {
   } finally {
     setBusy(false);
   }
+});
+
+logToggleButton.addEventListener("click", () => {
+  setBattleLogOpen(logList.hidden);
 });
 
 document.getElementById("leave-button").addEventListener("click", leaveRoom);

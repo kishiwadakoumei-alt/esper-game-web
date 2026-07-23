@@ -738,7 +738,6 @@ function renderActions(state, handlers) {
 }
 
 function renderLogs(state) {
-  byId("latest-log").textContent = state.game.latest_log || "ログはありません";
   const list = byId("log-list");
   clear(list);
   if (!state.logs.length) {

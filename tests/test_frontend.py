@@ -284,6 +284,27 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("88.235%", css)
         self.assertIn("resetRenderState()", app)
 
+    def test_battle_log_is_hidden_behind_a_toggle_button(self):
+        html = (FRONTEND_ROOT / "index.html").read_text()
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+        app = (
+            FRONTEND_ROOT / "static" / "js" / "app.js"
+        ).read_text()
+
+        self.assertIn("log-toggle-button", html)
+        self.assertIn('aria-expanded="false"', html)
+        self.assertIn('aria-controls="log-list"', html)
+        self.assertIn("バトルログを見る", html)
+        self.assertIn('id="log-list" class="log-list" hidden', html)
+        self.assertNotIn('<details class="log-panel" open>', html)
+        self.assertIn("setBattleLogOpen", app)
+        self.assertIn("バトルログを閉じる", app)
+        self.assertIn("logList.hidden", app)
+        self.assertIn(".log-toggle-button", css)
+        self.assertIn(".log-list[hidden]", css)
+
     def test_html_css_and_javascript_have_distinct_responsibilities(self):
         html = (FRONTEND_ROOT / "index.html").read_text()
         css = (

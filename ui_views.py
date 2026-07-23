@@ -20,7 +20,8 @@ NAME_MAP = {
 def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_game):
     page.controls.clear()
     
-    title_text = ft.Text("🌟 超能力カードゲーム ESPER 🌐", size=32, weight="bold", color="orange")
+    # スマホでも収まるようにサイズを調整し、中央揃えを指定
+    title_text = ft.Text("🌟 超能力カードゲーム ESPER 🌐", size=24, weight="bold", color="orange", text_align=ft.TextAlign.CENTER)
     name_input = ft.TextField(label="あなたの名前", value="プレイヤー", width=300, bgcolor="#333333")
     room_input = ft.TextField(label="あいことば（ルームID）", hint_text="友達と同じ言葉を入れてね", width=300, bgcolor="#333333")
     
@@ -82,17 +83,20 @@ def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_ga
     cpu_normal_btn = ft.Button("１人プレイ（vs CPU 中級） 🤖", on_click=on_cpu_normal, bgcolor="blue", color="white", width=300)
     cpu_hard_btn = ft.Button("１人プレイ（vs CPU 上級） 👹", on_click=on_cpu_hard, bgcolor="purple", color="white", width=300)
     
+    # 画面が右にズレる原因だった Row を外し、Container で安全に中央揃えする
     page.add(
-        ft.Row([
-            ft.Column([
+        ft.Container(
+            content=ft.Column([
                 ft.Container(height=50), title_text, ft.Container(height=20),
                 name_input, 
                 ft.Divider(color="grey"),
                 room_input, join_btn,
                 ft.Divider(color="grey"),
                 cpu_easy_btn, cpu_normal_btn, cpu_hard_btn
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
-        ], alignment=ft.MainAxisAlignment.CENTER)
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            alignment=ft.alignment.center,
+            padding=10
+        )
     )
     page.update()
 
@@ -158,7 +162,8 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             history_controls.append(ft.Text(f"[{log['time']}] {log['icon']} {log['name']}: {log['text']}", color=text_color, size=14))
             
         return ft.ExpansionTile(
-            title=ft.Text(f"📜 最新ログ: {latest_text}", color="white", weight="bold", no_wrap=True),
+            # 文字がはみ出す原因だった no_wrap=True を削除し、自動で改行されるように修正
+            title=ft.Text(f"📜 最新ログ: {latest_text}", color="white", weight="bold"),
             subtitle=ft.Text("タップで過去のログ履歴を展開", color="grey", size=12),
             affinity=ft.TileAffinity.LEADING,
             collapsed_bgcolor="#111133", bgcolor="#111122",
@@ -231,7 +236,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             return
 
         # ==========================================
-        # CPUの自動行動ロジック（難易度別）
+        # CPUの自動行動ロジック
         # ==========================================
         if getattr(game, "is_cpu", False) and game.current_turn == "p2" and game.turn_step in cpu_active_steps:
             if not getattr(game, "cpu_acting", False):
@@ -248,21 +253,15 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                         return
 
                     if game.turn_step == "DISCARD":
-                        # ★ご指摘の修正：上級AIのカモフラージュ保持戦略
                         if cpu_lvl == "hard":
                             counts = Counter(game.p2_hand)
-                            
-                            # カモフラージュが3枚以上ある場合は手札圧迫の原因になるため優先して捨てる
                             if counts.get("カモフラージュ", 0) >= 3:
                                 card = "カモフラージュ"
                             else:
                                 candidates = [c for c in game.p2_hand if c != "カモフラージュ"]
                                 if not candidates: 
                                     candidates = game.p2_hand
-                                    
-                                # カモフラージュ以外のカードの中で、一番枚数が少ないものを特定する
                                 min_count = min(counts[c] for c in candidates)
-                                # パターン化を防ぐため、同率最下位のものからランダムで選ぶ
                                 min_candidates = [c for c in candidates if counts[c] == min_count]
                                 card = random.choice(min_candidates)
                         else:
@@ -616,7 +615,7 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 elif ability_name == "サイコキネシス":
                     if true_op_hand:
                         game.turn_step = "PSY_DISCARD_SELECTION"
-                        game.log_message = f"「{ability_display}」発発動！捨てる相手の伏せカードを選んでください。"
+                        game.log_message = f"「{ability_display}」発動！捨てる相手の伏せカードを選んでください。"
                     else:
                         game.end_action(my_role, f"「{ability_display}」発動！しかし相手の手札は空だった")
                 elif ability_name == "ヒーリング":

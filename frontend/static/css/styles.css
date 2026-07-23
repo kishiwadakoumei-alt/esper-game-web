@@ -1606,10 +1606,31 @@ button.card:hover {
   }
 
   .room-bar {
+    flex-direction: column;
     align-items: flex-start;
+    gap: 10px;
+  }
+
+  .room-bar > div:first-child,
+  .room-player-line {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .room-bar h1 {
+    overflow: hidden;
+    font-size: clamp(17px, 5vw, 21px);
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .room-bar .eyebrow {
+    font-size: 7px;
   }
 
   .room-meta {
+    width: 100%;
     flex-wrap: wrap;
     justify-content: flex-end;
   }

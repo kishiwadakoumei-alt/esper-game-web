@@ -858,6 +858,25 @@ button.card:hover {
   background: var(--orange-soft);
 }
 
+.card.selectable-target,
+.discard-stack.selectable-target {
+  cursor: pointer;
+}
+
+.card.selectable-target:hover,
+.card.selectable-target:focus-visible,
+.discard-stack.selectable-target:hover .card,
+.discard-stack.selectable-target:focus-visible .card {
+  border-color: var(--purple);
+  box-shadow: 0 0 16px rgba(170, 140, 255, 0.28);
+}
+
+.card.selectable-target:focus-visible,
+.discard-stack.selectable-target:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 3px;
+}
+
 .card.hidden-card.selected {
   color: #fff4df;
   background:
@@ -1344,7 +1363,8 @@ button.card:hover {
   font-size: 13px;
 }
 
-.teleport-dialog {
+.teleport-dialog,
+.psychokinesis-dialog {
   width: min(480px, calc(100% - 30px));
   padding: 30px;
   border: 1px solid rgba(170, 140, 255, 0.46);
@@ -1356,7 +1376,8 @@ button.card:hover {
   box-shadow: var(--shadow);
 }
 
-.teleport-dialog::backdrop {
+.teleport-dialog::backdrop,
+.psychokinesis-dialog::backdrop {
   background: rgba(2, 6, 14, 0.84);
   backdrop-filter: blur(8px);
 }
@@ -1369,7 +1390,8 @@ button.card:hover {
   font-size: 30px;
 }
 
-.teleport-dialog h2 {
+.teleport-dialog h2,
+.psychokinesis-dialog h2 {
   margin: 0 0 24px;
   font-family: Georgia, "Yu Mincho", serif;
   font-size: 25px;

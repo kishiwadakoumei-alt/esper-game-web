@@ -110,8 +110,9 @@ class FrontendDeliveryTests(unittest.TestCase):
             "option.target.zone === \"opponent_discard\"",
             renderer,
         )
-        self.assertIn("selectedIndices: clairHighlights.hand", renderer)
-        self.assertIn("clairHighlights.discards", renderer)
+        self.assertIn("opponentHandHighlights", renderer)
+        self.assertIn("...clairHighlights.hand", renderer)
+        self.assertIn("...clairHighlights.discards", renderer)
         self.assertIn(".card.hidden-card.selected", css)
 
     def test_prescience_orders_three_cards_before_confirmation(self):
@@ -170,6 +171,32 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("confirmTeleportTarget(", renderer)
         self.assertIn("select_teleport_target", renderer)
         self.assertIn("onConfirm();", renderer)
+
+    def test_psychokinesis_targets_are_confirmed_from_the_board(self):
+        html = (FRONTEND_ROOT / "index.html").read_text()
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+        renderer = (
+            FRONTEND_ROOT / "static" / "js" / "render.js"
+        ).read_text()
+
+        self.assertIn("psychokinesis-dialog", html)
+        self.assertIn("psychokinesis-target-label", html)
+        self.assertIn("psychokinesis-cancel-button", html)
+        self.assertIn("psychokinesis-confirm-button", html)
+        self.assertIn("捨てさせる", renderer)
+        self.assertIn("戻す", renderer)
+        self.assertIn("confirmPsychokinesisTarget(", renderer)
+        self.assertIn("bindPsychokinesisBoardTargets", renderer)
+        self.assertIn("makeBoardTargetClickable", renderer)
+        self.assertIn("psychokinesisHighlights", renderer)
+        self.assertIn("psychokinesisSelection = null", renderer)
+        self.assertIn("select_psychokinesis_discard", renderer)
+        self.assertIn("select_psychokinesis_push", renderer)
+        self.assertIn(".psychokinesis-dialog", css)
+        self.assertIn(".card.selectable-target", css)
+        self.assertIn(".discard-stack.selectable-target", css)
 
     def test_extra_turn_indicator_has_four_color_levels(self):
         html = (FRONTEND_ROOT / "index.html").read_text()

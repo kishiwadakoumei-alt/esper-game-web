@@ -37,6 +37,7 @@ const CARD_EFFECTS = {
 };
 
 let prescienceOrder = [];
+let psychokinesisSelection = null;
 let lastActionEventId = null;
 let lastTurnOwner = null;
 let lastTurnNotificationStep = null;
@@ -199,6 +200,64 @@ function confirmTeleportTarget(card, label, onConfirm) {
   }
 }
 
+function confirmPsychokinesisTarget(
+  state,
+  option,
+  handlers,
+  mode,
+) {
+  const dialog = byId("psychokinesis-dialog");
+  const isDiscard = mode === "discard";
+  psychokinesisSelection = isDiscard
+    ? { mode, index: option.index }
+    : { mode, groupIndex: option.group_index };
+  renderGame(state, handlers);
+
+  byId("psychokinesis-dialog-kicker").textContent = isDiscard
+    ? "CONFIRM PSYCHOKINESIS DISCARD"
+    : "CONFIRM PSYCHOKINESIS RETURN";
+  byId("psychokinesis-dialog-title").textContent = isDiscard
+    ? "この手札を捨てさせますか？"
+    : "この捨て札を手札へ戻しますか？";
+  byId("psychokinesis-target-label").textContent = option.label;
+  byId("psychokinesis-target-effect").textContent = isDiscard
+    ? "相手の手札から選んだ1枚を表向きで捨てさせます。"
+    : "選んだ裏向きの捨て札1枚を相手の手札へ戻します。";
+  byId("psychokinesis-confirm-button").textContent = isDiscard
+    ? "捨てさせる"
+    : "戻す";
+
+  const cancelSelection = () => {
+    if (dialog.open) {
+      dialog.close();
+    }
+    psychokinesisSelection = null;
+    renderGame(state, handlers);
+  };
+  byId("psychokinesis-cancel-button").onclick = cancelSelection;
+  dialog.oncancel = (event) => {
+    event.preventDefault();
+    cancelSelection();
+  };
+  byId("psychokinesis-confirm-button").onclick = () => {
+    dialog.close();
+    psychokinesisSelection = null;
+    renderGame(state, handlers);
+    handlers.action(
+      isDiscard
+        ? "select_psychokinesis_discard"
+        : "select_psychokinesis_push",
+      isDiscard
+        ? { index: option.index }
+        : { group_index: option.group_index },
+    );
+  };
+
+  if (!dialog.open) {
+    dialog.showModal();
+  }
+}
+
 function countCards(cards) {
   return cards.reduce((counts, card) => {
     counts.set(card, (counts.get(card) || 0) + 1);
@@ -249,6 +308,7 @@ export function resetRenderState() {
   handTrackingContext = null;
   previousTurnStep = null;
   newlyDrawnCards.clear();
+  psychokinesisSelection = null;
   lastActionEventId = null;
   lastTurnOwner = null;
   lastTurnNotificationStep = null;
@@ -552,19 +612,24 @@ function renderActions(state, handlers) {
   }
 
   if (step === "PSY_DISCARD_SELECTION" && interaction) {
-    renderSelectionOptions(list, interaction.options, {
-      label: (option) => option.label,
-      action: "select_psychokinesis_discard",
-      onAction: handlers.action,
+    interaction.options.forEach((option) => {
+      addAction(
+        list,
+        option.label,
+        () => confirmPsychokinesisTarget(state, option, handlers, "discard"),
+        { kind: "secondary" },
+      );
     });
   }
 
   if (step === "PSY_PUSH_SELECTION" && interaction) {
-    renderSelectionOptions(list, interaction.options, {
-      label: (option) => option.label,
-      action: "select_psychokinesis_push",
-      payloadKey: "group_index",
-      onAction: handlers.action,
+    interaction.options.forEach((option) => {
+      addAction(
+        list,
+        option.label,
+        () => confirmPsychokinesisTarget(state, option, handlers, "push"),
+        { kind: "secondary" },
+      );
     });
   }
 
@@ -878,6 +943,72 @@ function renderPhase(state) {
   }`;
 }
 
+function psychokinesisHighlights(state) {
+  const highlights = {
+    hand: new Set(),
+    discards: new Set(),
+  };
+  const interaction = state.interaction;
+  if (!interaction || !psychokinesisSelection) {
+    return highlights;
+  }
+  if (
+    interaction.kind === "psychokinesis_discard" &&
+    psychokinesisSelection.mode === "discard"
+  ) {
+    highlights.hand.add(psychokinesisSelection.index);
+  } else if (
+    interaction.kind === "psychokinesis_push" &&
+    psychokinesisSelection.mode === "push"
+  ) {
+    highlights.discards.add(psychokinesisSelection.groupIndex);
+  }
+  return highlights;
+}
+
+function makeBoardTargetClickable(node, onSelect, label) {
+  if (!node) {
+    return;
+  }
+  node.classList.add("selectable-target");
+  node.tabIndex = 0;
+  node.setAttribute("role", "button");
+  node.setAttribute("aria-label", label);
+  node.addEventListener("click", onSelect);
+  node.addEventListener("keydown", (event) => {
+    if (["Enter", " "].includes(event.key)) {
+      event.preventDefault();
+      onSelect();
+    }
+  });
+}
+
+function bindPsychokinesisBoardTargets(state, handlers) {
+  const interaction = state.interaction;
+  if (!interaction) {
+    return;
+  }
+  if (interaction.kind === "psychokinesis_discard") {
+    const handCards = byId("opponent-hand").children;
+    interaction.options.forEach((option) => {
+      makeBoardTargetClickable(
+        handCards[option.index],
+        () => confirmPsychokinesisTarget(state, option, handlers, "discard"),
+        `${option.label}を捨てさせる`,
+      );
+    });
+  } else if (interaction.kind === "psychokinesis_push") {
+    const discardGroups = byId("opponent-discards").children;
+    interaction.options.forEach((option) => {
+      makeBoardTargetClickable(
+        discardGroups[option.group_index],
+        () => confirmPsychokinesisTarget(state, option, handlers, "push"),
+        `${option.label}を手札へ戻す`,
+      );
+    });
+  }
+}
+
 function healingHighlights(state) {
   const highlights = {
     mine: new Set(),
@@ -962,6 +1093,17 @@ export function renderGame(
   ) {
     abilityDialog.close();
   }
+  const psychokinesisDialog = byId("psychokinesis-dialog");
+  if (
+    !["PSY_DISCARD_SELECTION", "PSY_PUSH_SELECTION"].includes(
+      state.game.turn_step,
+    )
+  ) {
+    psychokinesisSelection = null;
+    if (psychokinesisDialog.open) {
+      psychokinesisDialog.close();
+    }
+  }
   byId("room-player").textContent =
     `${state.viewer.name} / プレイヤー${state.viewer.role === "p1" ? "1" : "2"}`;
   byId("room-code").textContent = state.room_id;
@@ -973,10 +1115,15 @@ export function renderGame(
   renderExtraTurnIndicators(state);
   renderPhase(state);
   const clairHighlights = clairvoyanceHighlights(state);
+  const psychHighlights = psychokinesisHighlights(state);
   const regenHighlights = healingHighlights(state);
+  const opponentHandHighlights = new Set([
+    ...clairHighlights.hand,
+    ...psychHighlights.hand,
+  ]);
   renderCards(byId("opponent-hand"), state.opponent.hand, {
     hiddenCount: state.opponent.hand_count,
-    selectedIndices: clairHighlights.hand,
+    selectedIndices: opponentHandHighlights,
   });
   renderCards(byId("excluded-cards"), state.excluded_cards.map((card) => card), {
     hiddenCount: 0,
@@ -990,7 +1137,10 @@ export function renderGame(
   renderDiscardGroups(
     byId("opponent-discards"),
     state.discards.opponent,
-    clairHighlights.discards,
+    new Set([
+      ...clairHighlights.discards,
+      ...psychHighlights.discards,
+    ]),
     regenHighlights.opponent,
   );
   renderDiscardGroups(
@@ -1000,6 +1150,7 @@ export function renderGame(
     regenHighlights.mine,
   );
   renderHand(state, handlers.action);
+  bindPsychokinesisBoardTargets(state, handlers);
 
   byId("hand-guide").textContent = state.available_actions.includes(
     "discard_card",

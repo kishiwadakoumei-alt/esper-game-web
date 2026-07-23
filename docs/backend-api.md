@@ -1,7 +1,7 @@
 # バックエンドAPI
 
 第4段階では、既存のゲームロジックとサービス層をFastAPIから利用できるようにした。
-Flet画面は引き続き動作し、ブラウザ向けフロントエンドへの切り替えは後続段階で行う。
+第5段階でブラウザ向けフロントエンドを追加し、同じFastAPIから配信している。
 
 ## 起動
 
@@ -11,6 +11,7 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000
 
 - OpenAPI: `http://localhost:8000/docs`
 - ヘルスチェック: `GET /api/health`
+- ブラウザ画面: `http://localhost:8000/`
 
 ## セッション
 
@@ -128,4 +129,4 @@ ws://localhost:8000/ws/rooms/{room_id}?token={token}
 - 状態、セッション、WebSocket接続は単一プロセスのメモリ内にある。
 - 複数ワーカー構成や再起動をまたぐ対戦継続には、RedisやDBなどの
   共有ストレージと分散ロックが必要になる。
-- HTML/CSS/JavaScriptのブラウザ画面は後続段階で実装する。
+- ブラウザ画面の構成は `docs/browser-frontend.md` を参照する。

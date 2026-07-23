@@ -1,6 +1,7 @@
 """ESPERのHTTP APIとWebSocketを提供するFastAPIアプリ。"""
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 import secrets
 from typing import Annotated
 
@@ -14,6 +15,8 @@ from fastapi import (
     WebSocketDisconnect,
     status,
 )
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from services import GameService, RoomService, StateService
 
@@ -33,6 +36,7 @@ def create_app(
     roulette_delay: float = 1.5,
     cpu_delay: float = 1.0,
 ) -> FastAPI:
+    frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
     context = ApplicationContext(
         roulette_delay=roulette_delay,
         cpu_delay=cpu_delay,
@@ -49,13 +53,15 @@ def create_app(
         lifespan=lifespan,
     )
     application.state.context = context
+    application.mount(
+        "/static",
+        StaticFiles(directory=frontend_dir / "static"),
+        name="static",
+    )
 
     @application.get("/")
-    async def root() -> dict:
-        return {
-            "name": "ESPER Game API",
-            "status": "ok",
-        }
+    async def root() -> FileResponse:
+        return FileResponse(frontend_dir / "index.html")
 
     @application.get("/api/health")
     async def health() -> dict:

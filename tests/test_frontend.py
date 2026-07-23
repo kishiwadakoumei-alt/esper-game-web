@@ -29,6 +29,14 @@ class FrontendDeliveryTests(unittest.TestCase):
         )
         self.assertIn('id="landing-screen"', response.text)
         self.assertIn('id="game-screen"', response.text)
+        self.assertIn(
+            '<p class="eyebrow">超能力カードゲーム</p>',
+            response.text,
+        )
+        self.assertIn(
+            '<h1><em>ESPER</em></h1>',
+            response.text,
+        )
 
     def test_css_and_javascript_are_served_separately(self):
         html = self.client.get("/").text
@@ -283,6 +291,16 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("@keyframes newly-drawn-card", css)
         self.assertIn("88.235%", css)
         self.assertIn("resetRenderState()", app)
+
+    def test_hero_title_has_balanced_responsive_sizes(self):
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+
+        self.assertIn(".hero-panel > .eyebrow", css)
+        self.assertIn("font-size: clamp(17px, 1.6vw, 22px)", css)
+        self.assertIn("font-size: clamp(64px, 9.5vw, 132px)", css)
+        self.assertIn("font-size: clamp(58px, 17vw, 82px)", css)
 
     def test_battle_log_is_hidden_behind_a_toggle_button(self):
         html = (FRONTEND_ROOT / "index.html").read_text()

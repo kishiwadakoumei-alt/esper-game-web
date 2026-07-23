@@ -39,6 +39,13 @@ const CARD_EFFECTS = {
 let prescienceOrder = [];
 let lastExtraTurnCount = 0;
 let extraTurnOverlayTimer = null;
+let previousHandCounts = null;
+let handTrackingContext = null;
+let previousTurnStep = null;
+const newlyDrawnCards = new Map();
+const NEW_CARD_HOLD_MS = 3000;
+const NEW_CARD_FADE_MS = 400;
+const NEW_CARD_HIGHLIGHT_MS = NEW_CARD_HOLD_MS + NEW_CARD_FADE_MS;
 
 function byId(id) {
   return document.getElementById(id);
@@ -63,12 +70,20 @@ function emptyNote(text = "まだありません") {
   return create("p", "empty-note", text);
 }
 
-function cardNode(name, { hidden = false, selected = false } = {}) {
+function cardNode(
+  name,
+  { hidden = false, selected = false, newlyDrawnElapsed = null } = {},
+) {
   const node = create(
     "span",
-    `card${hidden ? " hidden-card" : ""}${selected ? " selected" : ""}`,
+    `card${hidden ? " hidden-card" : ""}${selected ? " selected" : ""}${
+      newlyDrawnElapsed === null ? "" : " newly-drawn"
+    }`,
     hidden ? "？" : name,
   );
+  if (newlyDrawnElapsed !== null) {
+    node.style.animationDelay = `-${newlyDrawnElapsed}ms`;
+  }
   return node;
 }
 
@@ -179,19 +194,87 @@ function confirmTeleportTarget(card, label, onConfirm) {
   }
 }
 
+function countCards(cards) {
+  return cards.reduce((counts, card) => {
+    counts.set(card, (counts.get(card) || 0) + 1);
+    return counts;
+  }, new Map());
+}
+
+function resetHandTracking(state) {
+  previousHandCounts = countCards(state.my_hand);
+  handTrackingContext = `${state.room_id}:${state.viewer.role}`;
+  previousTurnStep = state.game.turn_step;
+  newlyDrawnCards.clear();
+}
+
+function updateNewlyDrawnCards(state) {
+  const context = `${state.room_id}:${state.viewer.role}`;
+  const restarted =
+    ["GAME_CLEAR", "GAME_OVER"].includes(previousTurnStep) &&
+    !["GAME_CLEAR", "GAME_OVER"].includes(state.game.turn_step);
+  if (
+    previousHandCounts === null ||
+    handTrackingContext !== context ||
+    restarted
+  ) {
+    resetHandTracking(state);
+    return;
+  }
+
+  const now = performance.now();
+  const currentCounts = countCards(state.my_hand);
+  currentCounts.forEach((count, card) => {
+    const previousCount = previousHandCounts.get(card) || 0;
+    for (let occurrence = previousCount; occurrence < count; occurrence += 1) {
+      newlyDrawnCards.set(`${card}:${occurrence}`, now);
+    }
+  });
+  [...newlyDrawnCards].forEach(([key, startedAt]) => {
+    if (now - startedAt >= NEW_CARD_HIGHLIGHT_MS) {
+      newlyDrawnCards.delete(key);
+    }
+  });
+  previousHandCounts = currentCounts;
+  previousTurnStep = state.game.turn_step;
+}
+
+export function resetRenderState() {
+  previousHandCounts = null;
+  handTrackingContext = null;
+  previousTurnStep = null;
+  newlyDrawnCards.clear();
+}
+
 function renderHand(state, onAction) {
   const container = byId("my-hand");
   clear(container);
   const canDiscard = state.available_actions.includes("discard_card");
   const options = canDiscard ? state.interaction?.options || [] : [];
+  const occurrences = new Map();
+  const now = performance.now();
 
   state.my_hand.forEach((card, index) => {
+    const occurrence = occurrences.get(card) || 0;
+    occurrences.set(card, occurrence + 1);
+    const startedAt = newlyDrawnCards.get(`${card}:${occurrence}`);
+    const newlyDrawnElapsed =
+      startedAt === undefined
+        ? null
+        : Math.min(now - startedAt, NEW_CARD_HIGHLIGHT_MS);
     if (!canDiscard) {
-      container.append(cardNode(card));
+      container.append(cardNode(card, { newlyDrawnElapsed }));
       return;
     }
     const option = options.find((item) => item.index === index);
-    const button = create("button", "card", card);
+    const button = create(
+      "button",
+      `card${newlyDrawnElapsed === null ? "" : " newly-drawn"}`,
+      card,
+    );
+    if (newlyDrawnElapsed !== null) {
+      button.style.animationDelay = `-${newlyDrawnElapsed}ms`;
+    }
     button.type = "button";
     button.title = `${card}を捨てる`;
     button.addEventListener("click", () =>
@@ -719,6 +802,7 @@ function clairvoyanceHighlights(state) {
 }
 
 export function renderGame(state, handlers) {
+  updateNewlyDrawnCards(state);
   const discardDialog = byId("discard-dialog");
   if (
     discardDialog.open &&

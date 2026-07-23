@@ -189,6 +189,28 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("EXTRA TURN ×${count}", renderer)
         self.assertIn("タイムリープによる${extraTurnCount}回目", renderer)
 
+    def test_newly_drawn_cards_are_temporarily_highlighted(self):
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+        renderer = (
+            FRONTEND_ROOT / "static" / "js" / "render.js"
+        ).read_text()
+        app = (
+            FRONTEND_ROOT / "static" / "js" / "app.js"
+        ).read_text()
+
+        self.assertIn("updateNewlyDrawnCards(state)", renderer)
+        self.assertIn("previousHandCounts", renderer)
+        self.assertIn("`${card}:${occurrence}`", renderer)
+        self.assertIn("NEW_CARD_HOLD_MS = 3000", renderer)
+        self.assertIn("NEW_CARD_FADE_MS = 400", renderer)
+        self.assertIn("newly-drawn", renderer)
+        self.assertIn(".card.newly-drawn", css)
+        self.assertIn("@keyframes newly-drawn-card", css)
+        self.assertIn("88.235%", css)
+        self.assertIn("resetRenderState()", app)
+
     def test_html_css_and_javascript_have_distinct_responsibilities(self):
         html = (FRONTEND_ROOT / "index.html").read_text()
         css = (

@@ -733,6 +733,25 @@ button.card:hover {
   box-shadow: inset 0 0 0 2px var(--orange), 0 0 18px rgba(255, 157, 46, 0.2);
 }
 
+.card.newly-drawn {
+  animation: newly-drawn-card 3.4s ease-out both;
+}
+
+@keyframes newly-drawn-card {
+  0%,
+  88.235% {
+    border-color: #e6ad68;
+    color: #3b2816;
+    background: #f8e2c5;
+  }
+
+  100% {
+    border-color: #455167;
+    color: #182031;
+    background: #e8e7e1;
+  }
+}
+
 .card.selected:not(.hidden-card) {
   color: #241507;
   background: var(--orange-soft);

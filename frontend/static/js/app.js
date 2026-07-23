@@ -1,5 +1,9 @@
 import { ApiError, EsperApi } from "./api.js";
-import { renderGame, setConnectionStatus } from "./render.js";
+import {
+  renderGame,
+  resetRenderState,
+  setConnectionStatus,
+} from "./render.js";
 
 const api = new EsperApi();
 let currentState = null;
@@ -39,6 +43,7 @@ function setBusy(value) {
 
 function showLanding() {
   currentState = null;
+  resetRenderState();
   gameScreen.hidden = true;
   landingScreen.hidden = false;
   setConnectionStatus(false);

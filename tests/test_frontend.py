@@ -134,6 +134,23 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("confirm_prescience_order", renderer)
         self.assertNotIn("select_prescience_card", renderer)
 
+    def test_healing_selection_highlights_each_board_card(self):
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+        renderer = (
+            FRONTEND_ROOT / "static" / "js" / "render.js"
+        ).read_text()
+
+        self.assertIn("healingHighlights", renderer)
+        self.assertIn("option.target.group_index", renderer)
+        self.assertIn("option.target.item_index", renderer)
+        self.assertIn("regenHighlights.opponent", renderer)
+        self.assertIn("regenHighlights.mine", renderer)
+        self.assertIn("selectedCards.has", renderer)
+        self.assertIn(".card.selected:not(.hidden-card)", css)
+        self.assertIn(".card.hidden-card.selected", css)
+
     def test_html_css_and_javascript_have_distinct_responsibilities(self):
         html = (FRONTEND_ROOT / "index.html").read_text()
         css = (

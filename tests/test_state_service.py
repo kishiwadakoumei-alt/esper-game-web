@@ -211,20 +211,27 @@ class StateServiceInteractionTests(unittest.TestCase):
         game.regen_pool = [
             {
                 "owner": "p1",
+                "g_idx": 0,
+                "item_idx": 1,
                 "name": "OWN_HEALING_CARD",
                 "is_face_up": False,
             },
             {
                 "owner": "p2",
+                "g_idx": 2,
+                "item_idx": 0,
                 "name": "SECRET_HEALING_CARD",
                 "is_face_up": False,
             },
             {
                 "owner": "p2",
+                "g_idx": 3,
+                "item_idx": 1,
                 "name": "PUBLIC_HEALING_CARD",
                 "is_face_up": True,
             },
         ]
+        game.temp_selection = [0, 1, 2]
 
         state = StateService.build_public_state(game, "p1")
         options = state["interaction"]["options"]
@@ -232,6 +239,19 @@ class StateServiceInteractionTests(unittest.TestCase):
         self.assertEqual(options[0]["name"], "OWN_HEALING_CARD")
         self.assertIsNone(options[1]["name"])
         self.assertEqual(options[2]["name"], "PUBLIC_HEALING_CARD")
+        self.assertEqual(
+            options[0]["target"],
+            {"zone": "mine", "group_index": 0, "item_index": 1},
+        )
+        self.assertEqual(
+            options[1]["target"],
+            {
+                "zone": "opponent",
+                "group_index": 2,
+                "item_index": 0,
+            },
+        )
+        self.assertTrue(all(option["selected"] for option in options))
         self.assertNotIn(
             "SECRET_HEALING_CARD",
             json.dumps(state, ensure_ascii=False),

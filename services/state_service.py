@@ -318,12 +318,20 @@ class StateService:
         for index, item in enumerate(game.regen_pool):
             is_mine = item["owner"] == viewer_role
             visible = item["is_face_up"] or is_mine
+            target = None
+            if "g_idx" in item and "item_idx" in item:
+                target = {
+                    "zone": "mine" if is_mine else "opponent",
+                    "group_index": item["g_idx"],
+                    "item_index": item["item_idx"],
+                }
             options.append({
                 "index": index,
                 "owner": item["owner"],
                 "name": item["name"] if visible else None,
                 "is_face_up": item["is_face_up"],
                 "selected": index in game.temp_selection,
+                "target": target,
             })
         return {
             "kind": "healing",

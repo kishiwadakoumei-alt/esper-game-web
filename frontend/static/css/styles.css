@@ -626,6 +626,11 @@ button.card:hover {
   box-shadow: inset 0 0 0 2px var(--orange), 0 0 18px rgba(255, 157, 46, 0.2);
 }
 
+.card.selected:not(.hidden-card) {
+  color: #241507;
+  background: var(--orange-soft);
+}
+
 .card.hidden-card.selected {
   color: #fff4df;
   background:

@@ -94,7 +94,12 @@ function renderCards(
   }
 }
 
-function renderDiscardGroups(container, groups, selectedGroups = new Set()) {
+function renderDiscardGroups(
+  container,
+  groups,
+  selectedGroups = new Set(),
+  selectedCards = new Set(),
+) {
   clear(container);
   if (!groups.length) {
     container.append(emptyNote());
@@ -103,9 +108,11 @@ function renderDiscardGroups(container, groups, selectedGroups = new Set()) {
 
   groups.forEach((group, groupIndex) => {
     const stack = create("div", "discard-stack");
-    const selected = selectedGroups.has(groupIndex);
+    const selectedGroup = selectedGroups.has(groupIndex);
     stack.style.height = `${43 + Math.max(0, group.length - 1) * 5}px`;
     group.forEach((card, index) => {
+      const selected =
+        selectedGroup || selectedCards.has(`${groupIndex}:${index}`);
       const node = cardNode(card.name, {
         hidden: card.name === null,
         selected,
@@ -591,6 +598,25 @@ function renderPhase(state) {
   }`;
 }
 
+function healingHighlights(state) {
+  const highlights = {
+    mine: new Set(),
+    opponent: new Set(),
+  };
+  const interaction = state.interaction;
+  if (!interaction || interaction.kind !== "healing") {
+    return highlights;
+  }
+
+  interaction.options
+    .filter((option) => option.selected && option.target)
+    .forEach((option) => {
+      const key = `${option.target.group_index}:${option.target.item_index}`;
+      highlights[option.target.zone].add(key);
+    });
+  return highlights;
+}
+
 function clairvoyanceHighlights(state) {
   const highlights = {
     hand: new Set(),
@@ -652,6 +678,7 @@ export function renderGame(state, handlers) {
 
   renderPhase(state);
   const clairHighlights = clairvoyanceHighlights(state);
+  const regenHighlights = healingHighlights(state);
   renderCards(byId("opponent-hand"), state.opponent.hand, {
     hiddenCount: state.opponent.hand_count,
     selectedIndices: clairHighlights.hand,
@@ -669,8 +696,14 @@ export function renderGame(state, handlers) {
     byId("opponent-discards"),
     state.discards.opponent,
     clairHighlights.discards,
+    regenHighlights.opponent,
   );
-  renderDiscardGroups(byId("my-discards"), state.discards.mine);
+  renderDiscardGroups(
+    byId("my-discards"),
+    state.discards.mine,
+    new Set(),
+    regenHighlights.mine,
+  );
   renderHand(state, handlers.action);
 
   byId("hand-guide").textContent = state.available_actions.includes(

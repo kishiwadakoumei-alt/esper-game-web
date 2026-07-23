@@ -189,6 +189,34 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("EXTRA TURN ×${count}", renderer)
         self.assertIn("タイムリープによる${extraTurnCount}回目", renderer)
 
+    def test_opponent_actions_use_deduplicated_notification_queue(self):
+        html = (FRONTEND_ROOT / "index.html").read_text()
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+        renderer = (
+            FRONTEND_ROOT / "static" / "js" / "render.js"
+        ).read_text()
+        api = (
+            FRONTEND_ROOT / "static" / "js" / "api.js"
+        ).read_text()
+
+        self.assertIn("action-event-overlay", html)
+        self.assertIn("action-event-title", html)
+        self.assertIn("action-event-detail", html)
+        self.assertIn("notificationQueue", renderer)
+        self.assertIn("event.id > lastActionEventId", renderer)
+        self.assertIn("lastActionEventId === null || suppress", renderer)
+        self.assertIn("suppressActionEvents: awaitingInitialState", api)
+        self.assertIn("event.actor_role !== state.viewer.role", renderer)
+        self.assertIn("{ priority: isTimeLeap }", renderer)
+        self.assertIn("finishNotification", renderer)
+        self.assertIn("YOUR CARDS CHANGED", renderer)
+        self.assertIn(".action-event-overlay.tone-normal", css)
+        self.assertIn(".action-event-overlay.tone-impact", css)
+        self.assertIn("@keyframes action-event-leave", css)
+        self.assertIn("pointer-events: none", css)
+
     def test_newly_drawn_cards_are_temporarily_highlighted(self):
         css = (
             FRONTEND_ROOT / "static" / "css" / "styles.css"

@@ -511,7 +511,83 @@ input:focus {
     rgba(8, 13, 25, 0.97);
   box-shadow: 0 0 80px var(--extra-turn-glow), var(--shadow);
   transform: translate(-50%, -50%);
+  pointer-events: none;
   animation: extra-turn-arrive 300ms ease-out;
+}
+
+.action-event-overlay[hidden],
+.extra-turn-overlay[hidden] {
+  display: none;
+}
+
+.action-event-overlay {
+  --event-color: #b49cff;
+  --event-glow: rgba(180, 156, 255, 0.22);
+  position: fixed;
+  z-index: 30;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: min(460px, calc(100% - 32px));
+  min-height: 220px;
+  padding: 30px;
+  place-content: center;
+  border: 1px solid var(--event-color);
+  border-radius: 8px;
+  color: var(--text);
+  text-align: center;
+  background:
+    radial-gradient(circle, var(--event-glow), transparent 66%),
+    rgba(8, 13, 25, 0.97);
+  box-shadow: 0 0 70px var(--event-glow), var(--shadow);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: extra-turn-arrive 300ms ease-out;
+}
+
+.action-event-overlay.tone-normal {
+  --event-color: #91a0b5;
+  --event-glow: rgba(145, 160, 181, 0.18);
+}
+
+.action-event-overlay.tone-impact {
+  --event-color: #ffad57;
+  --event-glow: rgba(255, 157, 46, 0.28);
+}
+
+.action-event-symbol {
+  color: var(--event-color);
+  font-size: 30px;
+  line-height: 1;
+  text-shadow: 0 0 22px var(--event-color);
+}
+
+.action-event-overlay p {
+  margin: 13px 0 6px;
+  color: var(--event-color);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.25em;
+}
+
+.action-event-overlay strong {
+  font-family: Georgia, "Yu Mincho", serif;
+  font-size: clamp(21px, 4vw, 28px);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.action-event-overlay small {
+  max-width: 390px;
+  margin-top: 12px;
+  color: #d2daea;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.action-event-overlay.leaving,
+.extra-turn-overlay.leaving {
+  animation: action-event-leave 250ms ease-in forwards;
 }
 
 .extra-turn-symbol {
@@ -540,6 +616,17 @@ input:focus {
   color: var(--muted);
   font-size: 10px;
   letter-spacing: 0.12em;
+}
+
+@keyframes action-event-leave {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -52%) scale(0.97);
+  }
 }
 
 @keyframes extra-turn-arrive {

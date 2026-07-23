@@ -42,6 +42,43 @@ class EsperGame:
         self.chat_history = []
         self.log_history = []
 
+        # ブラウザの中央通知用。イベントIDは再戦後も単調増加させる。
+        self.action_event_sequence = 0
+        self.action_events = []
+        self.pending_discards = {}
+        self.active_ability = None
+
+    def add_action_event(
+        self,
+        actor_role,
+        kind,
+        title,
+        detail_by_role=None,
+        *,
+        tone="ability",
+        tone_by_role=None,
+        duration_ms=2000,
+    ):
+        self.action_event_sequence += 1
+        detail_by_role = detail_by_role or {}
+        tone_by_role = tone_by_role or {}
+        messages = {
+            role: {
+                "title": title,
+                "detail": detail_by_role.get(role, ""),
+                "tone": tone_by_role.get(role, tone),
+            }
+            for role in ("p1", "p2")
+        }
+        self.action_events.append({
+            "id": self.action_event_sequence,
+            "actor_role": actor_role,
+            "kind": kind,
+            "duration_ms": duration_ms,
+            "messages": messages,
+        })
+        self.action_events = self.action_events[-100:]
+
     def sort_hand(self, hand):
         counts = Counter(hand)
         return sorted(list(hand), key=lambda x: (-counts[x], x))
@@ -177,3 +214,6 @@ class EsperGame:
         self.turn_step = "DECIDING_TURN"
         self.timer_started = False
         self.cpu_acting = False
+        self.pending_discards = {}
+        self.active_ability = None
+        self.action_events = []

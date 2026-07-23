@@ -20,6 +20,51 @@ class GameService:
     """Fletに依存しないゲーム操作を提供する。"""
 
     @staticmethod
+    def _actor_name(game: EsperGame, role: str) -> str:
+        return game.get_player_name(role)
+
+    @staticmethod
+    def _ability_title(
+        game: EsperGame,
+        role: str,
+        ability_name: str,
+    ) -> str:
+        actor = GameService._actor_name(game, role)
+        active = game.active_ability or {}
+        if (
+            active.get("role") == role
+            and active.get("name") == ability_name
+            and active.get("mimic")
+        ):
+            return (
+                f"{actor}がカモフラージュで"
+                f"「{NAME_MAP.get(ability_name, ability_name)}」を発動"
+            )
+        return f"{actor}が「{NAME_MAP.get(ability_name, ability_name)}」を発動"
+
+    @staticmethod
+    def _emit_ability_event(
+        game: EsperGame,
+        role: str,
+        ability_name: str,
+        detail_by_role: dict[str, str],
+        *,
+        tone_by_role: dict[str, str] | None = None,
+        kind: str = "ability",
+        duration_ms: int = 3000,
+    ) -> None:
+        game.add_action_event(
+            role,
+            kind,
+            GameService._ability_title(game, role, ability_name),
+            detail_by_role,
+            tone="ability",
+            tone_by_role=tone_by_role,
+            duration_ms=duration_ms,
+        )
+        game.active_ability = None
+
+    @staticmethod
     def start_turn_timer(game: EsperGame) -> bool:
         if getattr(game, "timer_started", False):
             return False
@@ -64,13 +109,18 @@ class GameService:
             for item in group
             if not item["is_face_up"]
         )
+        is_face_up = face_down_count >= 5
         discard_groups.append(
             [{
                 "name": card,
-                "is_face_up": face_down_count >= 5,
+                "is_face_up": is_face_up,
                 "owner": role,
             }]
         )
+        game.pending_discards[role] = {
+            "card": card,
+            "is_face_up": is_face_up,
+        }
 
         if GameService._is_cpu_actor(game, role):
             game.add_log(role, "CPUがカードを１枚捨てました。")
@@ -83,7 +133,34 @@ class GameService:
 
     @staticmethod
     def draw_hand(game: EsperGame, role: str, player_name: str) -> None:
+        before_count = len(game.get_hand(role))
         game.fill_hand_to_6(role)
+        drawn_count = len(game.get_hand(role)) - before_count
+        pending = game.pending_discards.pop(role, None)
+        if pending is not None:
+            opponent_role = game.get_op_role(role)
+            discarded_card = pending["card"]
+            public_discard = (
+                f"「{discarded_card}」を捨て、"
+                if pending["is_face_up"]
+                else "手札を1枚捨て、"
+            )
+            draw_text = (
+                f"山札から{drawn_count}枚引きました"
+                if drawn_count != 1
+                else "山札から1枚引きました"
+            )
+            game.add_action_event(
+                role,
+                "hand_refresh",
+                f"{GameService._actor_name(game, role)}が手札を入れ替えました",
+                {
+                    role: f"「{discarded_card}」を捨て、{draw_text}",
+                    opponent_role: public_discard + draw_text,
+                },
+                tone="normal",
+                duration_ms=2000,
+            )
         if GameService._is_cpu_actor(game, role):
             game.add_log(role, "CPUが手札を補充しました。")
         else:
@@ -121,6 +198,14 @@ class GameService:
             if cpu
             else f"{player_name} は能力を使わずにターンを終了した"
         )
+        game.add_action_event(
+            role,
+            "turn_end",
+            f"{GameService._actor_name(game, role)}がターンを終了しました",
+            {game.get_op_role(role): "能力を使わずターンを終了しました"},
+            tone="normal",
+            duration_ms=2000,
+        )
         game.end_action(role, message)
 
     @staticmethod
@@ -132,6 +217,11 @@ class GameService:
         *,
         mimic: bool = False,
     ) -> None:
+        game.active_ability = {
+            "role": role,
+            "name": ability_name,
+            "mimic": mimic,
+        }
         hand = game.get_hand(role)
         if mimic:
             hand.remove("カモフラージュ")
@@ -193,6 +283,15 @@ class GameService:
         opponent_needs = 6 - (len(opponent_hand) - removed_count)
 
         if my_needs + opponent_needs > len(game.deck):
+            GameService._emit_ability_event(
+                game,
+                role,
+                "テレポート",
+                {
+                    role: "補充に必要な山札が足りませんでした",
+                    opponent_role: "補充に必要な山札が足りませんでした",
+                },
+            )
             game.trigger_draw("補充に必要な山札が足りなくなりました")
             return
 
@@ -229,6 +328,27 @@ class GameService:
                 f"【{target_display}】を宣言し、相手から "
                 f"{removed_count} 枚捨てさせた！"
             )
+        victim_detail = (
+            f"あなたの「{target_display}」{removed_count}枚が捨てられ、"
+            f"山札から{opponent_needs}枚補充されました"
+            if removed_count
+            else f"「{target_display}」を宣言しましたが、該当カードはありませんでした"
+        )
+        GameService._emit_ability_event(
+            game,
+            role,
+            "テレポート",
+            {
+                role: (
+                    f"「{target_display}」を宣言し、"
+                    f"相手のカードを{removed_count}枚捨てさせました"
+                ),
+                opponent_role: victim_detail,
+            },
+            tone_by_role={
+                opponent_role: "impact" if removed_count else "ability",
+            },
+        )
         game.end_action(role, message)
 
     @staticmethod
@@ -243,6 +363,13 @@ class GameService:
         opponent_groups = game.get_discard_groups(opponent_role)
 
         opponent_hand.remove(target_card)
+        if game.active_ability is None:
+            game.active_ability = {
+                "role": role,
+                "name": "サイコキネシス",
+                "mimic": False,
+            }
+        game.active_ability["psych_discarded_card"] = target_card
         opponent_groups.append(
             [{
                 "name": target_card,
@@ -273,6 +400,18 @@ class GameService:
                     "しかし相手の場に戻せる裏向きカードがないため"
                     "手札に戻った"
                 )
+            GameService._emit_ability_event(
+                game,
+                role,
+                "サイコキネシス",
+                {
+                    role: "戻せる裏向きの捨て札がありませんでした",
+                    opponent_role: (
+                        f"あなたの「{target_card}」が選ばれましたが、"
+                        "戻せる捨て札がないため手札へ戻りました"
+                    ),
+                },
+            )
             game.end_action(role, message)
             return
 
@@ -294,6 +433,10 @@ class GameService:
         opponent_role = game.get_op_role(role)
         opponent_groups = game.get_discard_groups(opponent_role)
         target_name = opponent_groups.pop(group_index)[0]["name"]
+        discarded_card = (game.active_ability or {}).get(
+            "psych_discarded_card",
+            "手札1枚",
+        )
         game.get_hand(opponent_role).append(target_name)
         game.fill_hand_to_6(role)
 
@@ -308,6 +451,22 @@ class GameService:
                 f"{player_name} は続けて、相手に "
                 f"裏向きの捨て札 {number} を押し付けた！"
             )
+        GameService._emit_ability_event(
+            game,
+            role,
+            "サイコキネシス",
+            {
+                role: (
+                    f"相手の「{discarded_card}」を捨てさせ、"
+                    "裏向きの捨て札1枚を相手の手札へ戻しました"
+                ),
+                opponent_role: (
+                    f"あなたの「{discarded_card}」が捨てられ、"
+                    f"捨て札の「{target_name}」が手札へ戻りました"
+                ),
+            },
+            tone_by_role={opponent_role: "impact"},
+        )
         game.end_action(role, message)
 
     @staticmethod
@@ -353,6 +512,32 @@ class GameService:
         else:
             message = "「ヒーリング(再生)」発動！しかし何も戻さなかった"
 
+        opponent_role = game.get_op_role(role)
+        detail_by_role = {}
+        tone_by_role = {}
+        for viewer_role in (role, opponent_role):
+            descriptions = []
+            for item in selected_items:
+                owner = "あなた" if item["owner"] == viewer_role else "相手"
+                visible = item["is_face_up"] or item["owner"] == viewer_role
+                card_name = item["name"]
+                card = f"「{card_name}」" if visible else "裏向きのカード"
+                descriptions.append(f"{owner}の{card}")
+            joined_descriptions = "、".join(descriptions)
+            detail_by_role[viewer_role] = (
+                f"{joined_descriptions}を山札に戻しました"
+                if descriptions
+                else "山札へ戻すカードはありませんでした"
+            )
+            if any(item["owner"] == viewer_role for item in selected_items):
+                tone_by_role[viewer_role] = "impact"
+        GameService._emit_ability_event(
+            game,
+            role,
+            "ヒーリング",
+            detail_by_role,
+            tone_by_role=tone_by_role,
+        )
         game.temp_selection = []
         game.end_action(role, message)
 
@@ -393,6 +578,43 @@ class GameService:
                 "「クレヤボヤンス(千里眼)」発動！"
                 f"{player_name} は {looked_cards} を透視した！"
             )
+        selected = [
+            game.clair_pool[index]
+            for index in game.temp_selection
+        ]
+        hand_count = sum(item["type"] == "hand" for item in selected)
+        discard_count = sum(item["type"] == "discard" for item in selected)
+        targets = []
+        if hand_count:
+            targets.append(f"手札{hand_count}枚")
+        if discard_count:
+            targets.append(f"捨て札{discard_count}枚")
+        target_text = "と".join(targets) if targets else "カード0枚"
+        revealed_cards = [
+            (
+                "手札" if item["type"] == "hand" else "捨て札",
+                item["name"],
+            )
+            for item in selected
+        ]
+        revealed_text = "と".join(
+            f"{zone}の「{card_name}」"
+            for zone, card_name in revealed_cards
+        )
+        opponent_role = game.get_op_role(role)
+        GameService._emit_ability_event(
+            game,
+            role,
+            "クレヤボヤンス",
+            {
+                role: f"相手の{target_text}を透視しました",
+                opponent_role: (
+                    f"あなたの{revealed_text}が透視されました"
+                    if revealed_text
+                    else "あなたのカードは透視されませんでした"
+                ),
+            },
+        )
         game.temp_selection = []
         game.fill_hand_to_6(role)
         game.end_action(role, message)
@@ -465,6 +687,15 @@ class GameService:
                     + "捨てる相手の伏せカードを選んでください。"
                 )
             else:
+                GameService._emit_ability_event(
+                    game,
+                    role,
+                    ability_name,
+                    {
+                        role: "相手の手札が空のため対象がありませんでした",
+                        opponent_role: "手札が空のため効果を受けませんでした",
+                    },
+                )
                 game.end_action(
                     role,
                     start_message + "しかし相手の手札は空だった",
@@ -481,6 +712,15 @@ class GameService:
                 not game.get_flat_discard("p1")
                 and not game.get_flat_discard("p2")
             ):
+                GameService._emit_ability_event(
+                    game,
+                    role,
+                    ability_name,
+                    {
+                        role: "捨て札がないため何も戻しませんでした",
+                        opponent_role: "捨て札がないため何も戻りませんでした",
+                    },
+                )
                 game.end_action(
                     role,
                     start_message + "しかし捨て札がなかった",
@@ -510,6 +750,15 @@ class GameService:
                 cpu=is_cpu,
             )
             if not game.clair_pool:
+                GameService._emit_ability_event(
+                    game,
+                    role,
+                    ability_name,
+                    {
+                        role: "透視できるカードがありませんでした",
+                        opponent_role: "透視できるカードがないため効果を受けませんでした",
+                    },
+                )
                 game.end_action(
                     role,
                     start_message + "しかし対象になるカードがなかった",
@@ -529,6 +778,15 @@ class GameService:
                     f"CPUが「{ability_display}」を発動！"
                     if is_cpu
                     else f"「{ability_display}」発動！"
+                )
+                GameService._emit_ability_event(
+                    game,
+                    role,
+                    ability_name,
+                    {
+                        role: "山札が空のため並べ替えられませんでした",
+                        opponent_role: "山札が空のため効果はありませんでした",
+                    },
                 )
                 game.end_action(
                     role,
@@ -550,6 +808,18 @@ class GameService:
         if ability_name == "タイムリープ":
             game.extra_turn = True
             game.fill_hand_to_6(role)
+            next_chain = game.extra_turn_chain + 1
+            GameService._emit_ability_event(
+                game,
+                role,
+                ability_name,
+                {
+                    role: f"追加ターンを獲得しました（連続{next_chain}回目）",
+                    opponent_role: f"追加ターンが始まります（連続{next_chain}回目）",
+                },
+                kind="time_leap",
+                duration_ms=2000,
+            )
             if is_cpu:
                 message = (
                     f"CPUが「{ability_display}」を発動！追加ターンを得た"
@@ -583,6 +853,17 @@ class GameService:
                 "「プリサイエンス(未来予知)」発動！"
                 f"{player_name} は未来を覗き見た！"
             )
+        opponent_role = game.get_op_role(role)
+        count = len(ordered_cards)
+        GameService._emit_ability_event(
+            game,
+            role,
+            "プリサイエンス",
+            {
+                role: f"山札の上{count}枚を好きな順番に並べ替えました",
+                opponent_role: f"山札の上{count}枚を並べ替えました",
+            },
+        )
         game.end_action(role, message)
 
     @staticmethod

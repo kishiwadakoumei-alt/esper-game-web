@@ -62,11 +62,11 @@ function handlers() {
   };
 }
 
-function updateState(state) {
+function updateState(state, { suppressActionEvents = false } = {}) {
   currentState = state;
   landingScreen.hidden = true;
   gameScreen.hidden = false;
-  renderGame(state, handlers());
+  renderGame(state, handlers(), { suppressActionEvents });
 }
 
 function connectSocket() {

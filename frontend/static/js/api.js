@@ -160,6 +160,7 @@ export class EsperApi {
       `${protocol}//${window.location.host}/ws/rooms/${room}?token=${token}`,
     );
     this.socket = socket;
+    let awaitingInitialState = true;
 
     socket.addEventListener("open", () => onStatus(true));
     socket.addEventListener("message", (event) => {
@@ -172,7 +173,10 @@ export class EsperApi {
       if (message.type !== "state") {
         return;
       }
-      onState(message.data);
+      onState(message.data, {
+        suppressActionEvents: awaitingInitialState,
+      });
+      awaitingInitialState = false;
       if (message.data.game.turn_step === "ROOM_DISBANDED") {
         this.socketClosedIntentionally = true;
         onDisbanded();

@@ -37,8 +37,11 @@ const CARD_EFFECTS = {
 };
 
 let prescienceOrder = [];
-let lastExtraTurnCount = 0;
-let extraTurnOverlayTimer = null;
+let lastActionEventId = null;
+let activeNotification = null;
+let notificationTimer = null;
+let notificationGapTimer = null;
+const notificationQueue = [];
 let previousHandCounts = null;
 let handTrackingContext = null;
 let previousTurnStep = null;
@@ -244,6 +247,19 @@ export function resetRenderState() {
   handTrackingContext = null;
   previousTurnStep = null;
   newlyDrawnCards.clear();
+  lastActionEventId = null;
+  notificationQueue.length = 0;
+  activeNotification = null;
+  window.clearTimeout(notificationTimer);
+  window.clearTimeout(notificationGapTimer);
+  const actionOverlay = byId("action-event-overlay");
+  const extraTurnOverlay = byId("extra-turn-overlay");
+  if (actionOverlay) {
+    actionOverlay.hidden = true;
+  }
+  if (extraTurnOverlay) {
+    extraTurnOverlay.hidden = true;
+  }
 }
 
 function renderHand(state, onAction) {
@@ -689,14 +705,94 @@ function extraTurnLevel(count) {
   return Math.min(Math.max(count, 1), 4);
 }
 
+function finishNotification(overlay) {
+  overlay.classList.add("leaving");
+  notificationTimer = window.setTimeout(() => {
+    overlay.hidden = true;
+    overlay.classList.remove("leaving");
+    activeNotification = null;
+    notificationGapTimer = window.setTimeout(showNextNotification, 200);
+  }, 250);
+}
+
+function showNextNotification() {
+  if (activeNotification || !notificationQueue.length) {
+    return;
+  }
+  activeNotification = notificationQueue.shift();
+  const isTimeLeap = activeNotification.kind === "time_leap";
+  const overlay = byId(
+    isTimeLeap ? "extra-turn-overlay" : "action-event-overlay",
+  );
+
+  if (isTimeLeap) {
+    const levelClass =
+      `extra-turn-level-${extraTurnLevel(activeNotification.level)}`;
+    overlay.className = `extra-turn-overlay ${levelClass}`;
+    byId("extra-turn-overlay-title").textContent = activeNotification.title;
+    byId("extra-turn-overlay-count").textContent = activeNotification.detail;
+  } else {
+    overlay.className =
+      `action-event-overlay tone-${activeNotification.tone || "ability"}`;
+    byId("action-event-kicker").textContent =
+      activeNotification.tone === "impact"
+        ? "YOUR CARDS CHANGED"
+        : "OPPONENT ACTION";
+    byId("action-event-title").textContent = activeNotification.title;
+    byId("action-event-detail").textContent = activeNotification.detail;
+  }
+
+  overlay.hidden = false;
+  notificationTimer = window.setTimeout(
+    () => finishNotification(overlay),
+    activeNotification.duration_ms || 2000,
+  );
+}
+
+function enqueueNotification(notification, { priority = false } = {}) {
+  if (priority) {
+    notificationQueue.unshift(notification);
+  } else {
+    notificationQueue.push(notification);
+  }
+  showNextNotification();
+}
+
+function renderActionEvents(state, { suppress = false } = {}) {
+  const events = state.action_events || [];
+  const newestId = events.reduce(
+    (maximum, event) => Math.max(maximum, event.id),
+    0,
+  );
+  if (lastActionEventId === null || suppress) {
+    lastActionEventId = newestId;
+    return;
+  }
+
+  events
+    .filter((event) => event.id > lastActionEventId)
+    .sort((left, right) => left.id - right.id)
+    .forEach((event) => {
+      const isTimeLeap = event.kind === "time_leap";
+      if (isTimeLeap || event.actor_role !== state.viewer.role) {
+        enqueueNotification(
+          {
+            ...event,
+            level: state.game.extra_turn_chain || 1,
+          },
+          { priority: isTimeLeap },
+        );
+      }
+    });
+  lastActionEventId = Math.max(lastActionEventId, newestId);
+}
+
 function renderExtraTurnIndicators(state) {
   const count = state.game.extra_turn_chain || 0;
   const badge = byId("extra-turn-badge");
-  const overlay = byId("extra-turn-overlay");
 
   if (count === 0) {
     badge.hidden = true;
-    lastExtraTurnCount = 0;
     return;
   }
 
@@ -704,22 +800,6 @@ function renderExtraTurnIndicators(state) {
   badge.hidden = false;
   badge.className = `extra-turn-badge ${levelClass}`;
   badge.textContent = `EXTRA TURN ×${count}`;
-
-  if (count === lastExtraTurnCount) {
-    return;
-  }
-  lastExtraTurnCount = count;
-  window.clearTimeout(extraTurnOverlayTimer);
-  overlay.className = `extra-turn-overlay ${levelClass}`;
-  byId("extra-turn-overlay-title").textContent = state.game.is_my_turn
-    ? "追加ターンが始まります"
-    : `${state.opponent.name}の追加ターン`;
-  byId("extra-turn-overlay-count").textContent =
-    `TIME LEAP CHAIN ${count}`;
-  overlay.hidden = false;
-  extraTurnOverlayTimer = window.setTimeout(() => {
-    overlay.hidden = true;
-  }, 1600);
 }
 
 function renderPhase(state) {
@@ -801,8 +881,13 @@ function clairvoyanceHighlights(state) {
   return highlights;
 }
 
-export function renderGame(state, handlers) {
+export function renderGame(
+  state,
+  handlers,
+  { suppressActionEvents = false } = {},
+) {
   updateNewlyDrawnCards(state);
+  renderActionEvents(state, { suppress: suppressActionEvents });
   const discardDialog = byId("discard-dialog");
   if (
     discardDialog.open &&

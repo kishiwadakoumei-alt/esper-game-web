@@ -332,6 +332,19 @@
     </dialog>
 
     <div
+      id="action-event-overlay"
+      class="action-event-overlay"
+      role="status"
+      aria-live="assertive"
+      hidden
+    >
+      <div class="action-event-symbol" aria-hidden="true">◆</div>
+      <p id="action-event-kicker">OPPONENT ACTION</p>
+      <strong id="action-event-title"></strong>
+      <small id="action-event-detail"></small>
+    </div>
+
+    <div
       id="extra-turn-overlay"
       class="extra-turn-overlay"
       role="status"

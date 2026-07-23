@@ -123,6 +123,54 @@ class StateServiceVisibilityTests(unittest.TestCase):
             StateService.build_public_state(make_game(), "spectator")
 
 
+class StateServiceActionEventTests(unittest.TestCase):
+    def test_action_event_exposes_only_viewer_specific_message(self):
+        game = make_game()
+        game.add_action_event(
+            "p2",
+            "impact_test",
+            "Bobが能力を発動",
+            {
+                "p1": "あなたのSECRET_OWN_CARDが移動しました",
+                "p2": "相手の伏せカードを移動しました",
+            },
+            tone_by_role={"p1": "impact"},
+        )
+
+        p1_state = StateService.build_public_state(game, "p1")
+        p2_state = StateService.build_public_state(game, "p2")
+
+        self.assertEqual(
+            p1_state["action_events"][-1]["detail"],
+            "あなたのSECRET_OWN_CARDが移動しました",
+        )
+        self.assertEqual(p1_state["action_events"][-1]["tone"], "impact")
+        self.assertEqual(
+            p1_state["action_events"][-1]["title"],
+            "相手が能力を発動",
+        )
+        self.assertEqual(
+            p2_state["action_events"][-1]["title"],
+            "あなたが能力を発動",
+        )
+        self.assertNotIn(
+            "SECRET_OWN_CARD",
+            json.dumps(p2_state["action_events"], ensure_ascii=False),
+        )
+
+    def test_action_event_ids_are_monotonic(self):
+        game = make_game()
+        game.add_action_event("p1", "first", "1つ目")
+        game.add_action_event("p2", "second", "2つ目")
+
+        state = StateService.build_public_state(game, "p1")
+
+        self.assertEqual(
+            [event["id"] for event in state["action_events"]],
+            [1, 2],
+        )
+
+
 class StateServiceInteractionTests(unittest.TestCase):
     def test_prescience_cards_are_visible_only_to_acting_player(self):
         game = make_game()

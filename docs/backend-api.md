@@ -102,6 +102,7 @@ ws://localhost:8000/ws/rooms/{room_id}?token={token}
 ```
 
 接続直後と状態更新時に、接続者専用の公開状態が届く。
+`action_events` の文面も接続者向けに変換済みで、相手の伏せ情報は含まれない。
 
 ```json
 {

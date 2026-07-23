@@ -170,6 +170,13 @@ class ApiTests(unittest.TestCase):
             self.assertEqual(initial["type"], "state")
             self.assertEqual(initial["data"]["viewer"]["role"], "p1")
 
+            game = self.app.state.context.rooms["ws-room"]
+            game.add_action_event(
+                "p2",
+                "test_action",
+                "Bobが行動しました",
+                {"p1": "あなた向けの通知"},
+            )
             response = self.client.post(
                 "/api/rooms/ws-room/chat",
                 headers=self._headers(token),
@@ -180,6 +187,10 @@ class ApiTests(unittest.TestCase):
             self.assertEqual(
                 update["data"]["chat"][-1],
                 "💬 Alice: hello",
+            )
+            self.assertEqual(
+                update["data"]["action_events"][-1]["detail"],
+                "あなた向けの通知",
             )
 
             websocket.send_json({"type": "ping"})

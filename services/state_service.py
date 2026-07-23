@@ -76,6 +76,7 @@ class StateService:
             ),
             "interaction": cls._interaction(game, viewer_role),
             "logs": [dict(entry) for entry in game.log_history],
+            "action_events": cls._action_events(game, viewer_role),
             "chat": list(game.chat_history),
             "rematch": {
                 "requested_by_me": viewer_role in game.rematch_requests,
@@ -85,6 +86,33 @@ class StateService:
             },
         }
         return state
+
+    @staticmethod
+    def _action_events(
+        game: EsperGame,
+        viewer_role: str,
+    ) -> list[dict[str, Any]]:
+        events = []
+        for event in game.action_events:
+            message = event["messages"][viewer_role]
+            actor_role = event["actor_role"]
+            actor_name = game.get_player_name(actor_role)
+            actor_label = "あなた" if actor_role == viewer_role else "相手"
+            title = message["title"].replace(
+                actor_name,
+                actor_label,
+                1,
+            )
+            events.append({
+                "id": event["id"],
+                "actor_role": actor_role,
+                "kind": event["kind"],
+                "title": title,
+                "detail": message["detail"],
+                "tone": message["tone"],
+                "duration_ms": event["duration_ms"],
+            })
+        return events
 
     @classmethod
     def _available_actions(

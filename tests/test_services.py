@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from game_logic import EsperGame
-from services import CpuService, GameService, RoomService
+from services import CpuService, GameService, RoomService, StateService
 
 
 def make_game() -> EsperGame:
@@ -264,6 +264,159 @@ class GameServiceAbilityTests(unittest.TestCase):
 
         self.assertEqual(game.p1_hand[-3:], ["B", "A", "C"])
         self.assertEqual(game.deck, ["BASE1", "BASE2"])
+
+
+class GameServiceActionEventTests(unittest.TestCase):
+    def test_hidden_discard_name_is_not_exposed_to_opponent(self):
+        game = make_game()
+        game.p1_hand = ["SECRET", "B", "C", "D", "E", "F"]
+        game.deck = ["DRAWN"]
+
+        GameService.discard_card(game, "p1", "SECRET", "Alice")
+        GameService.draw_hand(game, "p1", "Alice")
+
+        event = StateService.build_public_state(game, "p2")[
+            "action_events"
+        ][-1]
+        self.assertEqual(event["kind"], "hand_refresh")
+        self.assertNotIn("SECRET", event["detail"])
+        self.assertIn("手札を1枚捨て", event["detail"])
+
+    def test_teleport_tells_victim_exact_card_change(self):
+        game = make_game()
+        game.turn_step = "TELEPORT_SELECTION"
+        game.p1_hand = ["M1", "M2", "M3", "M4"]
+        game.p2_hand = ["ヒーリング", "ヒーリング", "B", "C", "D", "E"]
+        game.deck = ["REMAIN", "D1", "D2", "D3", "D4"]
+
+        GameService.teleport(game, "p1", "ヒーリング", "Alice")
+
+        event = StateService.build_public_state(game, "p2")[
+            "action_events"
+        ][-1]
+        self.assertEqual(event["tone"], "impact")
+        self.assertIn("ヒーリング", event["detail"])
+        self.assertIn("2枚が捨てられ", event["detail"])
+        self.assertIn("2枚補充", event["detail"])
+
+    def test_healing_hides_opponents_face_down_card_from_actor(self):
+        game = make_game()
+        game.turn_step = "REGEN_SELECTION"
+        game.p1_hand = ["A", "B", "C", "D"]
+        game.deck = ["BASE1", "BASE2"]
+        game.p2_discard_groups = [[{
+            "name": "SECRET_HEALED_CARD",
+            "is_face_up": False,
+            "owner": "p2",
+        }]]
+        game.regen_pool = [{
+            "owner": "p2",
+            "g_idx": 0,
+            "item_idx": 0,
+            "name": "SECRET_HEALED_CARD",
+            "is_face_up": False,
+        }]
+        game.temp_selection = [0]
+
+        with patch(
+            "services.game_service.random.shuffle",
+            side_effect=lambda cards: None,
+        ):
+            GameService.confirm_healing(game, "p1", "Alice")
+
+        actor_event = StateService.build_public_state(game, "p1")[
+            "action_events"
+        ][-1]
+        victim_event = StateService.build_public_state(game, "p2")[
+            "action_events"
+        ][-1]
+        self.assertNotIn("SECRET_HEALED_CARD", actor_event["detail"])
+        self.assertIn("裏向きのカード", actor_event["detail"])
+        self.assertIn("SECRET_HEALED_CARD", victim_event["detail"])
+        self.assertEqual(victim_event["tone"], "impact")
+
+
+class GameServiceAbilityNotificationTests(unittest.TestCase):
+    def test_successful_psychokinesis_reveals_returned_card_only_to_victim(self):
+        game = make_game()
+        game.turn_step = "PSY_DISCARD_SELECTION"
+        game.p1_hand = ["M1", "M2", "M3", "M4"]
+        game.p2_hand = ["DISCARDED", "B"]
+        game.p2_discard_groups = [[{
+            "name": "SECRET_RETURNED",
+            "is_face_up": False,
+            "owner": "p2",
+        }]]
+        game.deck = ["D1", "D2"]
+
+        GameService.psychokinesis_discard(
+            game,
+            "p1",
+            "DISCARDED",
+            "Alice",
+        )
+        GameService.psychokinesis_push(game, "p1", 0, "Alice")
+
+        actor_event = StateService.build_public_state(game, "p1")[
+            "action_events"
+        ][-1]
+        victim_event = StateService.build_public_state(game, "p2")[
+            "action_events"
+        ][-1]
+        self.assertNotIn("SECRET_RETURNED", actor_event["detail"])
+        self.assertIn("SECRET_RETURNED", victim_event["detail"])
+        self.assertIn("DISCARDED", victim_event["detail"])
+        self.assertEqual(victim_event["tone"], "impact")
+
+    def test_clairvoyance_tells_victim_which_cards_were_seen(self):
+        game = make_game()
+        game.turn_step = "CLAIR_REVEAL"
+        game.clair_pool = [
+            {"type": "hand", "label": "手札", "name": "SECRET_HAND"},
+            {"type": "discard", "label": "捨て札", "name": "SECRET_DISCARD"},
+        ]
+        game.temp_selection = [0, 1]
+        game.deck = ["D1", "D2"]
+
+        GameService.finish_clairvoyance(game, "p1", "Alice")
+
+        victim_event = StateService.build_public_state(game, "p2")[
+            "action_events"
+        ][-1]
+        self.assertIn("手札の「SECRET_HAND」", victim_event["detail"])
+        self.assertIn(
+            "捨て札の「SECRET_DISCARD」",
+            victim_event["detail"],
+        )
+
+    def test_mimic_ability_name_is_in_time_leap_event(self):
+        game = make_game()
+        game.turn_step = "ABILITY"
+        game.p1_hand = [
+            "カモフラージュ",
+            "カモフラージュ",
+            "タイムリープ",
+            "A",
+            "B",
+            "C",
+        ]
+        game.deck = ["D1", "D2", "D3", "D4"]
+
+        GameService.activate_ability(
+            game,
+            "p1",
+            "タイムリープ",
+            "Alice",
+            mimic=True,
+        )
+
+        event = StateService.build_public_state(game, "p2")[
+            "action_events"
+        ][-1]
+        self.assertEqual(event["kind"], "time_leap")
+        self.assertTrue(event["title"].startswith("相手が"))
+        self.assertIn("カモフラージュ", event["title"])
+        self.assertIn("タイムリープ", event["title"])
 
 
 class CpuServiceTests(unittest.TestCase):

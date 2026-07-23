@@ -151,6 +151,26 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn(".card.selected:not(.hidden-card)", css)
         self.assertIn(".card.hidden-card.selected", css)
 
+    def test_teleport_target_is_confirmed_before_action(self):
+        html = (FRONTEND_ROOT / "index.html").read_text()
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+        renderer = (
+            FRONTEND_ROOT / "static" / "js" / "render.js"
+        ).read_text()
+
+        self.assertIn("teleport-dialog", html)
+        self.assertIn("teleport-target-name", html)
+        self.assertIn("teleport-target-effect", html)
+        self.assertIn("teleport-cancel-button", html)
+        self.assertIn("teleport-confirm-button", html)
+        self.assertIn("捨てさせる", html)
+        self.assertIn(".teleport-dialog", css)
+        self.assertIn("confirmTeleportTarget(", renderer)
+        self.assertIn("select_teleport_target", renderer)
+        self.assertIn("onConfirm();", renderer)
+
     def test_html_css_and_javascript_have_distinct_responsibilities(self):
         html = (FRONTEND_ROOT / "index.html").read_text()
         css = (

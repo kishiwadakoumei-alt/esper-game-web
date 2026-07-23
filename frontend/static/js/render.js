@@ -160,6 +160,23 @@ function confirmAbility(card, label, cardCount, onConfirm) {
   }
 }
 
+function confirmTeleportTarget(card, label, onConfirm) {
+  const dialog = byId("teleport-dialog");
+  byId("teleport-target-name").textContent = label;
+  byId("teleport-target-effect").textContent =
+    CARD_EFFECTS[card] || "この能力には説明がありません。";
+
+  byId("teleport-cancel-button").onclick = () => dialog.close();
+  byId("teleport-confirm-button").onclick = () => {
+    dialog.close();
+    onConfirm();
+  };
+
+  if (!dialog.open) {
+    dialog.showModal();
+  }
+}
+
 function renderHand(state, onAction) {
   const container = byId("my-hand");
   clear(container);
@@ -414,11 +431,18 @@ function renderActions(state, handlers) {
   }
 
   if (step === "TELEPORT_SELECTION" && interaction) {
-    renderSelectionOptions(list, interaction.options, {
-      label: (option) => option.label,
-      action: "select_teleport_target",
-      payloadKey: "card",
-      onAction: handlers.action,
+    interaction.options.forEach((option) => {
+      addAction(
+        list,
+        option.label,
+        () =>
+          confirmTeleportTarget(option.card, option.label, () =>
+            handlers.action("select_teleport_target", {
+              card: option.card,
+            }),
+          ),
+        { kind: "secondary" },
+      );
     });
   }
 
@@ -660,6 +684,13 @@ export function renderGame(state, handlers) {
     if (prescienceDialog.open) {
       prescienceDialog.close();
     }
+  }
+  const teleportDialog = byId("teleport-dialog");
+  if (
+    teleportDialog.open &&
+    state.game.turn_step !== "TELEPORT_SELECTION"
+  ) {
+    teleportDialog.close();
   }
   const abilityDialog = byId("ability-dialog");
   if (

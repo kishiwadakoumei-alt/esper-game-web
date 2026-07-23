@@ -300,6 +300,32 @@
       </div>
     </dialog>
 
+    <dialog id="teleport-dialog" class="teleport-dialog">
+      <div class="teleport-dialog-accent" aria-hidden="true">◎</div>
+      <p class="eyebrow">CONFIRM TELEPORT TARGET</p>
+      <h2>この能力を捨てさせますか？</h2>
+      <div class="teleport-target">
+        <span>捨てさせる能力名</span>
+        <strong id="teleport-target-name"></strong>
+      </div>
+      <div class="teleport-effect">
+        <span>能力内容</span>
+        <p id="teleport-target-effect"></p>
+      </div>
+      <div class="dialog-actions">
+        <button id="teleport-cancel-button" class="action-button" type="button">
+          戻る
+        </button>
+        <button
+          id="teleport-confirm-button"
+          class="action-button primary"
+          type="button"
+        >
+          捨てさせる
+        </button>
+      </div>
+    </dialog>
+
     <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
     <script type="module" src="/static/js/app.js"></script>
   </body>

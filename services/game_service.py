@@ -198,14 +198,6 @@ class GameService:
             if cpu
             else f"{player_name} は能力を使わずにターンを終了した"
         )
-        game.add_action_event(
-            role,
-            "turn_end",
-            f"{GameService._actor_name(game, role)}がターンを終了しました",
-            {game.get_op_role(role): "能力を使わずターンを終了しました"},
-            tone="normal",
-            duration_ms=2000,
-        )
         game.end_action(role, message)
 
     @staticmethod

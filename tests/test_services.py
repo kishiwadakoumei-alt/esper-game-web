@@ -282,6 +282,18 @@ class GameServiceActionEventTests(unittest.TestCase):
         self.assertNotIn("SECRET", event["detail"])
         self.assertIn("手札を1枚捨て", event["detail"])
 
+    def test_passing_turn_does_not_create_center_notification(self):
+        game = make_game()
+        game.current_turn = "p1"
+        game.turn_step = "THINK"
+        game.deck = ["REMAIN"]
+
+        GameService.pass_turn(game, "p1", "Alice")
+
+        self.assertEqual(game.action_events, [])
+        self.assertEqual(game.current_turn, "p2")
+        self.assertIn("能力を使わず", game.log_history[-1]["text"])
+
     def test_teleport_tells_victim_exact_card_change(self):
         game = make_game()
         game.turn_step = "TELEPORT_SELECTION"

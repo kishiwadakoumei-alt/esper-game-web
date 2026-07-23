@@ -38,6 +38,8 @@ const CARD_EFFECTS = {
 
 let prescienceOrder = [];
 let lastActionEventId = null;
+let lastTurnOwner = null;
+let lastTurnNotificationStep = null;
 let activeNotification = null;
 let notificationTimer = null;
 let notificationGapTimer = null;
@@ -248,6 +250,8 @@ export function resetRenderState() {
   previousTurnStep = null;
   newlyDrawnCards.clear();
   lastActionEventId = null;
+  lastTurnOwner = null;
+  lastTurnNotificationStep = null;
   notificationQueue.length = 0;
   activeNotification = null;
   window.clearTimeout(notificationTimer);
@@ -735,9 +739,11 @@ function showNextNotification() {
     overlay.className =
       `action-event-overlay tone-${activeNotification.tone || "ability"}`;
     byId("action-event-kicker").textContent =
-      activeNotification.tone === "impact"
-        ? "YOUR CARDS CHANGED"
-        : "OPPONENT ACTION";
+      activeNotification.kind === "turn_change"
+        ? "TURN CHANGE"
+        : activeNotification.tone === "impact"
+          ? "YOUR CARDS CHANGED"
+          : "OPPONENT ACTION";
     byId("action-event-title").textContent = activeNotification.title;
     byId("action-event-detail").textContent = activeNotification.detail;
   }
@@ -785,6 +791,41 @@ function renderActionEvents(state, { suppress = false } = {}) {
       }
     });
   lastActionEventId = Math.max(lastActionEventId, newestId);
+}
+
+function renderTurnChange(state, { suppress = false } = {}) {
+  const currentOwner = state.game.current_turn;
+  const currentStep = state.game.turn_step;
+  const turnIsActive = ![
+    "WAITING",
+    "DECIDING_TURN",
+    "GAME_CLEAR",
+    "GAME_OVER",
+    "ROOM_DISBANDED",
+  ].includes(currentStep);
+  const startsAfterDecision = ["WAITING", "DECIDING_TURN"].includes(
+    lastTurnNotificationStep,
+  );
+  const shouldNotify =
+    lastTurnOwner !== null &&
+    !suppress &&
+    turnIsActive &&
+    (currentOwner !== lastTurnOwner || startsAfterDecision);
+
+  lastTurnOwner = currentOwner;
+  lastTurnNotificationStep = currentStep;
+  if (!shouldNotify) {
+    return;
+  }
+
+  const isMyTurn = currentOwner === state.viewer.role;
+  enqueueNotification({
+    kind: "turn_change",
+    tone: isMyTurn ? "turn-mine" : "turn-opponent",
+    title: isMyTurn ? "あなたの番です" : "相手の番です",
+    detail: "",
+    duration_ms: 2000,
+  });
 }
 
 function renderExtraTurnIndicators(state) {
@@ -888,6 +929,7 @@ export function renderGame(
 ) {
   updateNewlyDrawnCards(state);
   renderActionEvents(state, { suppress: suppressActionEvents });
+  renderTurnChange(state, { suppress: suppressActionEvents });
   const discardDialog = byId("discard-dialog");
   if (
     discardDialog.open &&

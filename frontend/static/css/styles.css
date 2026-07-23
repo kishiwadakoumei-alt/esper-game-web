@@ -550,6 +550,16 @@ input:focus {
   --event-glow: rgba(145, 160, 181, 0.18);
 }
 
+.action-event-overlay.tone-turn-mine {
+  --event-color: #ffad57;
+  --event-glow: rgba(255, 157, 46, 0.24);
+}
+
+.action-event-overlay.tone-turn-opponent {
+  --event-color: #6fd2da;
+  --event-glow: rgba(86, 216, 228, 0.2);
+}
+
 .action-event-overlay.tone-impact {
   --event-color: #ffad57;
   --event-glow: rgba(255, 157, 46, 0.28);
@@ -575,6 +585,10 @@ input:focus {
   font-size: clamp(21px, 4vw, 28px);
   font-weight: 500;
   line-height: 1.35;
+}
+
+.action-event-overlay small:empty {
+  display: none;
 }
 
 .action-event-overlay small {

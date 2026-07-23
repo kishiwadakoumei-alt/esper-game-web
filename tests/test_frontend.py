@@ -217,6 +217,24 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("@keyframes action-event-leave", css)
         self.assertIn("pointer-events: none", css)
 
+    def test_turn_changes_are_shown_in_the_notification_queue(self):
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+        renderer = (
+            FRONTEND_ROOT / "static" / "js" / "render.js"
+        ).read_text()
+
+        self.assertIn("renderTurnChange(state", renderer)
+        self.assertIn("あなたの番です", renderer)
+        self.assertIn("相手の番です", renderer)
+        self.assertIn("TURN CHANGE", renderer)
+        self.assertIn("currentOwner !== lastTurnOwner", renderer)
+        self.assertIn("startsAfterDecision", renderer)
+        self.assertIn("suppress: suppressActionEvents", renderer)
+        self.assertIn(".action-event-overlay.tone-turn-mine", css)
+        self.assertIn(".action-event-overlay.tone-turn-opponent", css)
+
     def test_newly_drawn_cards_are_temporarily_highlighted(self):
         css = (
             FRONTEND_ROOT / "static" / "css" / "styles.css"

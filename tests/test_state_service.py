@@ -134,6 +134,14 @@ class StateServiceInteractionTests(unittest.TestCase):
         actor_state = StateService.build_public_state(game, "p1")
         opponent_state = StateService.build_public_state(game, "p2")
 
+        self.assertIn(
+            "confirm_prescience_order",
+            actor_state["available_actions"],
+        )
+        self.assertNotIn(
+            "select_prescience_card",
+            actor_state["available_actions"],
+        )
         self.assertEqual(
             [
                 option["card"]

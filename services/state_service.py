@@ -129,8 +129,8 @@ class StateService:
                 "confirm_clairvoyance",
             ],
             "CLAIR_REVEAL": ["finish_clairvoyance"],
-            "PRESCIENCE_SELECT_1": ["select_prescience_card"],
-            "PRESCIENCE_SELECT_2": ["select_prescience_card"],
+            "PRESCIENCE_SELECT_1": ["confirm_prescience_order"],
+            "PRESCIENCE_SELECT_2": ["confirm_prescience_order"],
         }
         actions.extend(actions_by_step.get(game.turn_step, []))
 

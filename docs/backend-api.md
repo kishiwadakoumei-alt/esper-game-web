@@ -91,7 +91,7 @@ CPU戦作成:
 - `toggle_clairvoyance_selection`
 - `confirm_clairvoyance`
 - `finish_clairvoyance`
-- `select_prescience_card`
+- `confirm_prescience_order`
 
 ## WebSocket
 

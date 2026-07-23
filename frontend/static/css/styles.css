@@ -1006,6 +1006,112 @@ button.card:hover {
   line-height: 1.75;
 }
 
+.prescience-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 13px;
+  border: 1px solid #3b4961;
+  border-radius: 3px;
+  color: var(--text);
+  text-align: left;
+  background: #162136;
+  font-size: 11px;
+  font-weight: 750;
+  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+
+.prescience-option:hover {
+  border-color: var(--orange);
+  transform: translateY(-1px);
+}
+
+.prescience-option.selected {
+  border-color: var(--orange);
+  color: #191108;
+  background: var(--orange);
+  box-shadow: 0 0 18px rgba(255, 157, 46, 0.2);
+}
+
+.prescience-position {
+  color: var(--orange-soft);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.prescience-option.selected .prescience-position {
+  color: #3f260d;
+}
+
+.prescience-dialog {
+  width: min(500px, calc(100% - 30px));
+  padding: 30px;
+  border: 1px solid rgba(170, 140, 255, 0.46);
+  border-radius: 6px;
+  color: var(--text);
+  background:
+    linear-gradient(150deg, rgba(170, 140, 255, 0.1), transparent 46%),
+    #101827;
+  box-shadow: var(--shadow);
+}
+
+.prescience-dialog::backdrop {
+  background: rgba(2, 6, 14, 0.84);
+  backdrop-filter: blur(8px);
+}
+
+.prescience-dialog-accent {
+  position: absolute;
+  top: 21px;
+  right: 27px;
+  color: var(--purple);
+  font-size: 32px;
+}
+
+.prescience-dialog h2 {
+  margin: 0;
+  font-family: Georgia, "Yu Mincho", serif;
+  font-size: 25px;
+  font-weight: 500;
+}
+
+.prescience-dialog-copy {
+  margin: 9px 0 20px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.prescience-order-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.prescience-order-list li {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  background: rgba(7, 12, 22, 0.64);
+}
+
+.prescience-order-list span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.prescience-order-list strong {
+  color: var(--orange-soft);
+  font-size: 13px;
+}
+
 .dialog-close {
   position: absolute;
   top: 15px;

@@ -114,12 +114,12 @@ class CommandService:
             GameService.confirm_clairvoyance(game)
         elif action == "finish_clairvoyance":
             GameService.finish_clairvoyance(game, role, name)
-        elif action == "select_prescience_card":
-            option = cls._option_by_index(interaction, payload)
-            GameService.choose_prescience_card(
+        elif action == "confirm_prescience_order":
+            ordered_indices = cls._prescience_order(interaction, payload)
+            GameService.confirm_prescience_order(
                 game,
                 role,
-                option["index"],
+                ordered_indices,
                 name,
             )
         else:
@@ -127,6 +127,30 @@ class CommandService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="未対応の操作です",
             )
+
+    @staticmethod
+    def _prescience_order(
+        interaction: dict[str, Any],
+        payload: dict[str, Any],
+    ) -> list[int]:
+        order = payload.get("order")
+        valid_indices = [
+            option["index"] for option in interaction["options"]
+        ]
+        if (
+            not isinstance(order, list)
+            or any(
+                isinstance(index, bool) or not isinstance(index, int)
+                for index in order
+            )
+            or len(order) != len(valid_indices)
+            or sorted(order) != sorted(valid_indices)
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="orderには全カードのindexを重複なく指定してください",
+            )
+        return order
 
     @staticmethod
     def _payload_index(payload: dict[str, Any]) -> int:

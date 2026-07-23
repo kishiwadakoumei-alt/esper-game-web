@@ -126,6 +126,39 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(game.turn_step, "DRAW")
         self.assertEqual(len(game.p1_hand), 5)
 
+    def test_prescience_order_requires_a_complete_permutation(self):
+        first = self._join("prescience-room", "Alice")
+        game = self.app.state.context.rooms["prescience-room"]
+        game.current_turn = "p1"
+        game.turn_step = "PRESCIENCE_SELECT_1"
+        game.p1_hand = ["H1", "H2", "H3", "H4"]
+        game.deck = ["BASE"]
+        game.prescience_cards = ["A", "B", "C"]
+
+        invalid = self.client.post(
+            "/api/rooms/prescience-room/actions",
+            headers=self._headers(first["token"]),
+            json={
+                "action": "confirm_prescience_order",
+                "payload": {"order": [0, 0, 2]},
+            },
+        )
+        self.assertEqual(invalid.status_code, 422)
+        self.assertEqual(game.prescience_cards, ["A", "B", "C"])
+
+        valid = self.client.post(
+            "/api/rooms/prescience-room/actions",
+            headers=self._headers(first["token"]),
+            json={
+                "action": "confirm_prescience_order",
+                "payload": {"order": [2, 0, 1]},
+            },
+        )
+
+        self.assertEqual(valid.status_code, 200)
+        self.assertEqual(game.p1_hand[-2:], ["C", "A"])
+        self.assertEqual(game.deck[-1], "B")
+
     def test_websocket_gets_initial_state_chat_update_and_pong(self):
         first = self._join("ws-room", "Alice")
         token = first["token"]

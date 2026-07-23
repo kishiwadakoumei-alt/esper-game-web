@@ -412,6 +412,20 @@ class GameService:
         GameService._finish_prescience(game, role, player_name)
 
     @staticmethod
+    def confirm_prescience_order(
+        game: EsperGame,
+        role: str,
+        ordered_indices: list[int],
+        player_name: str,
+    ) -> None:
+        game.prescience_ordered = [
+            game.prescience_cards[index]
+            for index in ordered_indices
+        ]
+        game.prescience_cards = []
+        GameService._finish_prescience(game, role, player_name)
+
+    @staticmethod
     def send_chat(game: EsperGame, player_name: str, message: str) -> bool:
         if message.strip() == "":
             return False

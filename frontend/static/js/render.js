@@ -12,8 +12,8 @@ const PHASE_MESSAGES = {
   REGEN_SELECTION: "山札へ戻す場札を3枚まで選んでください。",
   CLAIR_SELECTION: "中身を見るカードを2枚まで選んでください。",
   CLAIR_REVEAL: "透視結果を確認してください。",
-  PRESCIENCE_SELECT_1: "山札の一番上にするカードを選んでください。",
-  PRESCIENCE_SELECT_2: "山札の上から2番目にするカードを選んでください。",
+  PRESCIENCE_SELECT_1: "3枚を上から戻す順番に選んでください。",
+  PRESCIENCE_SELECT_2: "3枚を上から戻す順番に選んでください。",
   GAME_CLEAR: "ESPER達成。勝負が決まりました。",
   GAME_OVER: "ゲーム終了。公開された結果を確認してください。",
   ROOM_DISBANDED: "対戦相手が退出し、ルームが解散されました。",
@@ -35,6 +35,8 @@ const CARD_EFFECTS = {
   カモフラージュ:
     "このターン中のみ好きなカード1枚として使えます。そのカードで能力を発動でき、ESPER宣言にも使用できます。",
 };
+
+let prescienceOrder = [];
 
 function byId(id) {
   return document.getElementById(id);
@@ -195,6 +197,85 @@ function actionList() {
 
 function addAction(list, label, callback, options) {
   list.append(actionButton(label, callback, options));
+}
+
+function showPrescienceConfirmation(state, handlers) {
+  const dialog = byId("prescience-dialog");
+  const orderList = byId("prescience-order-list");
+  const options = state.interaction.options;
+  clear(orderList);
+
+  prescienceOrder.forEach((optionIndex, position) => {
+    const option = options.find((item) => item.index === optionIndex);
+    const item = create("li");
+    item.append(
+      create("span", "", `上から${position + 1}枚目：`),
+      create("strong", "", option.card),
+    );
+    orderList.append(item);
+  });
+
+  byId("prescience-back-button").onclick = () => {
+    dialog.close();
+    prescienceOrder.pop();
+    renderActions(state, handlers);
+  };
+  byId("prescience-confirm-button").onclick = () => {
+    const order = [...prescienceOrder];
+    dialog.close();
+    prescienceOrder = [];
+    handlers.action("confirm_prescience_order", { order });
+  };
+
+  if (!dialog.open) {
+    dialog.showModal();
+  }
+}
+
+function renderPrescienceSelection(list, state, handlers) {
+  const options = state.interaction.options;
+  const validIndices = new Set(options.map((option) => option.index));
+  prescienceOrder = prescienceOrder.filter((index) => validIndices.has(index));
+
+  options.forEach((option) => {
+    const position = prescienceOrder.indexOf(option.index);
+    const button = create(
+      "button",
+      `prescience-option${position >= 0 ? " selected" : ""}`,
+    );
+    button.type = "button";
+    button.append(
+      create("span", "", option.card),
+      create(
+        "strong",
+        "prescience-position",
+        position >= 0 ? `上から${position + 1}枚目` : "",
+      ),
+    );
+    button.addEventListener("click", () => {
+      const selectedPosition = prescienceOrder.indexOf(option.index);
+      if (selectedPosition >= 0) {
+        prescienceOrder.splice(selectedPosition, 1);
+      } else if (prescienceOrder.length < options.length) {
+        prescienceOrder.push(option.index);
+      }
+      const completed = prescienceOrder.length === options.length;
+      renderActions(state, handlers);
+      if (completed) {
+        showPrescienceConfirmation(state, handlers);
+      }
+    });
+    list.append(button);
+  });
+
+  if (prescienceOrder.length === options.length) {
+    addAction(
+      list,
+      "選択内容を確認する",
+      () => showPrescienceConfirmation(state, handlers),
+      { kind: "primary" },
+    );
+  }
 }
 
 function renderSelectionOptions(
@@ -419,19 +500,7 @@ function renderActions(state, handlers) {
       step === "PRESCIENCE_SELECT_2") &&
     interaction
   ) {
-    if (interaction.ordered.length) {
-      const ordered = create(
-        "span",
-        "selection-count",
-        `決定済み: ${interaction.ordered.join(" → ")}`,
-      );
-      list.before(ordered);
-    }
-    renderSelectionOptions(list, interaction.options, {
-      label: (option) => option.card,
-      action: "select_prescience_card",
-      onAction: handlers.action,
-    });
+    renderPrescienceSelection(list, state, handlers);
   }
 
   if (state.game.finished) {
@@ -554,6 +623,17 @@ export function renderGame(state, handlers) {
     !state.available_actions.includes("discard_card")
   ) {
     discardDialog.close();
+  }
+  if (
+    !["PRESCIENCE_SELECT_1", "PRESCIENCE_SELECT_2"].includes(
+      state.game.turn_step,
+    )
+  ) {
+    prescienceOrder = [];
+    const prescienceDialog = byId("prescience-dialog");
+    if (prescienceDialog.open) {
+      prescienceDialog.close();
+    }
   }
   const abilityDialog = byId("ability-dialog");
   if (

@@ -212,6 +212,26 @@ class GameServiceAbilityTests(unittest.TestCase):
         self.assertEqual(game.prescience_cards, [])
         self.assertEqual(game.prescience_ordered, [])
 
+    def test_confirm_prescience_order_applies_all_three_at_once(self):
+        game = make_game()
+        game.turn_step = "PRESCIENCE_SELECT_1"
+        game.p1_hand = ["H1", "H2", "H3", "H4"]
+        game.deck = ["BASE"]
+        game.prescience_cards = ["A", "B", "C"]
+
+        GameService.confirm_prescience_order(
+            game,
+            "p1",
+            [2, 0, 1],
+            "Alice",
+        )
+
+        self.assertEqual(game.p1_hand[-2:], ["C", "A"])
+        self.assertEqual(game.deck, ["BASE", "B"])
+        self.assertEqual(game.deck[-1], "B")
+        self.assertEqual(game.prescience_cards, [])
+        self.assertEqual(game.prescience_ordered, [])
+
     def test_mimicked_prescience_draws_all_three_ordered_cards(self):
         game = make_game()
         game.turn_step = "ABILITY"
@@ -234,8 +254,12 @@ class GameServiceAbilityTests(unittest.TestCase):
         )
         self.assertEqual(game.prescience_cards, ["C", "B", "A"])
 
-        GameService.choose_prescience_card(game, "p1", 1, "Alice")
-        GameService.choose_prescience_card(game, "p1", 1, "Alice")
+        GameService.confirm_prescience_order(
+            game,
+            "p1",
+            [1, 2, 0],
+            "Alice",
+        )
 
         self.assertEqual(game.p1_hand[-3:], ["B", "A", "C"])
         self.assertEqual(game.deck, ["BASE1", "BASE2"])

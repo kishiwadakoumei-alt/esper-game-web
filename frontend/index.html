@@ -278,6 +278,28 @@
       </div>
     </dialog>
 
+    <dialog id="prescience-dialog" class="prescience-dialog">
+      <div class="prescience-dialog-accent" aria-hidden="true">⌁</div>
+      <p class="eyebrow">CONFIRM DECK ORDER</p>
+      <h2>山札へ戻す順番</h2>
+      <p class="prescience-dialog-copy">
+        次に引く順番を確認してください。
+      </p>
+      <ol id="prescience-order-list" class="prescience-order-list"></ol>
+      <div class="dialog-actions">
+        <button id="prescience-back-button" class="action-button" type="button">
+          戻る
+        </button>
+        <button
+          id="prescience-confirm-button"
+          class="action-button primary"
+          type="button"
+        >
+          決定
+        </button>
+      </div>
+    </dialog>
+
     <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
     <script type="module" src="/static/js/app.js"></script>
   </body>

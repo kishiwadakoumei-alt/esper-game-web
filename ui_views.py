@@ -20,7 +20,6 @@ NAME_MAP = {
 def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_game):
     page.controls.clear()
     
-    # スマホでも収まるようにサイズを調整し、中央揃えを指定
     title_text = ft.Text("🌟 超能力カードゲーム ESPER 🌐", size=24, weight="bold", color="orange", text_align=ft.TextAlign.CENTER)
     name_input = ft.TextField(label="あなたの名前", value="プレイヤー", width=300, bgcolor="#333333")
     room_input = ft.TextField(label="あいことば（ルームID）", hint_text="友達と同じ言葉を入れてね", width=300, bgcolor="#333333")
@@ -83,20 +82,17 @@ def show_title_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict, go_to_ga
     cpu_normal_btn = ft.Button("１人プレイ（vs CPU 中級） 🤖", on_click=on_cpu_normal, bgcolor="blue", color="white", width=300)
     cpu_hard_btn = ft.Button("１人プレイ（vs CPU 上級） 👹", on_click=on_cpu_hard, bgcolor="purple", color="white", width=300)
     
-    # 画面が右にズレる原因だった Row を外し、Container で安全に中央揃えする
+    # 画面が右にズレる・エラーになる原因だった Row や Containerのalignment を外し、
+    # 縦並び（Column）の中央揃えだけでシンプルに配置します。
     page.add(
-        ft.Container(
-            content=ft.Column([
-                ft.Container(height=50), title_text, ft.Container(height=20),
-                name_input, 
-                ft.Divider(color="grey"),
-                room_input, join_btn,
-                ft.Divider(color="grey"),
-                cpu_easy_btn, cpu_normal_btn, cpu_hard_btn
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-            alignment=ft.alignment.center,
-            padding=10
-        )
+        ft.Column([
+            ft.Container(height=50), title_text, ft.Container(height=20),
+            name_input, 
+            ft.Divider(color="grey"),
+            room_input, join_btn,
+            ft.Divider(color="grey"),
+            cpu_easy_btn, cpu_normal_btn, cpu_hard_btn
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
     )
     page.update()
 
@@ -162,7 +158,6 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
             history_controls.append(ft.Text(f"[{log['time']}] {log['icon']} {log['name']}: {log['text']}", color=text_color, size=14))
             
         return ft.ExpansionTile(
-            # 文字がはみ出す原因だった no_wrap=True を削除し、自動で改行されるように修正
             title=ft.Text(f"📜 最新ログ: {latest_text}", color="white", weight="bold"),
             subtitle=ft.Text("タップで過去のログ履歴を展開", color="grey", size=12),
             affinity=ft.TileAffinity.LEADING,
@@ -222,15 +217,14 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 show_title_screen(page, user_data, GAME_ROOMS, go_to_game)
                 
             page.controls.clear()
+            # エラー防止のため、ここも Column のみで中央揃えします
             page.controls.append(
-                ft.Container(
-                    content=ft.Column([
-                        ft.Text("対戦が終了し、部屋が解散されました。", color="red", size=20, weight="bold"),
-                        ft.Container(height=20),
-                        ft.Button("タイトル画面に戻る", on_click=on_return_title, bgcolor="blue", color="white", width=300, height=50)
-                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                    padding=50, alignment=ft.Alignment.CENTER
-                )
+                ft.Column([
+                    ft.Container(height=100),
+                    ft.Text("対戦が終了し、部屋が解散されました。", color="red", size=20, weight="bold", text_align=ft.TextAlign.CENTER),
+                    ft.Container(height=20),
+                    ft.Button("タイトル画面に戻る", on_click=on_return_title, bgcolor="blue", color="white", width=300, height=50)
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
             )
             page.update()
             return
@@ -544,14 +538,13 @@ def show_game_screen(page: ft.Page, user_data: dict, GAME_ROOMS: dict):
                 game.timer_started = True
                 threading.Thread(target=execute_roulette).start()
 
+            # エラー防止のため、ここも Column のみで中央揃えします
             new_controls.append(
-                ft.Container(
-                    content=ft.Column([
-                        ft.ProgressRing(color="orange"),
-                        ft.Text("🎲 先攻・後攻 コイントス抽選中...", color="orange", size=24, weight="bold")
-                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                    padding=50, alignment=ft.Alignment.CENTER
-                )
+                ft.Column([
+                    ft.Container(height=100),
+                    ft.ProgressRing(color="orange"),
+                    ft.Text("🎲 先攻・後攻 コイントス抽選中...", color="orange", size=24, weight="bold", text_align=ft.TextAlign.CENTER)
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
             )
             page.controls.clear()
             page.controls.extend(new_controls)

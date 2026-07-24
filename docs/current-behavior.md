@@ -1,5 +1,10 @@
 # ESPER 現行動作仕様
 
+> [!NOTE]
+> この文書は移行前のFlet版を記録した履歴資料である。
+> Flet版の `main.py` と `ui_views.py` は削除済みであり、
+> 現行実装は `backend/`、`services/`、`frontend/` を参照する。
+
 ## 目的
 
 この文書は、Flet 版から HTML/CSS/JavaScript 版へ移行する前の現行挙動を固定するための仕様書である。

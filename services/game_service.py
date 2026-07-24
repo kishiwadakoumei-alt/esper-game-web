@@ -17,7 +17,7 @@ NAME_MAP = {
 
 
 class GameService:
-    """Fletに依存しないゲーム操作を提供する。"""
+    """UIに依存しないゲーム操作を提供する。"""
 
     @staticmethod
     def _actor_name(game: EsperGame, role: str) -> str:

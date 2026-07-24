@@ -11,15 +11,15 @@
 - 機能追加や不具合修正を、適切なファイルとレイヤーへ実装できるようにする。
 - ブラウザへ公開してよい情報と、サーバーだけで保持する秘匿情報を区別する。
 - ゲームルール、画面表示、HTTP、WebSocketの処理が混在しないようにする。
-- Flet版からHTML/CSS/JavaScript版への段階的移行状況を共有する。
+- HTML/CSS/JavaScript版へ移行した経緯と現行構成を共有する。
 
 本ガイドは `allescdoc/standard_guide` の考え方を参考にし、目的、責務、
 依存方向、実装時の判断基準、禁止事項、例外を明示する。
 
 ## 2. 対象範囲と現在の位置づけ
 
-現在の正式な移行先は、FastAPIがHTML/CSS/JavaScriptを配信する
-ブラウザ版である。
+正式なアプリケーションは、FastAPIがHTML/CSS/JavaScriptを配信する
+ブラウザ版である。旧Flet版の起動・画面ファイルと依存関係は削除済みである。
 
 ```text
 ブラウザ
@@ -33,11 +33,6 @@ FastAPI
 EsperGame（サーバー内のゲーム状態）
 ```
 
-`main.py` と `ui_views.py` は旧Flet版の比較・移行確認用として残っている。
-新しい画面機能は原則として `frontend/` とFastAPI側へ実装し、
-Flet版へ二重実装しない。Flet版の削除は、ブラウザ版のローカル結合確認が
-完了した後の移行段階で実施する。
-
 ### 現在の制約
 
 - ゲーム、セッション、WebSocket接続は単一プロセスのメモリ内に保存する。
@@ -45,7 +40,6 @@ Flet版へ二重実装しない。Flet版の削除は、ブラウザ版のロー
 - 複数ワーカー間ではゲーム状態を共有できない。
 - Redis、データベース、分散ロックは未導入である。
 - ブラウザ自動操作によるE2Eテストは未導入である。
-- Flet依存と旧Flet画面は移行完了まで残している。
 
 ## 3. 技術構成
 
@@ -57,7 +51,6 @@ Flet版へ二重実装しない。Flet版の削除は、ブラウザ版のロー
 | フロントエンド | HTML / CSS / Vanilla JavaScript | 画面構造、デザイン、状態描画、操作 |
 | モジュール方式 | JavaScript ES Modules | `api.js`、`app.js`、`render.js` の分離 |
 | テスト | Python `unittest` | ロジック、サービス、API、公開状態、UI境界 |
-| 旧画面 | Flet | 移行比較用。新規実装の対象外 |
 
 フロントエンドにゲームの正解状態を持たせず、サーバーを唯一の
 信頼できる状態管理元とする、サーバーオーソリティ方式を採用している。
@@ -141,11 +134,8 @@ esper-game-web/
 │   ├── test_frontend.py
 │   ├── test_game_logic.py
 │   ├── test_services.py
-│   ├── test_state_service.py
-│   └── test_ui_boundaries.py
+│   └── test_state_service.py
 ├── game_logic.py
-├── main.py
-├── ui_views.py
 ├── requirements.txt
 └── esper_development_standard_guide.md
 ```
@@ -215,7 +205,7 @@ Frontend
 - 山札切れ・捨て札上限時の勝敗判定
 - 再戦時のゲーム状態初期化
 
-`EsperGame` はHTML、DOM、HTTP、WebSocket、Fletコントロールを参照しない。
+`EsperGame` はHTML、DOM、HTTP、WebSocket、UIフレームワークを参照しない。
 
 ### 7.2 ゲームサービス: `services/game_service.py`
 
@@ -907,7 +897,6 @@ WebSocketは状態更新通知に使用し、ゲーム操作自体はHTTP APIで
 - `render.js` で勝敗、能力成否、ドロー結果を確定しない。
 - WebSocketで全プレイヤーへ同一の内部状態を配信しない。
 - ルームロックを使わず、非同期タスクからゲーム状態を変更しない。
-- 旧Flet画面へ新機能を二重実装しない。
 - 仕様変更時にテストと関連ドキュメントを更新せず放置しない。
 
 ## 20. テスト方針
@@ -919,7 +908,6 @@ WebSocketは状態更新通知に使用し、ゲーム操作自体はHTTP APIで
 | `test_state_service.py` | 秘匿情報、操作候補、能力中の公開状態 |
 | `test_api.py` | 認証、API、payload再検証、WebSocket、非同期処理 |
 | `test_frontend.py` | HTML/CSS/JS分離、モーダル、選択同期、通知、演出 |
-| `test_ui_boundaries.py` | UIがゲーム状態を直接変更していないこと |
 
 ### 変更別の最低テスト
 
@@ -927,7 +915,7 @@ WebSocketは状態更新通知に使用し、ゲーム操作自体はHTTP APIで
 - 秘匿情報・公開項目変更: `test_state_service.py`、`test_api.py`
 - API変更: `test_api.py`
 - 表示・操作変更: `test_frontend.py`
-- レイヤー移動: `test_ui_boundaries.py`
+- レイヤー移動: 関連するサービス・API・フロントエンドテスト
 
 秘匿情報のテストでは、単にフィールドが `null` であることだけでなく、
 レスポンス全体をJSON化して秘密のカード名が含まれないことを確認する。
@@ -948,17 +936,11 @@ WebSocketは状態更新通知に使用し、ゲーム操作自体はHTTP APIで
 - 再読み込み後に同じタブのセッションへ復帰する。
 - PCとスマートフォンでレイアウトが崩れない。
 
-## 22. 今後の移行方針
+## 22. 今後の拡張方針
 
-ローカル結合確認が完了した後、次の順でFlet版を廃止する。
-
-1. ブラウザ版の受け入れ結果を確定する。
-2. `main.py` と `ui_views.py` が提供していた機能に不足がないことを確認する。
-3. Flet版の起動コードとFlet固有処理を削除する。
-4. `requirements.txt` からFlet依存を削除する。
-5. 旧Flet前提の文書を履歴資料として整理する。
-6. 起動コマンドをFastAPIへ一本化する。
-7. 全自動テストとローカル結合確認を再実施する。
+旧Flet版の廃止とFastAPIへの起動一本化は完了している。
+以後の画面機能は `frontend/`、通信機能は `backend/`、
+ゲームルールは `services/` と `game_logic.py` へ実装する。
 
 永続化や複数ワーカー対応を行う場合は、次の設計変更が必要になる。
 

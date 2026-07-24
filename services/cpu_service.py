@@ -8,7 +8,7 @@ from services.game_service import GameService
 
 
 class CpuService:
-    """Fletのスレッド処理から独立したCPU操作を提供する。"""
+    """画面処理から独立したCPU操作を提供する。"""
 
     ACTIVE_STEPS = [
         "DISCARD",

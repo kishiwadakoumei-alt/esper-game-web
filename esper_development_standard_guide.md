@@ -69,6 +69,15 @@ python -m pip install -r requirements.txt
 ### 4.2 ブラウザ版の起動
 
 ```bash
+python main.py
+```
+
+`main.py` はデプロイとローカル実行で共通の起動入口である。
+環境変数 `PORT` を使用し、未指定時は `8000` で起動する。
+
+開発時にコード変更を自動反映する場合は、FastAPIアプリを直接指定する。
+
+```bash
 python -m uvicorn backend.main:app \
   --reload \
   --host 0.0.0.0 \
@@ -136,6 +145,7 @@ esper-game-web/
 │   ├── test_services.py
 │   └── test_state_service.py
 ├── game_logic.py
+├── main.py
 ├── requirements.txt
 └── esper_development_standard_guide.md
 ```
@@ -278,6 +288,10 @@ FastAPIアプリケーションの入口であり、次を担当する。
 - 操作後の状態配信とCPUタスク開始
 
 APIハンドラーへ能力ルールやカード操作を直接書かない。
+
+ルートの `main.py` はデプロイ・ローカル実行用の薄い起動入口であり、
+`backend.main:app` を読み込んでUvicornを起動する。API定義や
+ゲームロジックはルートの `main.py` に追加しない。
 
 ### 7.7 コマンド境界: `backend/command_service.py`
 

@@ -65,12 +65,15 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertNotIn("game_logic", javascript)
         self.assertNotIn("flet", javascript.lower())
 
-    def test_flet_runtime_has_been_removed(self):
+    def test_fastapi_entrypoint_replaces_flet_runtime(self):
         requirements = (PROJECT_ROOT / "requirements.txt").read_text()
+        entrypoint = (PROJECT_ROOT / "main.py").read_text()
 
-        self.assertFalse((PROJECT_ROOT / "main.py").exists())
         self.assertFalse((PROJECT_ROOT / "ui_views.py").exists())
         self.assertNotIn("flet", requirements.lower().splitlines())
+        self.assertNotIn("flet", entrypoint.lower())
+        self.assertIn("from backend.main import app", entrypoint)
+        self.assertIn("os.environ.get(\"PORT\", \"8000\")", entrypoint)
 
     def test_discard_confirmation_modal_is_separated_from_action(self):
         html = (FRONTEND_ROOT / "index.html").read_text()

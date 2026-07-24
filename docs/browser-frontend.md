@@ -7,7 +7,14 @@
 ## 起動
 
 ```bash
-uvicorn backend.main:app --host 0.0.0.0 --port 8000
+python main.py
+```
+
+`main.py` は環境変数 `PORT` を使用し、未指定時は `8000` で起動する。
+コード変更を自動反映したい開発時は、次のように直接起動する。
+
+```bash
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ブラウザで `http://localhost:8000/` を開く。

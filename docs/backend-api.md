@@ -6,8 +6,10 @@
 ## 起動
 
 ```bash
-uvicorn backend.main:app --host 0.0.0.0 --port 8000
+python main.py
 ```
+
+`main.py` は環境変数 `PORT` を使用し、未指定時は `8000` で起動する。
 
 - OpenAPI: `http://localhost:8000/docs`
 - ヘルスチェック: `GET /api/health`

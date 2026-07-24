@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#111827">
+    <meta
+      name="description"
+      content="超能力カードゲーム ESPER。友達やCPUと遊べるブラウザカードゲームです。"
+    >
+    <title>超能力カードゲーム ESPER</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+  </head>
+  <body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="ESPER ホーム">
+        <span class="brand-mark" aria-hidden="true">✦</span>
+        <span>
+          <strong>ESPER</strong>
+          <small>PSYCHIC CARD DUEL</small>
+        </span>
+      </a>
+      <button id="rules-button" class="ghost-button" type="button">
+        遊び方・能力一覧
+      </button>
+    </header>
+
+    <main id="app" class="app-shell">
+      <section id="landing-screen" class="landing-grid">
+        <div class="hero-panel">
+          <p class="eyebrow">超能力カードゲーム</p>
+          <h1><em>ESPER</em></h1>
+          <p class="hero-copy">
+            同じ能力カードを集めてESPERを宣言。
+            七つの超能力を読み合い、相手より先に勝利を掴もう。
+          </p>
+          <div class="hero-stats" aria-label="ゲーム概要">
+            <span><strong>2</strong> PLAYERS</span>
+            <span><strong>7</strong> POWERS</span>
+            <span><strong>1</strong> WINNER</span>
+          </div>
+        </div>
+
+        <section class="entry-card" aria-labelledby="entry-title">
+          <div class="section-heading">
+            <span class="step-number">01</span>
+            <div>
+              <p class="eyebrow">ENTER THE MIND ARENA</p>
+              <h2 id="entry-title">対戦をはじめる</h2>
+            </div>
+          </div>
+
+          <form id="join-form" novalidate>
+            <label for="player-name">あなたの名前</label>
+            <input
+              id="player-name"
+              name="name"
+              maxlength="24"
+              value="プレイヤー"
+              autocomplete="nickname"
+              required
+            >
+
+            <label for="room-id">あいことば</label>
+            <div class="input-action">
+              <input
+                id="room-id"
+                name="room"
+                maxlength="40"
+                placeholder="友達と同じ言葉を入力"
+                autocomplete="off"
+                required
+              >
+              <button class="primary-button" type="submit">入室する</button>
+            </div>
+            <p class="field-hint">同じあいことばを入力した2人が対戦できます。</p>
+          </form>
+
+          <div class="divider"><span>OR PLAY SOLO</span></div>
+
+          <div class="cpu-options" aria-label="CPU対戦の難易度">
+            <button class="cpu-button easy" data-cpu-level="easy" type="button">
+              <span>初級</span><small>はじめての方に</small>
+            </button>
+            <button class="cpu-button normal" data-cpu-level="normal" type="button">
+              <span>中級</span><small>読み合いを楽しむ</small>
+            </button>
+            <button class="cpu-button hard" data-cpu-level="hard" type="button">
+              <span>上級</span><small>容赦ない思考戦</small>
+            </button>
+          </div>
+        </section>
+      </section>
+
+      <section id="game-screen" class="game-screen" hidden>
+        <header class="room-bar">
+          <div>
+            <p class="eyebrow">CURRENT SESSION</p>
+            <div class="room-player-line">
+              <h1 id="room-player">プレイヤー</h1>
+              <span id="extra-turn-badge" class="extra-turn-badge" hidden>
+                EXTRA TURN
+              </span>
+            </div>
+          </div>
+          <div class="room-meta">
+            <span id="connection-status" class="connection-status">
+              <i aria-hidden="true"></i> 接続中
+            </span>
+            <button id="copy-room-button" class="room-code" type="button">
+              ROOM <strong id="room-code">—</strong>
+            </button>
+            <button id="leave-button" class="danger-button" type="button">
+              退出
+            </button>
+          </div>
+        </header>
+
+        <div id="phase-banner" class="phase-banner" role="status"></div>
+
+        <div class="game-layout">
+          <section class="table-panel">
+            <div class="player-zone opponent-zone">
+              <div class="zone-heading">
+                <div>
+                  <span class="zone-label">OPPONENT</span>
+                  <h2 id="opponent-name">対戦相手</h2>
+                </div>
+                <div class="counter-row">
+                  <span>手札 <strong id="opponent-count">0</strong></span>
+                  <span>山札 <strong id="deck-count">0</strong></span>
+                </div>
+              </div>
+              <div id="opponent-hand" class="card-row compact"></div>
+              <div>
+                <p class="mini-heading">相手の捨て札</p>
+                <div id="opponent-discards" class="discard-row"></div>
+              </div>
+            </div>
+
+            <div class="center-zone">
+              <div class="deck-visual" aria-label="山札">
+                <span>ESPER</span>
+                <strong id="deck-count-center">0</strong>
+                <small>CARDS</small>
+              </div>
+              <div>
+                <p class="mini-heading">ゲーム外カード</p>
+                <div id="excluded-cards" class="card-row compact"></div>
+              </div>
+            </div>
+
+            <div class="player-zone my-zone">
+              <div>
+                <p class="mini-heading">自分の捨て札</p>
+                <div id="my-discards" class="discard-row"></div>
+              </div>
+              <div class="zone-heading">
+                <div>
+                  <span class="zone-label">YOUR HAND</span>
+                  <h2>手札</h2>
+                </div>
+                <span id="hand-guide" class="hand-guide"></span>
+              </div>
+              <div id="my-hand" class="card-row hand-row"></div>
+            </div>
+          </section>
+
+          <aside class="side-column">
+            <section class="action-panel">
+              <div class="section-heading compact-heading">
+                <span class="step-number">02</span>
+                <div>
+                  <p class="eyebrow">CHOOSE YOUR MOVE</p>
+                  <h2>アクション</h2>
+                </div>
+              </div>
+              <div id="action-content"></div>
+            </section>
+
+            <section class="log-panel">
+              <button
+                id="log-toggle-button"
+                class="log-toggle-button"
+                type="button"
+                aria-expanded="false"
+                aria-controls="log-list"
+              >
+                <span id="log-toggle-label">バトルログを見る</span>
+                <span class="log-toggle-icon" aria-hidden="true">⌄</span>
+              </button>
+              <div id="log-list" class="log-list" hidden></div>
+            </section>
+
+            <section class="chat-panel">
+              <h2>チャット</h2>
+              <div id="chat-list" class="chat-list" aria-live="polite"></div>
+              <form id="chat-form" class="chat-form">
+                <label class="sr-only" for="chat-message">メッセージ</label>
+                <input
+                  id="chat-message"
+                  maxlength="200"
+                  placeholder="メッセージを入力"
+                  autocomplete="off"
+                >
+                <button type="submit" aria-label="送信">➤</button>
+              </form>
+            </section>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="rules-dialog" class="rules-dialog">
+      <form method="dialog">
+        <button class="dialog-close" aria-label="閉じる">×</button>
+      </form>
+      <p class="eyebrow">PSYCHIC ABILITY ARCHIVE</p>
+      <h2>能力一覧</h2>
+      <div class="rule-grid">
+        <article><b>千里眼</b><span>クレヤボヤンス</span><p>相手の手札または裏向きの場札から2枚まで選んで見る。</p></article>
+        <article><b>時間移動</b><span>タイムリープ</span><p>このターンの後、もう一度自分のターンを行う。</p></article>
+        <article><b>念力</b><span>サイコキネシス</span><p>相手の手札を1枚捨てさせ、裏向きの捨て札1枚を戻す。</p></article>
+        <article><b>未来予知</b><span>プリサイエンス</span><p>山札の上から3枚を見て、好きな順番で山札へ戻す。</p></article>
+        <article><b>瞬間移動</b><span>テレポート</span><p>宣言した能力カードを相手の手札からすべて捨てさせる。</p></article>
+        <article><b>再生</b><span>ヒーリング</span><p>場のカードを3枚まで山札に加えてシャッフルする。</p></article>
+        <article><b>擬態</b><span>カモフラージュ</span><p>2枚を別の能力カード1枚として使用する。</p></article>
+      </div>
+    </dialog>
+
+    <dialog id="discard-dialog" class="discard-dialog">
+      <div class="discard-dialog-accent" aria-hidden="true">✦</div>
+      <p class="eyebrow">CONFIRM DISCARD</p>
+      <h2>このカードを捨てますか？</h2>
+      <div class="discard-card-preview">
+        <span>選択したカード</span>
+        <strong id="discard-card-name"></strong>
+      </div>
+      <div class="discard-effect">
+        <span>カードの効果</span>
+        <p id="discard-card-effect"></p>
+      </div>
+      <div class="dialog-actions">
+        <button id="discard-cancel-button" class="action-button" type="button">
+          戻る
+        </button>
+        <button
+          id="discard-confirm-button"
+          class="action-button primary"
+          type="button"
+        >
+          捨てる
+        </button>
+      </div>
+    </dialog>
+
+    <dialog id="ability-dialog" class="ability-dialog">
+      <div class="ability-dialog-accent" aria-hidden="true">◈</div>
+      <p class="eyebrow">CONFIRM PSYCHIC ABILITY</p>
+      <h2>この能力を使いますか？</h2>
+      <div class="ability-summary">
+        <div>
+          <span>能力名</span>
+          <strong id="ability-dialog-name"></strong>
+        </div>
+        <div>
+          <span>使用枚数</span>
+          <strong id="ability-dialog-card-count"></strong>
+        </div>
+      </div>
+      <div class="ability-effect">
+        <span>能力内容</span>
+        <p id="ability-dialog-effect"></p>
+      </div>
+      <div class="dialog-actions">
+        <button id="ability-cancel-button" class="action-button" type="button">
+          戻る
+        </button>
+        <button
+          id="ability-confirm-button"
+          class="action-button primary"
+          type="button"
+        >
+          使う
+        </button>
+      </div>
+    </dialog>
+
+    <dialog id="prescience-dialog" class="prescience-dialog">
+      <div class="prescience-dialog-accent" aria-hidden="true">⌁</div>
+      <p class="eyebrow">CONFIRM DECK ORDER</p>
+      <h2>山札へ戻す順番</h2>
+      <p class="prescience-dialog-copy">
+        次に引く順番を確認してください。
+      </p>
+      <ol id="prescience-order-list" class="prescience-order-list"></ol>
+      <div class="dialog-actions">
+        <button id="prescience-back-button" class="action-button" type="button">
+          戻る
+        </button>
+        <button
+          id="prescience-confirm-button"
+          class="action-button primary"
+          type="button"
+        >
+          決定
+        </button>
+      </div>
+    </dialog>
+
+    <dialog id="teleport-dialog" class="teleport-dialog">
+      <div class="teleport-dialog-accent" aria-hidden="true">◎</div>
+      <p class="eyebrow">CONFIRM TELEPORT TARGET</p>
+      <h2>この能力を捨てさせますか？</h2>
+      <div class="teleport-target">
+        <span>捨てさせる能力名</span>
+        <strong id="teleport-target-name"></strong>
+      </div>
+      <div class="teleport-effect">
+        <span>能力内容</span>
+        <p id="teleport-target-effect"></p>
+      </div>
+      <div class="dialog-actions">
+        <button id="teleport-cancel-button" class="action-button" type="button">
+          戻る
+        </button>
+        <button
+          id="teleport-confirm-button"
+          class="action-button primary"
+          type="button"
+        >
+          捨てさせる
+        </button>
+      </div>
+    </dialog>
+
+    <dialog
+      id="psychokinesis-dialog"
+      class="teleport-dialog psychokinesis-dialog"
+    >
+      <div
+        class="teleport-dialog-accent psychokinesis-dialog-accent"
+        aria-hidden="true"
+      >
+        ◇
+      </div>
+      <p id="psychokinesis-dialog-kicker" class="eyebrow"></p>
+      <h2 id="psychokinesis-dialog-title"></h2>
+      <div class="teleport-target psychokinesis-target">
+        <span>選択した対象</span>
+        <strong id="psychokinesis-target-label"></strong>
+      </div>
+      <div class="teleport-effect psychokinesis-effect">
+        <span>実行内容</span>
+        <p id="psychokinesis-target-effect"></p>
+      </div>
+      <div class="dialog-actions">
+        <button
+          id="psychokinesis-cancel-button"
+          class="action-button"
+          type="button"
+        >
+          戻る
+        </button>
+        <button
+          id="psychokinesis-confirm-button"
+          class="action-button primary"
+          type="button"
+        ></button>
+      </div>
+    </dialog>
+
+    <div
+      id="action-event-overlay"
+      class="action-event-overlay"
+      role="status"
+      aria-live="assertive"
+      hidden
+    >
+      <div class="action-event-symbol" aria-hidden="true">◆</div>
+      <p id="action-event-kicker">OPPONENT ACTION</p>
+      <strong id="action-event-title"></strong>
+      <small id="action-event-detail"></small>
+    </div>
+
+    <div
+      id="extra-turn-overlay"
+      class="extra-turn-overlay"
+      role="status"
+      aria-live="assertive"
+      hidden
+    >
+      <div class="extra-turn-symbol" aria-hidden="true">↻</div>
+      <p>TIME LEAP</p>
+      <strong id="extra-turn-overlay-title">追加ターン</strong>
+      <small id="extra-turn-overlay-count"></small>
+    </div>
+
+    <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
+    <script type="module" src="/static/js/app.js"></script>
+  </body>
+</html>

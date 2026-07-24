@@ -29,6 +29,7 @@ class EsperGame:
         
         self.rematch_requests = set()
         self.extra_turn = False
+        self.extra_turn_chain = 0
         
         # CPU戦用のフラグ
         self.is_cpu = False
@@ -40,6 +41,43 @@ class EsperGame:
         
         self.chat_history = []
         self.log_history = []
+
+        # ブラウザの中央通知用。イベントIDは再戦後も単調増加させる。
+        self.action_event_sequence = 0
+        self.action_events = []
+        self.pending_discards = {}
+        self.active_ability = None
+
+    def add_action_event(
+        self,
+        actor_role,
+        kind,
+        title,
+        detail_by_role=None,
+        *,
+        tone="ability",
+        tone_by_role=None,
+        duration_ms=2000,
+    ):
+        self.action_event_sequence += 1
+        detail_by_role = detail_by_role or {}
+        tone_by_role = tone_by_role or {}
+        messages = {
+            role: {
+                "title": title,
+                "detail": detail_by_role.get(role, ""),
+                "tone": tone_by_role.get(role, tone),
+            }
+            for role in ("p1", "p2")
+        }
+        self.action_events.append({
+            "id": self.action_event_sequence,
+            "actor_role": actor_role,
+            "kind": kind,
+            "duration_ms": duration_ms,
+            "messages": messages,
+        })
+        self.action_events = self.action_events[-100:]
 
     def sort_hand(self, hand):
         counts = Counter(hand)
@@ -86,6 +124,8 @@ class EsperGame:
         self.log_message = msg
 
     def trigger_endgame(self, reason):
+        self.extra_turn = False
+        self.extra_turn_chain = 0
         self.turn_step = "GAME_OVER"
         p1_counts = Counter(self.p1_hand)
         p2_counts = Counter(self.p2_hand)
@@ -122,6 +162,8 @@ class EsperGame:
                 self.add_log(None, msg + f" 構成（お互い {p1_set_str}）が同じため、完全引き分け！⚖️")
 
     def trigger_draw(self, reason):
+        self.extra_turn = False
+        self.extra_turn_chain = 0
         self.turn_step = "GAME_OVER"
         self.add_log(None, f"⚖️【引き分け】{reason}⚖️")
 
@@ -139,8 +181,10 @@ class EsperGame:
         
         if self.extra_turn:
             self.extra_turn = False
+            self.extra_turn_chain += 1
             self.turn_step = "DISCARD"
         else:
+            self.extra_turn_chain = 0
             self.current_turn = self.get_op_role(current_role)
             self.turn_step = "DISCARD"
 
@@ -165,7 +209,11 @@ class EsperGame:
         
         self.rematch_requests = set()
         self.extra_turn = False
+        self.extra_turn_chain = 0
         
         self.turn_step = "DECIDING_TURN"
         self.timer_started = False
         self.cpu_acting = False
+        self.pending_discards = {}
+        self.active_ability = None
+        self.action_events = []

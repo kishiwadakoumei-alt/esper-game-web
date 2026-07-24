@@ -65,6 +65,13 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertNotIn("game_logic", javascript)
         self.assertNotIn("flet", javascript.lower())
 
+    def test_flet_runtime_has_been_removed(self):
+        requirements = (PROJECT_ROOT / "requirements.txt").read_text()
+
+        self.assertFalse((PROJECT_ROOT / "main.py").exists())
+        self.assertFalse((PROJECT_ROOT / "ui_views.py").exists())
+        self.assertNotIn("flet", requirements.lower().splitlines())
+
     def test_discard_confirmation_modal_is_separated_from_action(self):
         html = (FRONTEND_ROOT / "index.html").read_text()
         css = (

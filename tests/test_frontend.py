@@ -1,4 +1,6 @@
+import struct
 import unittest
+import zlib
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -41,12 +43,12 @@ class FrontendDeliveryTests(unittest.TestCase):
     def test_home_screen_manifest_and_icons_are_served(self):
         html = self.client.get("/").text
         self.assertIn(
-            'rel="manifest" href="/static/manifest.webmanifest"',
+            'rel="manifest" href="/static/manifest.webmanifest?v=3"',
             html,
         )
         self.assertIn('rel="apple-touch-icon" sizes="180x180"', html)
         self.assertIn(
-            'rel="icon" href="/static/assets/icons/esper-icon.svg"',
+            'rel="icon" href="/static/assets/icons/esper-icon.svg?v=3"',
             html,
         )
 
@@ -56,6 +58,9 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertEqual(manifest["name"], "超能力カードゲーム ESPER")
         self.assertEqual(manifest["short_name"], "ESPER")
         self.assertEqual(manifest["display"], "standalone")
+        self.assertTrue(
+            all(icon["purpose"] == "any" for icon in manifest["icons"])
+        )
         self.assertEqual(
             [icon["sizes"] for icon in manifest["icons"]],
             ["192x192", "512x512"],
@@ -70,6 +75,31 @@ class FrontendDeliveryTests(unittest.TestCase):
             icon = self.client.get(path)
             self.assertEqual(icon.status_code, 200)
             self.assertTrue(icon.content)
+
+        for filename, expected_size in (
+            ("esper-icon-180.png", 180),
+            ("esper-icon-192.png", 192),
+            ("esper-icon-512.png", 512),
+        ):
+            data = (
+                FRONTEND_ROOT / "static" / "assets" / "icons" / filename
+            ).read_bytes()
+            width, height = struct.unpack(">II", data[16:24])
+            self.assertEqual((width, height), (expected_size, expected_size))
+            position = 8
+            compressed = b""
+            while position < len(data):
+                length = struct.unpack(">I", data[position:position + 4])[0]
+                kind = data[position + 4:position + 8]
+                payload = data[position + 8:position + 8 + length]
+                position += length + 12
+                if kind == b"IDAT":
+                    compressed += payload
+            decoded = zlib.decompress(compressed)
+            self.assertEqual(
+                len(decoded),
+                expected_size * (1 + expected_size * 4),
+            )
 
     def test_room_invitation_url_prefills_room_and_can_be_shared(self):
         html = (FRONTEND_ROOT / "index.html").read_text()

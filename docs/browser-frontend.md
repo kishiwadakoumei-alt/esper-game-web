@@ -54,7 +54,8 @@ frontend/
 
 `index.html` はWeb App Manifestと端末別アイコンを関連付ける。
 Android・PCでは192px／512pxのManifestアイコンを使用し、
-iPhone・iPadでは180pxのApple Touch Iconを使用する。
+iPhone・iPadでは180pxのApple Touch Iconを使用する。3種類のPNGは
+`esper-icon.svg` を直接レンダリングし、全端末で同じデザインを表示する。
 ホーム画面から起動した場合は、Manifestの `standalone` 表示を使用する。
 
 ゲームルールと状態変更はブラウザ側へ移していない。

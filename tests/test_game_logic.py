@@ -135,6 +135,8 @@ class EsperGameLogAndEndgameTests(unittest.TestCase):
         self.game.trigger_endgame("テスト終了")
 
         self.assertEqual(self.game.turn_step, "GAME_OVER")
+        self.assertEqual(self.game.winner_role, "p1")
+        self.assertEqual(self.game.result_reason, "ESPER達成")
         self.assertIn("ESPER達成", self.game.log_message)
         self.assertIn("Alice の大勝利", self.game.log_message)
 
@@ -266,6 +268,8 @@ class EsperGameResetTests(unittest.TestCase):
         self.assertEqual(game.prescience_cards, [])
         self.assertEqual(game.prescience_ordered, [])
         self.assertEqual(game.rematch_requests, set())
+        self.assertIsNone(game.winner_role)
+        self.assertIsNone(game.result_reason)
 
         self.assertEqual(game.players, ["Alice", "CPU（上級）"])
         self.assertTrue(game.is_cpu)

@@ -96,30 +96,44 @@
       </section>
 
       <section id="game-screen" class="game-screen" hidden>
-        <header class="room-bar">
-          <div>
-            <p class="eyebrow">CURRENT SESSION</p>
-            <div class="room-player-line">
-              <h1 id="room-player">プレイヤー</h1>
-              <span id="extra-turn-badge" class="extra-turn-badge" hidden>
-                EXTRA TURN
-              </span>
-            </div>
-          </div>
-          <div class="room-meta">
-            <span id="connection-status" class="connection-status">
-              <i aria-hidden="true"></i> 接続中
-            </span>
-            <button id="copy-room-button" class="room-code" type="button">
-              ROOM <strong id="room-code">—</strong>
-            </button>
-            <button id="leave-button" class="danger-button" type="button">
-              退出
-            </button>
-          </div>
-        </header>
+        <div class="battle-status-row">
+          <div id="phase-banner" class="phase-banner" role="status"></div>
 
-        <div id="phase-banner" class="phase-banner" role="status"></div>
+          <nav class="game-toolbar" aria-label="対戦中の補助機能">
+          <button
+            id="log-toggle-button"
+            class="utility-toggle-button"
+            type="button"
+            aria-expanded="false"
+            aria-controls="log-panel"
+          >
+            <span class="utility-toggle-icon" aria-hidden="true">☷</span>
+            <span id="log-toggle-label">バトルログ</span>
+          </button>
+          <button
+            id="chat-toggle-button"
+            class="utility-toggle-button"
+            type="button"
+            aria-expanded="false"
+            aria-controls="chat-panel"
+          >
+            <span class="utility-toggle-icon" aria-hidden="true">◇</span>
+            <span>チャット</span>
+          </button>
+          <button
+            id="session-toggle-button"
+            class="utility-toggle-button session-toggle-button"
+            type="button"
+            aria-expanded="false"
+            aria-controls="session-panel"
+            aria-label="セッション情報を開く"
+          >
+            <span class="hamburger-icon" aria-hidden="true">
+              <i></i><i></i><i></i>
+            </span>
+          </button>
+          </nav>
+        </div>
 
         <div class="game-layout">
           <section class="table-panel">
@@ -134,29 +148,100 @@
                   <span>山札 <strong id="deck-count">0</strong></span>
                 </div>
               </div>
-              <div id="opponent-hand" class="card-row compact"></div>
-              <div>
+              <div id="opponent-hand" class="card-row compact battle-hand-row"></div>
+              <div class="discard-access opponent-discard-access">
                 <p class="mini-heading">相手の捨て札</p>
-                <div id="opponent-discards" class="discard-row"></div>
+                <button
+                  id="opponent-discard-toggle-button"
+                  class="discard-toggle-button opponent-discard-toggle"
+                  type="button"
+                  aria-expanded="false"
+                  aria-controls="opponent-discard-panel"
+                >
+                  <span class="discard-toggle-symbol" aria-hidden="true">◇</span>
+                  <span>捨て札を確認</span>
+                  <strong id="opponent-discard-count">0</strong>
+                </button>
+                <section
+                  id="opponent-discard-panel"
+                  class="discard-popover"
+                  role="dialog"
+                  aria-labelledby="opponent-discard-panel-title"
+                  hidden
+                >
+                  <header class="discard-popover-header">
+                    <div>
+                      <p class="eyebrow">OPPONENT DISCARD</p>
+                      <h3 id="opponent-discard-panel-title">相手の捨て札</h3>
+                    </div>
+                    <button
+                      id="opponent-discard-close-button"
+                      class="discard-popover-close"
+                      type="button"
+                      aria-label="相手の捨て札を閉じる"
+                    >×</button>
+                  </header>
+                  <div id="opponent-discards" class="discard-row"></div>
+                </section>
               </div>
             </div>
 
             <div class="center-zone">
-              <div class="deck-visual" aria-label="山札">
+              <div class="arena-mark" aria-hidden="true">
+                <span>MIND FIELD</span>
+                <strong>✦</strong>
+              </div>
+              <button
+                id="deck-action-button"
+                class="deck-visual"
+                type="button"
+                aria-label="山札"
+              >
                 <span>ESPER</span>
                 <strong id="deck-count-center">0</strong>
                 <small>CARDS</small>
-              </div>
-              <div>
+              </button>
+              <div class="excluded-zone">
                 <p class="mini-heading">ゲーム外カード</p>
                 <div id="excluded-cards" class="card-row compact"></div>
               </div>
             </div>
 
             <div class="player-zone my-zone">
-              <div>
+              <div class="discard-access">
                 <p class="mini-heading">自分の捨て札</p>
-                <div id="my-discards" class="discard-row"></div>
+                <button
+                  id="my-discard-toggle-button"
+                  class="discard-toggle-button"
+                  type="button"
+                  aria-expanded="false"
+                  aria-controls="my-discard-panel"
+                >
+                  <span class="discard-toggle-symbol" aria-hidden="true">◇</span>
+                  <span>捨て札を確認</span>
+                  <strong id="my-discard-count">0</strong>
+                </button>
+                <section
+                  id="my-discard-panel"
+                  class="discard-popover"
+                  role="dialog"
+                  aria-labelledby="my-discard-panel-title"
+                  hidden
+                >
+                  <header class="discard-popover-header">
+                    <div>
+                      <p class="eyebrow">YOUR DISCARD</p>
+                      <h3 id="my-discard-panel-title">自分の捨て札</h3>
+                    </div>
+                    <button
+                      id="my-discard-close-button"
+                      class="discard-popover-close"
+                      type="button"
+                      aria-label="捨て札を閉じる"
+                    >×</button>
+                  </header>
+                  <div id="my-discards" class="discard-row"></div>
+                </section>
               </div>
               <div class="zone-heading">
                 <div>
@@ -165,52 +250,133 @@
                 </div>
                 <span id="hand-guide" class="hand-guide"></span>
               </div>
-              <div id="my-hand" class="card-row hand-row"></div>
+              <div id="my-hand" class="card-row hand-row battle-hand-row"></div>
             </div>
           </section>
 
-          <aside class="side-column">
-            <section class="action-panel">
-              <div class="section-heading compact-heading">
-                <span class="step-number">02</span>
-                <div>
-                  <p class="eyebrow">CHOOSE YOUR MOVE</p>
-                  <h2>アクション</h2>
-                </div>
-              </div>
-              <div id="action-content"></div>
-            </section>
-
-            <section class="log-panel">
-              <button
-                id="log-toggle-button"
-                class="log-toggle-button"
-                type="button"
-                aria-expanded="false"
-                aria-controls="log-list"
-              >
-                <span id="log-toggle-label">バトルログを見る</span>
-                <span class="log-toggle-icon" aria-hidden="true">⌄</span>
-              </button>
-              <div id="log-list" class="log-list" hidden></div>
-            </section>
-
-            <section class="chat-panel">
-              <h2>チャット</h2>
-              <div id="chat-list" class="chat-list" aria-live="polite"></div>
-              <form id="chat-form" class="chat-form">
-                <label class="sr-only" for="chat-message">メッセージ</label>
-                <input
-                  id="chat-message"
-                  maxlength="200"
-                  placeholder="メッセージを入力"
-                  autocomplete="off"
-                >
-                <button type="submit" aria-label="送信">➤</button>
-              </form>
-            </section>
-          </aside>
         </div>
+
+        <section
+          id="context-action-bar"
+          class="context-action-bar"
+          aria-live="polite"
+          hidden
+        >
+          <p id="context-action-copy"></p>
+          <div id="context-action-buttons" class="context-action-buttons"></div>
+        </section>
+
+        <button
+          id="utility-panel-backdrop"
+          class="utility-panel-backdrop"
+          type="button"
+          aria-label="パネルを閉じる"
+          hidden
+        ></button>
+
+        <aside
+          id="session-panel"
+          class="utility-panel session-panel"
+          aria-labelledby="session-panel-title"
+          hidden
+        >
+          <header class="utility-panel-header">
+            <div>
+              <p class="eyebrow">CURRENT SESSION</p>
+              <h2 id="session-panel-title">セッション情報</h2>
+            </div>
+            <button
+              id="session-close-button"
+              class="utility-panel-close"
+              type="button"
+              aria-label="セッション情報を閉じる"
+            >×</button>
+          </header>
+          <div class="session-panel-content">
+            <section class="session-player-card">
+              <span>PLAYER</span>
+              <div class="room-player-line">
+                <h3 id="room-player">プレイヤー</h3>
+                <span id="extra-turn-badge" class="extra-turn-badge" hidden>
+                  EXTRA TURN
+                </span>
+              </div>
+            </section>
+            <dl class="session-status-list">
+              <div>
+                <dt>CONNECTION</dt>
+                <dd>
+                  <span id="connection-status" class="connection-status">
+                    <i aria-hidden="true"></i> 接続中
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt>ROOM</dt>
+                <dd>
+                  <button id="copy-room-button" class="room-code" type="button">
+                    ROOM <strong id="room-code">—</strong>
+                  </button>
+                </dd>
+              </div>
+            </dl>
+            <button id="leave-button" class="danger-button session-leave-button" type="button">
+              ルームを退出する
+            </button>
+          </div>
+        </aside>
+
+        <aside
+          id="log-panel"
+          class="utility-panel log-panel"
+          aria-labelledby="log-panel-title"
+          hidden
+        >
+          <header class="utility-panel-header">
+            <div>
+              <p class="eyebrow">BATTLE HISTORY</p>
+              <h2 id="log-panel-title">バトルログ</h2>
+            </div>
+            <button
+              id="log-close-button"
+              class="utility-panel-close"
+              type="button"
+              aria-label="バトルログを閉じる"
+            >×</button>
+          </header>
+          <div id="log-list" class="log-list"></div>
+        </aside>
+
+        <aside
+          id="chat-panel"
+          class="utility-panel chat-panel"
+          aria-labelledby="chat-panel-title"
+          hidden
+        >
+          <header class="utility-panel-header">
+            <div>
+              <p class="eyebrow">PSYCHIC LINK</p>
+              <h2 id="chat-panel-title">チャット</h2>
+            </div>
+            <button
+              id="chat-close-button"
+              class="utility-panel-close"
+              type="button"
+              aria-label="チャットを閉じる"
+            >×</button>
+          </header>
+          <div id="chat-list" class="chat-list" aria-live="polite"></div>
+          <form id="chat-form" class="chat-form">
+            <label class="sr-only" for="chat-message">メッセージ</label>
+            <input
+              id="chat-message"
+              maxlength="200"
+              placeholder="メッセージを入力"
+              autocomplete="off"
+            >
+            <button type="submit" aria-label="送信">➤</button>
+          </form>
+        </aside>
       </section>
     </main>
 
@@ -285,6 +451,28 @@
           type="button"
         >
           使う
+        </button>
+      </div>
+    </dialog>
+
+    <dialog id="healing-confirm-dialog" class="ability-dialog healing-confirm-dialog">
+      <div class="ability-dialog-accent" aria-hidden="true">✚</div>
+      <p class="eyebrow">CONFIRM HEALING TARGETS</p>
+      <h2>山札へ戻すカードの確認</h2>
+      <p class="healing-confirm-copy">
+        選択したカードを山札へ戻してシャッフルします。
+      </p>
+      <ol id="healing-confirm-list" class="healing-confirm-list"></ol>
+      <div class="dialog-actions">
+        <button id="healing-confirm-back-button" class="action-button" type="button">
+          戻る
+        </button>
+        <button
+          id="healing-confirm-button"
+          class="action-button primary"
+          type="button"
+        >
+          決定
         </button>
       </div>
     </dialog>
@@ -373,6 +561,38 @@
       </div>
     </dialog>
 
+    <dialog id="choice-dialog" class="ability-dialog choice-dialog">
+      <div class="ability-dialog-accent" aria-hidden="true">◈</div>
+      <p id="choice-dialog-kicker" class="eyebrow"></p>
+      <h2 id="choice-dialog-title"></h2>
+      <p id="choice-dialog-copy" class="choice-dialog-copy"></p>
+      <div id="choice-dialog-options" class="choice-dialog-options"></div>
+      <div class="dialog-actions">
+        <button id="choice-dialog-back-button" class="action-button" type="button">
+          戻る
+        </button>
+      </div>
+    </dialog>
+
+    <dialog id="discard-reveal-dialog" class="discard-dialog">
+      <div class="discard-dialog-accent" aria-hidden="true">◇</div>
+      <p class="eyebrow">PRIVATE DISCARD</p>
+      <h2>裏向きの捨て札</h2>
+      <div class="discard-card-preview">
+        <span>カード名</span>
+        <strong id="discard-reveal-name"></strong>
+      </div>
+      <div class="discard-effect">
+        <span>カードの効果</span>
+        <p id="discard-reveal-effect"></p>
+      </div>
+      <div class="dialog-actions single-action">
+        <button id="discard-reveal-close-button" class="action-button primary" type="button">
+          閉じる
+        </button>
+      </div>
+    </dialog>
+
     <div
       id="action-event-overlay"
       class="action-event-overlay"
@@ -384,6 +604,22 @@
       <p id="action-event-kicker">OPPONENT ACTION</p>
       <strong id="action-event-title"></strong>
       <small id="action-event-detail"></small>
+      <ol id="turn-start-guide" class="turn-start-guide" hidden>
+        <li>
+          <span class="turn-start-number">01</span>
+          <div>
+            <b>カードを1枚捨てる</b>
+            <span>手札から1枚選んで捨てます</span>
+          </div>
+        </li>
+        <li>
+          <span class="turn-start-number">02</span>
+          <div>
+            <b>山札から1枚引く</b>
+            <span>山札を押してカードを引きます</span>
+          </div>
+        </li>
+      </ol>
     </div>
 
     <div
@@ -398,6 +634,80 @@
       <strong id="extra-turn-overlay-title">追加ターン</strong>
       <small id="extra-turn-overlay-count"></small>
     </div>
+
+    <section
+      id="victory-overlay"
+      class="victory-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="victory-title"
+      hidden
+    >
+      <div class="victory-backdrop" aria-hidden="true"></div>
+      <div class="victory-particles" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+      <div class="victory-stage">
+        <div class="victory-rays" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+        <div class="victory-main">
+          <div class="victory-sigil" aria-hidden="true">
+            <span id="victory-sigil-icon">✦</span>
+          </div>
+          <p id="victory-kicker" class="victory-kicker">ESPER ACHIEVED</p>
+          <h2 id="victory-title">勝利</h2>
+          <p id="victory-copy" class="victory-copy">あなたが未来を掴みました</p>
+          <div class="victory-card-display">
+            <div id="victory-card-fan" class="victory-card-fan"></div>
+            <div
+              id="opponent-result-card-fan"
+              class="victory-card-fan opponent-result-card-fan"
+              hidden
+            ></div>
+          </div>
+          <p id="victory-dominant-label" class="victory-dominant-label"></p>
+        </div>
+        <aside class="victory-result">
+          <p id="result-condition-label">WIN CONDITION</p>
+          <strong id="victory-reason"></strong>
+          <div class="victory-score">
+            <span>あなた <b id="my-result-status">WIN</b></span>
+            <i aria-hidden="true">✦</i>
+            <span>相手 <b id="opponent-result-status">LOSE</b></span>
+          </div>
+          <div class="victory-actions">
+            <button
+              id="victory-rematch-button"
+              class="victory-button primary"
+              type="button"
+            >もう一度対戦する</button>
+            <button
+              id="victory-result-button"
+              class="victory-button"
+              type="button"
+            >結果を確認</button>
+            <button
+              id="victory-leave-button"
+              class="victory-leave-button"
+              type="button"
+            >ルームを退出する</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <aside
+      id="card-detail-tooltip"
+      class="card-detail-tooltip"
+      role="tooltip"
+      hidden
+    >
+      <span>ABILITY CARD</span>
+      <strong id="card-detail-name"></strong>
+      <p id="card-detail-effect"></p>
+    </aside>
 
     <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
     <script type="module" src="/static/js/app.js"></script>

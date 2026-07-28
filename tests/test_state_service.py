@@ -103,6 +103,25 @@ class StateServiceVisibilityTests(unittest.TestCase):
             ],
         )
         self.assertNotIn("SECRET_DECK_A", json.dumps(state))
+        self.assertTrue(state["game"]["result"]["is_draw"])
+
+    def test_finished_state_exposes_structured_winner(self):
+        game = make_game()
+        game.turn_step = "GAME_CLEAR"
+        game.winner_role = "p1"
+        game.result_reason = "ESPERを宣言"
+
+        winner_state = StateService.build_public_state(game, "p1")
+        loser_state = StateService.build_public_state(game, "p2")
+
+        self.assertEqual(winner_state["game"]["result"]["winner_role"], "p1")
+        self.assertEqual(winner_state["game"]["result"]["winner_name"], "Alice")
+        self.assertTrue(winner_state["game"]["result"]["is_winner"])
+        self.assertFalse(loser_state["game"]["result"]["is_winner"])
+        self.assertEqual(
+            winner_state["game"]["result"]["reason"],
+            "ESPERを宣言",
+        )
 
     def test_each_player_sees_only_their_own_private_hand(self):
         game = make_game()

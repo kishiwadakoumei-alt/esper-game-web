@@ -21,15 +21,110 @@ const toast = document.getElementById("toast");
 const rulesDialog = document.getElementById("rules-dialog");
 const logToggleButton = document.getElementById("log-toggle-button");
 const logToggleLabel = document.getElementById("log-toggle-label");
-const logList = document.getElementById("log-list");
+const chatToggleButton = document.getElementById("chat-toggle-button");
+const sessionToggleButton = document.getElementById("session-toggle-button");
+const logPanel = document.getElementById("log-panel");
+const chatPanel = document.getElementById("chat-panel");
+const sessionPanel = document.getElementById("session-panel");
+const utilityPanelBackdrop = document.getElementById("utility-panel-backdrop");
+const discardLayoutMedia = window.matchMedia("(orientation: landscape)");
+const discardPanels = {
+  mine: {
+    button: document.getElementById("my-discard-toggle-button"),
+    panel: document.getElementById("my-discard-panel"),
+  },
+  opponent: {
+    button: document.getElementById("opponent-discard-toggle-button"),
+    panel: document.getElementById("opponent-discard-panel"),
+  },
+};
+const DISCARD_SELECTION_CONFIRM_ACTIONS = new Set([
+  "confirm_healing",
+  "confirm_clairvoyance",
+  "select_psychokinesis_push",
+]);
+const discardPanelAnchors = Object.fromEntries(
+  Object.entries(discardPanels).map(([owner, { panel }]) => [
+    owner,
+    { parent: panel.parentNode, nextSibling: panel.nextSibling },
+  ]),
+);
+
+function placeDiscardPanel(owner, inViewportLayer) {
+  const panel = discardPanels[owner].panel;
+  if (inViewportLayer) {
+    document.body.append(panel);
+    return;
+  }
+  const { parent, nextSibling } = discardPanelAnchors[owner];
+  if (panel.parentNode !== parent) {
+    parent.insertBefore(panel, nextSibling);
+  }
+}
+
+function setDiscardPanelOpen(owner, open) {
+  const landscape = discardLayoutMedia.matches;
+  if (open && landscape) {
+    Object.entries(discardPanels).forEach(([otherOwner, entry]) => {
+      if (otherOwner === owner) {
+        return;
+      }
+      entry.panel.hidden = true;
+      entry.button.setAttribute("aria-expanded", "false");
+      entry.button.classList.remove("open");
+      entry.panel.setAttribute("aria-modal", "false");
+      placeDiscardPanel(otherOwner, false);
+    });
+  }
+  const { button, panel } = discardPanels[owner];
+  const visible = !landscape || open;
+  panel.hidden = !visible;
+  panel.setAttribute("aria-modal", String(landscape && visible));
+  placeDiscardPanel(owner, landscape && visible);
+  button.setAttribute("aria-expanded", String(visible));
+  button.classList.toggle("open", visible && landscape);
+  document.body.classList.toggle(
+    "discard-panel-open",
+    landscape &&
+      Object.values(discardPanels).some((entry) => !entry.panel.hidden),
+  );
+}
+
+function closeDiscardPanels() {
+  setDiscardPanelOpen("mine", false);
+  setDiscardPanelOpen("opponent", false);
+}
+
+function syncDiscardLayout() {
+  closeDiscardPanels();
+}
+
+function setUtilityPanel(openPanel = null) {
+  const logOpen = openPanel === "log";
+  const chatOpen = openPanel === "chat";
+  const sessionOpen = openPanel === "session";
+  logPanel.hidden = !logOpen;
+  chatPanel.hidden = !chatOpen;
+  sessionPanel.hidden = !sessionOpen;
+  utilityPanelBackdrop.hidden = !logOpen && !chatOpen && !sessionOpen;
+  logToggleButton.setAttribute("aria-expanded", String(logOpen));
+  chatToggleButton.setAttribute("aria-expanded", String(chatOpen));
+  sessionToggleButton.setAttribute("aria-expanded", String(sessionOpen));
+  logToggleButton.classList.toggle("open", logOpen);
+  chatToggleButton.classList.toggle("open", chatOpen);
+  sessionToggleButton.classList.toggle("open", sessionOpen);
+  logToggleLabel.textContent = "バトルログ";
+  document.body.classList.toggle(
+    "utility-panel-open",
+    logOpen || chatOpen || sessionOpen,
+  );
+  if (chatOpen) {
+    chatInput.focus();
+  }
+}
 
 function setBattleLogOpen(open) {
-  logList.hidden = !open;
-  logToggleButton.setAttribute("aria-expanded", String(open));
-  logToggleLabel.textContent = open
-    ? "バトルログを閉じる"
-    : "バトルログを見る";
-  logToggleButton.classList.toggle("open", open);
+  setUtilityPanel(open ? "log" : null);
 }
 
 function showToast(message) {
@@ -55,8 +150,10 @@ function setBusy(value) {
 
 function showLanding() {
   currentState = null;
+  document.body.classList.remove("game-active");
   resetRenderState();
   setBattleLogOpen(false);
+  syncDiscardLayout();
   gameScreen.hidden = true;
   landingScreen.hidden = false;
   setConnectionStatus(false);
@@ -77,6 +174,7 @@ function handlers() {
 
 function updateState(state, { suppressActionEvents = false } = {}) {
   currentState = state;
+  document.body.classList.add("game-active");
   landingScreen.hidden = true;
   gameScreen.hidden = false;
   renderGame(state, handlers(), { suppressActionEvents });
@@ -116,6 +214,9 @@ async function performAction(action, payload = {}) {
   setBusy(true);
   try {
     updateState(await api.performAction(action, payload));
+    if (DISCARD_SELECTION_CONFIRM_ACTIONS.has(action)) {
+      closeDiscardPanels();
+    }
   } catch (error) {
     showToast(errorMessage(error));
     if (error instanceof ApiError && error.status === 409) {
@@ -202,7 +303,63 @@ chatForm.addEventListener("submit", async (event) => {
 });
 
 logToggleButton.addEventListener("click", () => {
-  setBattleLogOpen(logList.hidden);
+  setUtilityPanel(logPanel.hidden ? "log" : null);
+});
+
+chatToggleButton.addEventListener("click", () => {
+  setUtilityPanel(chatPanel.hidden ? "chat" : null);
+});
+
+sessionToggleButton.addEventListener("click", () => {
+  setUtilityPanel(sessionPanel.hidden ? "session" : null);
+});
+
+document.getElementById("session-close-button").addEventListener(
+  "click",
+  () => setUtilityPanel(),
+);
+
+document.getElementById("log-close-button").addEventListener("click", () => {
+  setUtilityPanel();
+});
+
+document.getElementById("chat-close-button").addEventListener("click", () => {
+  setUtilityPanel();
+});
+
+utilityPanelBackdrop.addEventListener("click", () => {
+  setUtilityPanel();
+});
+
+Object.entries(discardPanels).forEach(([owner, { button, panel }]) => {
+  button.addEventListener("click", () => {
+    setDiscardPanelOpen(owner, panel.hidden);
+  });
+});
+
+document.getElementById("my-discard-close-button").addEventListener(
+  "click",
+  () => setDiscardPanelOpen("mine", false),
+);
+
+document.getElementById("opponent-discard-close-button").addEventListener(
+  "click",
+  () => setDiscardPanelOpen("opponent", false),
+);
+
+discardLayoutMedia.addEventListener("change", syncDiscardLayout);
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") {
+    return;
+  }
+  if (!logPanel.hidden || !chatPanel.hidden || !sessionPanel.hidden) {
+    setUtilityPanel();
+  } else if (!discardPanels.mine.panel.hidden) {
+    setDiscardPanelOpen("mine", false);
+  } else if (!discardPanels.opponent.panel.hidden) {
+    setDiscardPanelOpen("opponent", false);
+  }
 });
 
 document.getElementById("leave-button").addEventListener("click", leaveRoom);
@@ -241,4 +398,5 @@ async function restoreSession() {
   }
 }
 
+syncDiscardLayout();
 restoreSession();

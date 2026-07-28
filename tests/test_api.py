@@ -252,6 +252,9 @@ class ApiTests(unittest.TestCase):
 
         self.assertEqual(result.status_code, 200)
         self.assertEqual(game.turn_step, "GAME_CLEAR")
+        self.assertEqual(game.winner_role, "p1")
+        self.assertEqual(game.result_reason, "ESPERを宣言")
+        self.assertTrue(result.json()["game"]["result"]["is_winner"])
         self.assertIn("p2", game.rematch_requests)
         self.assertTrue(result.json()["rematch"]["requested_by_opponent"])
 

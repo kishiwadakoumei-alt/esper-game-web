@@ -30,6 +30,8 @@ class EsperGame:
         self.rematch_requests = set()
         self.extra_turn = False
         self.extra_turn_chain = 0
+        self.winner_role = None
+        self.result_reason = None
         
         # CPU戦用のフラグ
         self.is_cpu = False
@@ -126,6 +128,8 @@ class EsperGame:
     def trigger_endgame(self, reason):
         self.extra_turn = False
         self.extra_turn_chain = 0
+        self.winner_role = None
+        self.result_reason = reason
         self.turn_step = "GAME_OVER"
         p1_counts = Counter(self.p1_hand)
         p2_counts = Counter(self.p2_hand)
@@ -148,22 +152,34 @@ class EsperGame:
         p2_esper = self.check_esper(self.p2_hand)
 
         if p1_esper and p2_esper:
+            self.result_reason = "双方がESPER達成"
             self.add_log(None, msg + f" なんとお互いにESPER達成（{p1_set_str} 対 {p2_set_str}）のため、完全引き分け！⚖️")
         elif p1_esper:
+            self.winner_role = "p1"
+            self.result_reason = "ESPER達成"
             self.add_log(None, msg + f" 🌟【ESPER達成】{p1_name} が同種５枚を揃えていたため、{p1_name} の大勝利！🎉")
         elif p2_esper:
+            self.winner_role = "p2"
+            self.result_reason = "ESPER達成"
             self.add_log(None, msg + f" 🌟【ESPER達成】{p2_name} が同種５枚を揃えていたため、{p2_name} の大勝利！🎉")
         else:
             if p1_sorted_counts > p2_sorted_counts:
+                self.winner_role = "p1"
+                self.result_reason = "手札構成"
                 self.add_log(None, msg + f" 構成（{p1_set_str} 対 {p2_set_str}）により、{p1_name} の勝利！🎉")
             elif p2_sorted_counts > p1_sorted_counts:
+                self.winner_role = "p2"
+                self.result_reason = "手札構成"
                 self.add_log(None, msg + f" 構成（{p2_set_str} 対 {p1_set_str}）により、{p2_name} の勝利！🎉")
             else:
+                self.result_reason = "完全引き分け"
                 self.add_log(None, msg + f" 構成（お互い {p1_set_str}）が同じため、完全引き分け！⚖️")
 
     def trigger_draw(self, reason):
         self.extra_turn = False
         self.extra_turn_chain = 0
+        self.winner_role = None
+        self.result_reason = reason
         self.turn_step = "GAME_OVER"
         self.add_log(None, f"⚖️【引き分け】{reason}⚖️")
 
@@ -210,6 +226,8 @@ class EsperGame:
         self.rematch_requests = set()
         self.extra_turn = False
         self.extra_turn_chain = 0
+        self.winner_role = None
+        self.result_reason = None
         
         self.turn_step = "DECIDING_TURN"
         self.timer_started = False

@@ -43,6 +43,9 @@ class StateService:
                 "extra_turn_chain": game.extra_turn_chain,
                 "latest_log": game.log_message,
                 "finished": is_finished,
+                "result": cls._result(game, viewer_role)
+                if is_finished
+                else None,
             },
             "opponent": {
                 "role": opponent_role,
@@ -86,6 +89,21 @@ class StateService:
             },
         }
         return state
+
+    @staticmethod
+    def _result(game: EsperGame, viewer_role: str) -> dict[str, Any]:
+        winner_role = getattr(game, "winner_role", None)
+        return {
+            "winner_role": winner_role,
+            "winner_name": (
+                game.get_player_name(winner_role)
+                if winner_role in {"p1", "p2"}
+                else None
+            ),
+            "is_winner": winner_role == viewer_role,
+            "is_draw": winner_role is None,
+            "reason": getattr(game, "result_reason", None),
+        }
 
     @staticmethod
     def _action_events(

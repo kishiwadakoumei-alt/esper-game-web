@@ -38,6 +38,39 @@ class FrontendDeliveryTests(unittest.TestCase):
             response.text,
         )
 
+    def test_home_screen_manifest_and_icons_are_served(self):
+        html = self.client.get("/").text
+        self.assertIn(
+            'rel="manifest" href="/static/manifest.webmanifest"',
+            html,
+        )
+        self.assertIn('rel="apple-touch-icon" sizes="180x180"', html)
+        self.assertIn(
+            'rel="icon" href="/static/assets/icons/esper-icon.svg"',
+            html,
+        )
+
+        response = self.client.get("/static/manifest.webmanifest")
+        self.assertEqual(response.status_code, 200)
+        manifest = response.json()
+        self.assertEqual(manifest["name"], "超能力カードゲーム ESPER")
+        self.assertEqual(manifest["short_name"], "ESPER")
+        self.assertEqual(manifest["display"], "standalone")
+        self.assertEqual(
+            [icon["sizes"] for icon in manifest["icons"]],
+            ["192x192", "512x512"],
+        )
+
+        for path in (
+            "/static/assets/icons/esper-icon-180.png",
+            "/static/assets/icons/esper-icon-192.png",
+            "/static/assets/icons/esper-icon-512.png",
+            "/static/assets/icons/esper-icon.svg",
+        ):
+            icon = self.client.get(path)
+            self.assertEqual(icon.status_code, 200)
+            self.assertTrue(icon.content)
+
     def test_room_invitation_url_prefills_room_and_can_be_shared(self):
         html = (FRONTEND_ROOT / "index.html").read_text()
         css = (

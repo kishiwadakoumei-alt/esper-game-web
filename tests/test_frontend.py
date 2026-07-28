@@ -311,6 +311,9 @@ class FrontendDeliveryTests(unittest.TestCase):
         renderer = (
             FRONTEND_ROOT / "static" / "js" / "render.js"
         ).read_text()
+        app = (
+            FRONTEND_ROOT / "static" / "js" / "app.js"
+        ).read_text()
 
         self.assertIn("psychokinesis-dialog", html)
         self.assertIn("psychokinesis-target-label", html)
@@ -325,7 +328,19 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("psychokinesisSelection = null", renderer)
         self.assertIn("select_psychokinesis_discard", renderer)
         self.assertIn("select_psychokinesis_push", renderer)
+        self.assertIn("psychokinesisPushGuideShown", renderer)
+        self.assertIn("psychokinesisPushGuideOpen", renderer)
+        self.assertIn('dataset.mode = "psychokinesis-push-guide"', renderer)
+        self.assertIn("PSYCHOKINESIS — STEP 2 / 2", renderer)
+        self.assertIn("interaction.discarded_card", renderer)
+        self.assertIn("handlers.openOpponentDiscards", renderer)
+        self.assertIn("STEP 2 / 2：相手の裏向き捨て札", renderer)
+        self.assertIn('setDiscardPanelOpen("opponent", true)', app)
+        self.assertIn("scrollIntoView", app)
         self.assertIn(".psychokinesis-dialog", css)
+        self.assertIn(".psychokinesis-step-summary", css)
+        self.assertIn(".psychokinesis-targeting", css)
+        self.assertIn("@keyframes psychokinesis-target-pulse", css)
         self.assertIn(".card.selectable-target", css)
         self.assertIn(".discard-stack.selectable-target", css)
 

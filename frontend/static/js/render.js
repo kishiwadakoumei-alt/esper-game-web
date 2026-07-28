@@ -38,6 +38,7 @@ const CARD_EFFECTS = {
 
 let prescienceOrder = [];
 let psychokinesisSelection = null;
+let psychokinesisPushGuideShown = false;
 const expandedDiscardStacks = new Set();
 let lastActionEventId = null;
 let lastTurnOwner = null;
@@ -669,6 +670,7 @@ export function resetRenderState() {
   dismissedResultKey = null;
   newlyDrawnCards.clear();
   psychokinesisSelection = null;
+  psychokinesisPushGuideShown = false;
   expandedDiscardStacks.clear();
   lastActionEventId = null;
   lastTurnOwner = null;
@@ -885,6 +887,7 @@ function openChoiceDialog({ kicker, title, copy, onBack = null }) {
     return null;
   }
   const dialog = byId("choice-dialog");
+  delete dialog.dataset.mode;
   const options = byId("choice-dialog-options");
   const back = byId("choice-dialog-back-button");
   const presciencePreview = byId("prescience-selection-hand-preview");
@@ -1055,6 +1058,14 @@ function renderChoiceDialog(state, handlers) {
   const actions = new Set(state.available_actions);
   const interaction = state.interaction;
   const step = state.game.turn_step;
+  const choiceDialog = byId("choice-dialog");
+  const psychokinesisPushGuideOpen =
+    choiceDialog.open &&
+    choiceDialog.dataset.mode === "psychokinesis-push-guide";
+  const showPsychokinesisPushGuide =
+    step === "PSY_PUSH_SELECTION" &&
+    interaction?.kind === "psychokinesis_push" &&
+    (!psychokinesisPushGuideShown || psychokinesisPushGuideOpen);
   const modalStep = [
     "ABILITY",
     "MIMIC_SELECTION",
@@ -1063,10 +1074,43 @@ function renderChoiceDialog(state, handlers) {
     "PRESCIENCE_SELECT_1",
     "PRESCIENCE_SELECT_2",
     "ROOM_DISBANDED",
-  ].includes(step) || state.game.finished;
+  ].includes(step) || showPsychokinesisPushGuide || state.game.finished;
 
   if (!modalStep) {
     closeChoiceDialog();
+    return;
+  }
+
+  if (showPsychokinesisPushGuide) {
+    const options = openChoiceDialog({
+      kicker: "PSYCHOKINESIS — STEP 2 / 2",
+      title: "次に、手札へ戻すカードを選びます",
+      copy: "相手の裏向き捨て札から1枚選び、相手の手札へ戻してください。",
+    });
+    if (!options) {
+      return;
+    }
+    psychokinesisPushGuideShown = true;
+    byId("choice-dialog").dataset.mode = "psychokinesis-push-guide";
+    const summary = create("div", "psychokinesis-step-summary");
+    summary.append(
+      create("span", "", "捨てさせたカード"),
+      create(
+        "strong",
+        "",
+        interaction.discarded_card || "選択したカード",
+      ),
+    );
+    options.append(summary);
+    addAction(
+      options,
+      "相手の捨て札を開く",
+      () => {
+        closeChoiceDialog();
+        handlers.openOpponentDiscards();
+      },
+      { kind: "primary" },
+    );
     return;
   }
 
@@ -1317,6 +1361,17 @@ function renderActionBar(state, handlers) {
       "選択を確定する",
       () => handlers.action("confirm_clairvoyance"),
       { kind: "primary" },
+    );
+  } else if (
+    step === "PSY_PUSH_SELECTION" &&
+    interaction?.kind === "psychokinesis_push"
+  ) {
+    message = "STEP 2 / 2：相手の裏向き捨て札から、手札へ戻す1枚を選択してください。";
+    addAction(
+      buttons,
+      "相手の捨て札を開く",
+      handlers.openOpponentDiscards,
+      { kind: "secondary" },
     );
   }
 
@@ -1803,6 +1858,10 @@ export function renderGame(
     healingConfirmDialog.close();
   }
   const psychokinesisDialog = byId("psychokinesis-dialog");
+  if (state.game.turn_step !== "PSY_PUSH_SELECTION") {
+    psychokinesisPushGuideShown = false;
+    delete byId("choice-dialog").dataset.mode;
+  }
   if (
     !["PSY_DISCARD_SELECTION", "PSY_PUSH_SELECTION"].includes(
       state.game.turn_step,
@@ -1862,6 +1921,10 @@ export function renderGame(
     ["healing", "clairvoyance", "psychokinesis_push"].includes(
       state.interaction?.kind,
     ),
+  );
+  byId("opponent-discard-panel").classList.toggle(
+    "psychokinesis-targeting",
+    state.interaction?.kind === "psychokinesis_push",
   );
   renderDiscardGroups(
     byId("my-discards"),

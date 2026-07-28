@@ -353,6 +353,9 @@ class StateService:
                 })
         return {
             "kind": "psychokinesis_push",
+            "discarded_card": (game.active_ability or {}).get(
+                "psych_discarded_card",
+            ),
             "options": options,
         }
 

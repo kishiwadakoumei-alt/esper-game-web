@@ -132,6 +132,19 @@ function setBattleLogOpen(open) {
   setUtilityPanel(open ? "log" : null);
 }
 
+function openOpponentDiscards() {
+  setUtilityPanel();
+  setDiscardPanelOpen("opponent", true);
+  if (!discardLayoutMedia.matches) {
+    window.requestAnimationFrame(() => {
+      discardPanels.opponent.panel.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+  }
+}
+
 function showToast(message) {
   window.clearTimeout(toastTimer);
   toast.textContent = message;
@@ -245,6 +258,7 @@ function showLanding() {
 function handlers() {
   return {
     action: performAction,
+    openOpponentDiscards,
     rematch: requestRematch,
     leave: leaveRoom,
     returnHome: () => {

@@ -374,6 +374,7 @@ function renderDiscardGroups(
   groups,
   selectedGroups = new Set(),
   selectedCards = new Set(),
+  { allowStackExpansion = false } = {},
 ) {
   clear(container);
   if (!groups.length) {
@@ -384,7 +385,7 @@ function renderDiscardGroups(
   groups.forEach((group, groupIndex) => {
     const stack = create("div", "discard-stack");
     const stackKey = `${container.id}:${groupIndex}`;
-    const expandable = group.length > 1;
+    const expandable = allowStackExpansion && group.length > 1;
     const selectedGroup = selectedGroups.has(groupIndex);
     stack.style.height = `${84 + Math.max(0, group.length - 1) * 6}px`;
     group.forEach((card, index) => {
@@ -1885,6 +1886,11 @@ export function renderGame(
   const clairHighlights = clairvoyanceHighlights(state);
   const psychHighlights = psychokinesisHighlights(state);
   const regenHighlights = healingHighlights(state);
+  const allowDiscardStackExpansion =
+    state.interaction?.kind === "healing";
+  if (!allowDiscardStackExpansion) {
+    expandedDiscardStacks.clear();
+  }
   const opponentHandHighlights = new Set([
     ...clairHighlights.hand,
     ...psychHighlights.hand,
@@ -1910,6 +1916,7 @@ export function renderGame(
       ...psychHighlights.discards,
     ]),
     regenHighlights.opponent,
+    { allowStackExpansion: allowDiscardStackExpansion },
   );
   const opponentDiscardCount = state.discards.opponent.reduce(
     (count, group) => count + group.length,
@@ -1931,6 +1938,7 @@ export function renderGame(
     state.discards.mine,
     new Set(),
     regenHighlights.mine,
+    { allowStackExpansion: allowDiscardStackExpansion },
   );
   const myDiscardCount = state.discards.mine.reduce(
     (count, group) => count + group.length,

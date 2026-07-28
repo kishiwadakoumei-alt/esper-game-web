@@ -260,7 +260,7 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn(".healing-confirm-dialog", css)
         self.assertIn(".healing-confirm-list", css)
 
-    def test_stacked_discards_expand_before_card_selection(self):
+    def test_stacked_discards_expand_only_during_healing_selection(self):
         css = (
             FRONTEND_ROOT / "static" / "css" / "styles.css"
         ).read_text()
@@ -270,7 +270,16 @@ class FrontendDeliveryTests(unittest.TestCase):
 
         self.assertIn("expandedDiscardStacks", renderer)
         self.assertIn("applyDiscardStackLayout", renderer)
-        self.assertIn("group.length > 1", renderer)
+        self.assertIn("allowStackExpansion && group.length > 1", renderer)
+        self.assertIn(
+            "state.interaction?.kind === \"healing\"",
+            renderer,
+        )
+        self.assertIn(
+            "{ allowStackExpansion: allowDiscardStackExpansion }",
+            renderer,
+        )
+        self.assertIn("if (!allowDiscardStackExpansion)", renderer)
         self.assertIn('stack.addEventListener("click", expand, true)', renderer)
         self.assertIn("event.stopPropagation()", renderer)
         self.assertIn("discard-stack-toggle", renderer)

@@ -142,11 +142,16 @@
             </div>
 
             <div class="center-zone">
-              <div class="deck-visual" aria-label="山札">
+              <button
+                id="deck-action-button"
+                class="deck-visual"
+                type="button"
+                aria-label="山札"
+              >
                 <span>ESPER</span>
                 <strong id="deck-count-center">0</strong>
                 <small>CARDS</small>
-              </div>
+              </button>
               <div>
                 <p class="mini-heading">ゲーム外カード</p>
                 <div id="excluded-cards" class="card-row compact"></div>
@@ -170,17 +175,6 @@
           </section>
 
           <aside class="side-column">
-            <section class="action-panel">
-              <div class="section-heading compact-heading">
-                <span class="step-number">02</span>
-                <div>
-                  <p class="eyebrow">CHOOSE YOUR MOVE</p>
-                  <h2>アクション</h2>
-                </div>
-              </div>
-              <div id="action-content"></div>
-            </section>
-
             <section class="log-panel">
               <button
                 id="log-toggle-button"
@@ -211,6 +205,16 @@
             </section>
           </aside>
         </div>
+
+        <section
+          id="context-action-bar"
+          class="context-action-bar"
+          aria-live="polite"
+          hidden
+        >
+          <p id="context-action-copy"></p>
+          <div id="context-action-buttons" class="context-action-buttons"></div>
+        </section>
       </section>
     </main>
 
@@ -370,6 +374,38 @@
           class="action-button primary"
           type="button"
         ></button>
+      </div>
+    </dialog>
+
+    <dialog id="choice-dialog" class="ability-dialog choice-dialog">
+      <div class="ability-dialog-accent" aria-hidden="true">◈</div>
+      <p id="choice-dialog-kicker" class="eyebrow"></p>
+      <h2 id="choice-dialog-title"></h2>
+      <p id="choice-dialog-copy" class="choice-dialog-copy"></p>
+      <div id="choice-dialog-options" class="choice-dialog-options"></div>
+      <div class="dialog-actions">
+        <button id="choice-dialog-back-button" class="action-button" type="button">
+          戻る
+        </button>
+      </div>
+    </dialog>
+
+    <dialog id="discard-reveal-dialog" class="discard-dialog">
+      <div class="discard-dialog-accent" aria-hidden="true">◇</div>
+      <p class="eyebrow">PRIVATE DISCARD</p>
+      <h2>裏向きの捨て札</h2>
+      <div class="discard-card-preview">
+        <span>カード名</span>
+        <strong id="discard-reveal-name"></strong>
+      </div>
+      <div class="discard-effect">
+        <span>カードの効果</span>
+        <p id="discard-reveal-effect"></p>
+      </div>
+      <div class="dialog-actions single-action">
+        <button id="discard-reveal-close-button" class="action-button primary" type="button">
+          閉じる
+        </button>
       </div>
     </dialog>
 

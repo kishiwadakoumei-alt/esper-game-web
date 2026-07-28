@@ -131,6 +131,9 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("opponentHandHighlights", renderer)
         self.assertIn("...clairHighlights.hand", renderer)
         self.assertIn("...clairHighlights.discards", renderer)
+        self.assertIn("bindClairvoyanceBoardTargets", renderer)
+        self.assertIn("toggle_clairvoyance_selection", renderer)
+        self.assertIn("透視対象に選択", renderer)
         self.assertIn(".card.hidden-card.selected", css)
 
     def test_prescience_orders_three_cards_before_confirmation(self):
@@ -167,6 +170,9 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("regenHighlights.opponent", renderer)
         self.assertIn("regenHighlights.mine", renderer)
         self.assertIn("selectedCards.has", renderer)
+        self.assertIn("bindHealingBoardTargets", renderer)
+        self.assertIn("toggle_healing_selection", renderer)
+        self.assertIn("option.target.zone === \"mine\"", renderer)
         self.assertIn(".card.selected:not(.hidden-card)", css)
         self.assertIn(".card.hidden-card.selected", css)
 
@@ -215,6 +221,44 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn(".psychokinesis-dialog", css)
         self.assertIn(".card.selectable-target", css)
         self.assertIn(".discard-stack.selectable-target", css)
+
+    def test_action_panel_is_replaced_by_contextual_controls(self):
+        html = (FRONTEND_ROOT / "index.html").read_text()
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+        renderer = (
+            FRONTEND_ROOT / "static" / "js" / "render.js"
+        ).read_text()
+
+        self.assertNotIn("class=\"action-panel\"", html)
+        self.assertNotIn("action-content", html)
+        self.assertNotIn(".action-panel", css)
+        self.assertIn("context-action-bar", html)
+        self.assertIn("choice-dialog", html)
+        self.assertIn("deck-action-button", html)
+        self.assertIn("renderActionBar", renderer)
+        self.assertIn("renderChoiceDialog", renderer)
+        self.assertIn("bindDeckAction", renderer)
+        self.assertNotIn("renderSelectionOptions", renderer)
+
+    def test_private_face_down_discards_stay_hidden_and_can_be_revealed(self):
+        html = (FRONTEND_ROOT / "index.html").read_text()
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+        renderer = (
+            FRONTEND_ROOT / "static" / "js" / "render.js"
+        ).read_text()
+
+        self.assertIn("discard-reveal-dialog", html)
+        self.assertIn("discard-reveal-name", html)
+        self.assertIn("discard-reveal-effect", html)
+        self.assertIn("hidden: !card.is_face_up", renderer)
+        self.assertIn("bindOwnDiscardReveal", renderer)
+        self.assertIn("showDiscardReveal(card.name)", renderer)
+        self.assertIn("state.game.turn_step === \"REGEN_SELECTION\"", renderer)
+        self.assertIn(".card.revealable-card", css)
 
     def test_extra_turn_indicator_has_four_color_levels(self):
         html = (FRONTEND_ROOT / "index.html").read_text()

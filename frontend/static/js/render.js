@@ -137,7 +137,7 @@ function renderDiscardGroups(
       const selected =
         selectedGroup || selectedCards.has(`${groupIndex}:${index}`);
       const node = cardNode(card.name, {
-        hidden: card.name === null,
+        hidden: !card.is_face_up,
         selected,
       });
       node.style.left = `${index * 5}px`;
@@ -165,14 +165,35 @@ function confirmDiscard(card, index, onAction) {
   }
 }
 
-function confirmAbility(card, label, cardCount, onConfirm) {
+function showDiscardReveal(card) {
+  const dialog = byId("discard-reveal-dialog");
+  byId("discard-reveal-name").textContent = card;
+  byId("discard-reveal-effect").textContent =
+    CARD_EFFECTS[card] || "このカードには個別の能力説明がありません。";
+  byId("discard-reveal-close-button").onclick = () => dialog.close();
+  if (!dialog.open) {
+    dialog.showModal();
+  }
+}
+
+function confirmAbility(card, label, cardCount, onConfirm, onCancel) {
   const dialog = byId("ability-dialog");
   byId("ability-dialog-name").textContent = label;
   byId("ability-dialog-card-count").textContent = cardCount;
   byId("ability-dialog-effect").textContent =
     CARD_EFFECTS[card] || "この能力には説明がありません。";
 
-  byId("ability-cancel-button").onclick = () => dialog.close();
+  const cancel = () => {
+    dialog.close();
+    if (onCancel) {
+      onCancel();
+    }
+  };
+  byId("ability-cancel-button").onclick = cancel;
+  dialog.oncancel = (event) => {
+    event.preventDefault();
+    cancel();
+  };
   byId("ability-confirm-button").onclick = () => {
     dialog.close();
     onConfirm();
@@ -183,13 +204,23 @@ function confirmAbility(card, label, cardCount, onConfirm) {
   }
 }
 
-function confirmTeleportTarget(card, label, onConfirm) {
+function confirmTeleportTarget(card, label, onConfirm, onCancel) {
   const dialog = byId("teleport-dialog");
   byId("teleport-target-name").textContent = label;
   byId("teleport-target-effect").textContent =
     CARD_EFFECTS[card] || "この能力には説明がありません。";
 
-  byId("teleport-cancel-button").onclick = () => dialog.close();
+  const cancel = () => {
+    dialog.close();
+    if (onCancel) {
+      onCancel();
+    }
+  };
+  byId("teleport-cancel-button").onclick = cancel;
+  dialog.oncancel = (event) => {
+    event.preventDefault();
+    cancel();
+  };
   byId("teleport-confirm-button").onclick = () => {
     dialog.close();
     onConfirm();
@@ -318,6 +349,12 @@ export function resetRenderState() {
   window.clearTimeout(notificationGapTimer);
   const actionOverlay = byId("action-event-overlay");
   const extraTurnOverlay = byId("extra-turn-overlay");
+  ["choice-dialog", "discard-reveal-dialog"].forEach((id) => {
+    const dialog = byId(id);
+    if (dialog?.open) {
+      dialog.close();
+    }
+  });
   if (actionOverlay) {
     actionOverlay.hidden = true;
   }
@@ -449,9 +486,11 @@ function renderPrescienceSelection(list, state, handlers) {
         prescienceOrder.push(option.index);
       }
       const completed = prescienceOrder.length === options.length;
-      renderActions(state, handlers);
       if (completed) {
+        closeChoiceDialog();
         showPrescienceConfirmation(state, handlers);
+      } else {
+        renderActions(state, handlers);
       }
     });
     list.append(button);
@@ -467,274 +506,332 @@ function renderPrescienceSelection(list, state, handlers) {
   }
 }
 
-function renderSelectionOptions(
-  list,
-  options,
-  {
-    label,
-    action,
-    payloadKey = "index",
-    onAction,
-    disabled = () => false,
-  },
-) {
-  options.forEach((option) => {
-    addAction(
-      list,
-      label(option),
-      () => onAction(action, { [payloadKey]: option[payloadKey] }),
-      {
-        kind: option.selected ? "primary" : "secondary",
-        disabled: disabled(option),
-      },
-    );
-  });
+function closeChoiceDialog() {
+  const dialog = byId("choice-dialog");
+  if (dialog.open) {
+    dialog.close();
+  }
 }
 
-function renderActions(state, handlers) {
-  const container = byId("action-content");
-  clear(container);
+function choiceDialogIsBlocked() {
+  return [
+    "ability-dialog",
+    "teleport-dialog",
+    "prescience-dialog",
+    "psychokinesis-dialog",
+    "discard-dialog",
+    "discard-reveal-dialog",
+  ].some((id) => byId(id).open);
+}
+
+function openChoiceDialog({ kicker, title, copy, onBack = null }) {
+  if (choiceDialogIsBlocked()) {
+    closeChoiceDialog();
+    return null;
+  }
+  const dialog = byId("choice-dialog");
+  const options = byId("choice-dialog-options");
+  const back = byId("choice-dialog-back-button");
+  clear(options);
+  byId("choice-dialog-kicker").textContent = kicker;
+  byId("choice-dialog-title").textContent = title;
+  byId("choice-dialog-copy").textContent = copy;
+  back.parentElement.hidden = !onBack;
+  back.onclick = () => {
+    dialog.close();
+    onBack();
+  };
+  dialog.oncancel = (event) => {
+    event.preventDefault();
+    if (onBack) {
+      dialog.close();
+      onBack();
+    }
+  };
+  if (!dialog.open) {
+    dialog.showModal();
+  }
+  return options;
+}
+
+function renderChoiceDialog(state, handlers) {
   const actions = new Set(state.available_actions);
   const interaction = state.interaction;
   const step = state.game.turn_step;
-  const copy = create(
-    "p",
-    "action-copy",
-    PHASE_MESSAGES[step] || "ゲーム状態を確認してください。",
-  );
-  const list = actionList();
-  container.append(copy, list);
+  const modalStep = [
+    "ABILITY",
+    "MIMIC_SELECTION",
+    "TELEPORT_SELECTION",
+    "CLAIR_REVEAL",
+    "PRESCIENCE_SELECT_1",
+    "PRESCIENCE_SELECT_2",
+    "ROOM_DISBANDED",
+  ].includes(step) || state.game.finished;
+
+  if (!modalStep) {
+    closeChoiceDialog();
+    return;
+  }
+
+  if (step === "ABILITY" && interaction) {
+    const options = openChoiceDialog({
+      kicker: "CHOOSE PSYCHIC ABILITY",
+      title: "発動する能力を選択",
+      copy: PHASE_MESSAGES[step],
+      onBack: () => handlers.action("cancel_ability_selection"),
+    });
+    if (!options) {
+      return;
+    }
+    interaction.abilities.forEach((ability) => {
+      addAction(
+        options,
+        `【発動】${ability.label}`,
+        () => {
+          closeChoiceDialog();
+          confirmAbility(
+            ability.card,
+            ability.label,
+            "2枚（同名カード2枚）",
+            () => handlers.action("activate_ability", { card: ability.card }),
+            () => renderActions(state, handlers),
+          );
+        },
+        { kind: "secondary", disabled: ability.disabled },
+      );
+    });
+    if (actions.has("open_mimic_selection")) {
+      addAction(
+        options,
+        "【発動】カモフラージュ（擬態）",
+        () => {
+          closeChoiceDialog();
+          confirmAbility(
+            "カモフラージュ",
+            "カモフラージュ（擬態）",
+            "2枚（続けて能力カード1枚を選択）",
+            () => handlers.action("open_mimic_selection"),
+            () => renderActions(state, handlers),
+          );
+        },
+        { kind: "secondary" },
+      );
+    }
+    return;
+  }
+
+  if (step === "MIMIC_SELECTION" && interaction) {
+    const options = openChoiceDialog({
+      kicker: "CHOOSE MIMIC TARGET",
+      title: "擬態する能力を選択",
+      copy: PHASE_MESSAGES[step],
+      onBack: () => handlers.action("cancel_mimic_selection"),
+    });
+    if (!options) {
+      return;
+    }
+    interaction.targets.forEach((target) => {
+      addAction(
+        options,
+        `${target.label}として発動`,
+        () => {
+          closeChoiceDialog();
+          confirmAbility(
+            target.card,
+            target.label,
+            `3枚（カモフラージュ2枚＋${target.card}1枚）`,
+            () => handlers.action("activate_mimic", { card: target.card }),
+            () => renderActions(state, handlers),
+          );
+        },
+        { kind: "secondary", disabled: target.disabled },
+      );
+    });
+    return;
+  }
+
+  if (step === "TELEPORT_SELECTION" && interaction) {
+    const options = openChoiceDialog({
+      kicker: "CHOOSE TELEPORT TARGET",
+      title: "捨てさせる能力を選択",
+      copy: PHASE_MESSAGES[step],
+    });
+    if (!options) {
+      return;
+    }
+    interaction.options.forEach((option) => {
+      addAction(
+        options,
+        option.label,
+        () => {
+          closeChoiceDialog();
+          confirmTeleportTarget(
+            option.card,
+            option.label,
+            () => handlers.action("select_teleport_target", {
+              card: option.card,
+            }),
+            () => renderActions(state, handlers),
+          );
+        },
+        { kind: "secondary" },
+      );
+    });
+    return;
+  }
+
+  if (
+    ["PRESCIENCE_SELECT_1", "PRESCIENCE_SELECT_2"].includes(step) &&
+    interaction
+  ) {
+    const options = openChoiceDialog({
+      kicker: "ORDER THE FUTURE",
+      title: "山札へ戻す順番を選択",
+      copy: PHASE_MESSAGES[step],
+    });
+    if (options) {
+      renderPrescienceSelection(options, state, handlers);
+    }
+    return;
+  }
+
+  if (step === "CLAIR_REVEAL" && interaction) {
+    const options = openChoiceDialog({
+      kicker: "CLAIRVOYANCE RESULT",
+      title: "透視結果",
+      copy: PHASE_MESSAGES[step],
+    });
+    if (!options) {
+      return;
+    }
+    interaction.options.forEach((option) => {
+      if (option.selected) {
+        options.append(create(
+          "div",
+          "action-button primary",
+          `【透視】${option.name}`,
+        ));
+      }
+    });
+    addAction(
+      options,
+      "確認完了",
+      () => {
+        closeChoiceDialog();
+        handlers.action("finish_clairvoyance");
+      },
+      { kind: "primary" },
+    );
+    return;
+  }
+
+  if (state.game.finished) {
+    const options = openChoiceDialog({
+      kicker: "GAME RESULT",
+      title: "対戦結果",
+      copy: state.game.latest_log,
+    });
+    if (!options) {
+      return;
+    }
+    if (state.rematch.requested_by_me) {
+      options.append(emptyNote("相手の再戦承認を待っています…"));
+    } else {
+      addAction(
+        options,
+        state.rematch.requested_by_opponent
+          ? "相手の希望を承認して再戦する"
+          : "もう一度対戦する",
+        () => {
+          closeChoiceDialog();
+          handlers.rematch();
+        },
+        { kind: "primary" },
+      );
+    }
+    addAction(options, "ルームを退出する", handlers.leave, {
+      kind: "danger",
+    });
+    return;
+  }
+
+  if (step === "ROOM_DISBANDED") {
+    const options = openChoiceDialog({
+      kicker: "ROOM CLOSED",
+      title: "ルームが解散されました",
+      copy: PHASE_MESSAGES[step],
+    });
+    if (options) {
+      addAction(options, "タイトルへ戻る", handlers.returnHome, {
+        kind: "primary",
+      });
+    }
+  }
+}
+
+function renderActionBar(state, handlers) {
+  const bar = byId("context-action-bar");
+  const copy = byId("context-action-copy");
+  const buttons = byId("context-action-buttons");
+  const actions = new Set(state.available_actions);
+  const interaction = state.interaction;
+  const step = state.game.turn_step;
+  clear(buttons);
+  let message = "";
 
   if (actions.has("declare_esper")) {
     addAction(
-      list,
+      buttons,
       "✦ ESPERを宣言する",
       () => handlers.action("declare_esper"),
       { kind: "primary" },
     );
   }
 
-  if (actions.has("draw_hand")) {
-    addAction(
-      list,
-      "山札から1枚引く",
-      () => handlers.action("draw_hand"),
-      { kind: "primary" },
-    );
-  }
-
-  if (actions.has("open_ability_selection")) {
-    addAction(
-      list,
-      "能力を使う",
-      () => handlers.action("open_ability_selection"),
-      { kind: "secondary" },
-    );
-  }
-  if (actions.has("pass_turn")) {
-    addAction(list, "ターンを終了する", () => handlers.action("pass_turn"));
-  }
-
-  if (step === "ABILITY" && interaction) {
-    interaction.abilities.forEach((ability) => {
+  if (step === "THINK") {
+    message = "次の行動を選択してください。";
+    if (actions.has("open_ability_selection")) {
       addAction(
-        list,
-        `【発動】${ability.label}`,
-        () =>
-          confirmAbility(
-            ability.card,
-            ability.label,
-            "2枚（同名カード2枚）",
-            () =>
-              handlers.action("activate_ability", { card: ability.card }),
-          ),
-        { kind: "secondary", disabled: ability.disabled },
-      );
-    });
-    if (actions.has("open_mimic_selection")) {
-      addAction(
-        list,
-        "【発動】カモフラージュ（擬態）",
-        () =>
-          confirmAbility(
-            "カモフラージュ",
-            "カモフラージュ（擬態）",
-            "2枚（続けて能力カード1枚を選択）",
-            () => handlers.action("open_mimic_selection"),
-          ),
+        buttons,
+        "能力を使う",
+        () => handlers.action("open_ability_selection"),
         { kind: "secondary" },
       );
     }
+    if (actions.has("pass_turn")) {
+      addAction(
+        buttons,
+        "ターンを終了する",
+        () => handlers.action("pass_turn"),
+      );
+    }
+  } else if (step === "REGEN_SELECTION" && interaction) {
+    message = `盤面から山札へ戻すカードを選択してください（${interaction.selected_count} / ${interaction.maximum}枚）`;
     addAction(
-      list,
-      "手札確認へ戻る",
-      () => handlers.action("cancel_ability_selection"),
-    );
-  }
-
-  if (step === "MIMIC_SELECTION" && interaction) {
-    interaction.targets.forEach((target) => {
-      addAction(
-        list,
-        `${target.label}として発動`,
-        () =>
-          confirmAbility(
-            target.card,
-            target.label,
-            `3枚（カモフラージュ2枚＋${target.card}1枚）`,
-            () =>
-              handlers.action("activate_mimic", { card: target.card }),
-          ),
-        { kind: "secondary", disabled: target.disabled },
-      );
-    });
-    addAction(
-      list,
-      "キャンセル",
-      () => handlers.action("cancel_mimic_selection"),
-    );
-  }
-
-  if (step === "TELEPORT_SELECTION" && interaction) {
-    interaction.options.forEach((option) => {
-      addAction(
-        list,
-        option.label,
-        () =>
-          confirmTeleportTarget(option.card, option.label, () =>
-            handlers.action("select_teleport_target", {
-              card: option.card,
-            }),
-          ),
-        { kind: "secondary" },
-      );
-    });
-  }
-
-  if (step === "PSY_DISCARD_SELECTION" && interaction) {
-    interaction.options.forEach((option) => {
-      addAction(
-        list,
-        option.label,
-        () => confirmPsychokinesisTarget(state, option, handlers, "discard"),
-        { kind: "secondary" },
-      );
-    });
-  }
-
-  if (step === "PSY_PUSH_SELECTION" && interaction) {
-    interaction.options.forEach((option) => {
-      addAction(
-        list,
-        option.label,
-        () => confirmPsychokinesisTarget(state, option, handlers, "push"),
-        { kind: "secondary" },
-      );
-    });
-  }
-
-  if (step === "REGEN_SELECTION" && interaction) {
-    const count = create(
-      "span",
-      "selection-count",
-      `${interaction.selected_count} / ${interaction.maximum}枚 選択中`,
-    );
-    list.before(count);
-    renderSelectionOptions(list, interaction.options, {
-      label: (option) => {
-        const owner = option.owner === state.viewer.role ? "自分" : "相手";
-        const card = option.name || "裏向き";
-        return `${option.selected ? "✓ " : ""}【${owner}】${card}`;
-      },
-      action: "toggle_healing_selection",
-      onAction: handlers.action,
-    });
-    addAction(
-      list,
+      buttons,
       "選択を確定する",
       () => handlers.action("confirm_healing"),
       { kind: "primary" },
     );
-  }
-
-  if (step === "CLAIR_SELECTION" && interaction) {
-    const count = create(
-      "span",
-      "selection-count",
-      `${interaction.selected_count} / ${interaction.maximum}枚 選択中`,
-    );
-    list.before(count);
-    renderSelectionOptions(list, interaction.options, {
-      label: (option) => `${option.selected ? "✓ " : ""}${option.label}`,
-      action: "toggle_clairvoyance_selection",
-      onAction: handlers.action,
-    });
+  } else if (step === "CLAIR_SELECTION" && interaction) {
+    message = `相手の盤面から透視するカードを選択してください（${interaction.selected_count} / ${interaction.maximum}枚）`;
     addAction(
-      list,
+      buttons,
       "選択を確定する",
       () => handlers.action("confirm_clairvoyance"),
       { kind: "primary" },
     );
   }
 
-  if (step === "CLAIR_REVEAL" && interaction) {
-    interaction.options.forEach((option) => {
-      if (option.selected) {
-        const result = create(
-          "div",
-          "action-button primary",
-          `【透視】${option.name}`,
-        );
-        list.append(result);
-      }
-    });
-    addAction(
-      list,
-      "確認完了",
-      () => handlers.action("finish_clairvoyance"),
-      { kind: "primary" },
-    );
-  }
+  const visible = Boolean(message || buttons.children.length);
+  copy.textContent = message;
+  bar.hidden = !visible;
+  byId("game-screen").classList.toggle("has-context-actions", visible);
+}
 
-  if (
-    (step === "PRESCIENCE_SELECT_1" ||
-      step === "PRESCIENCE_SELECT_2") &&
-    interaction
-  ) {
-    renderPrescienceSelection(list, state, handlers);
-  }
-
-  if (state.game.finished) {
-    if (state.rematch.requested_by_me) {
-      list.append(emptyNote("相手の再戦承認を待っています…"));
-    } else {
-      addAction(
-        list,
-        state.rematch.requested_by_opponent
-          ? "相手の希望を承認して再戦する"
-          : "もう一度対戦する",
-        handlers.rematch,
-        { kind: "primary" },
-      );
-    }
-    addAction(list, "ルームを退出する", handlers.leave, { kind: "danger" });
-  }
-
-  if (step === "ROOM_DISBANDED") {
-    addAction(list, "タイトルへ戻る", handlers.returnHome, {
-      kind: "primary",
-    });
-  }
-
-  if (!list.children.length) {
-    list.append(
-      emptyNote(
-        state.game.is_my_turn
-          ? "手札または状態が更新されるまでお待ちください。"
-          : "相手の操作を待っています…",
-      ),
-    );
-  }
+function renderActions(state, handlers) {
+  renderActionBar(state, handlers);
+  renderChoiceDialog(state, handlers);
 }
 
 function renderLogs(state) {
@@ -965,11 +1062,16 @@ function psychokinesisHighlights(state) {
   return highlights;
 }
 
-function makeBoardTargetClickable(node, onSelect, label) {
+function makeBoardTargetClickable(
+  node,
+  onSelect,
+  label,
+  className = "selectable-target",
+) {
   if (!node) {
     return;
   }
-  node.classList.add("selectable-target");
+  node.classList.add(className);
   node.tabIndex = 0;
   node.setAttribute("role", "button");
   node.setAttribute("aria-label", label);
@@ -1006,6 +1108,93 @@ function bindPsychokinesisBoardTargets(state, handlers) {
       );
     });
   }
+}
+
+function bindHealingBoardTargets(state, handlers) {
+  const interaction = state.interaction;
+  if (!interaction || interaction.kind !== "healing") {
+    return;
+  }
+  interaction.options.forEach((option) => {
+    if (!option.target) {
+      return;
+    }
+    const container = byId(
+      option.target.zone === "mine" ? "my-discards" : "opponent-discards",
+    );
+    const stack = container.children[option.target.group_index];
+    const card = stack?.children[option.target.item_index];
+    const owner = option.target.zone === "mine" ? "自分" : "相手";
+    const cardLabel = option.name || "裏向きのカード";
+    makeBoardTargetClickable(
+      card,
+      () => handlers.action("toggle_healing_selection", {
+        index: option.index,
+      }),
+      `${owner}の${cardLabel}を選択`,
+    );
+  });
+}
+
+function bindClairvoyanceBoardTargets(state, handlers) {
+  const interaction = state.interaction;
+  if (!interaction || interaction.kind !== "clairvoyance") {
+    return;
+  }
+  interaction.options.forEach((option) => {
+    if (!option.target) {
+      return;
+    }
+    const node = option.target.zone === "opponent_hand"
+      ? byId("opponent-hand").children[option.target.index]
+      : byId("opponent-discards").children[option.target.index];
+    makeBoardTargetClickable(
+      node,
+      () => handlers.action("toggle_clairvoyance_selection", {
+        index: option.index,
+      }),
+      `${option.label}を透視対象に選択`,
+    );
+  });
+}
+
+function bindOwnDiscardReveal(state) {
+  if (state.game.turn_step === "REGEN_SELECTION") {
+    return;
+  }
+  const container = byId("my-discards");
+  state.discards.mine.forEach((group, groupIndex) => {
+    group.forEach((card, itemIndex) => {
+      if (card.is_face_up || !card.name) {
+        return;
+      }
+      const node = container.children[groupIndex]?.children[itemIndex];
+      makeBoardTargetClickable(
+        node,
+        () => showDiscardReveal(card.name),
+        "裏向きの捨て札の内容を見る",
+        "revealable-card",
+      );
+    });
+  });
+}
+
+function bindBoardInteractions(state, handlers) {
+  bindPsychokinesisBoardTargets(state, handlers);
+  bindHealingBoardTargets(state, handlers);
+  bindClairvoyanceBoardTargets(state, handlers);
+  bindOwnDiscardReveal(state);
+}
+
+function bindDeckAction(state, handlers) {
+  const deck = byId("deck-action-button");
+  const canDraw = state.available_actions.includes("draw_hand");
+  deck.disabled = !canDraw;
+  deck.classList.toggle("actionable", canDraw);
+  deck.setAttribute("aria-label", canDraw ? "山札から1枚引く" : "山札");
+  deck.onclick = canDraw
+    ? () => handlers.action("draw_hand")
+    : null;
 }
 
 function healingHighlights(state) {
@@ -1060,6 +1249,10 @@ export function renderGame(
   updateNewlyDrawnCards(state);
   renderActionEvents(state, { suppress: suppressActionEvents });
   renderTurnChange(state, { suppress: suppressActionEvents });
+  const revealDialog = byId("discard-reveal-dialog");
+  if (revealDialog.open) {
+    revealDialog.close();
+  }
   const discardDialog = byId("discard-dialog");
   if (
     discardDialog.open &&
@@ -1149,7 +1342,8 @@ export function renderGame(
     regenHighlights.mine,
   );
   renderHand(state, handlers.action);
-  bindPsychokinesisBoardTargets(state, handlers);
+  bindBoardInteractions(state, handlers);
+  bindDeckAction(state, handlers);
 
   byId("hand-guide").textContent = state.available_actions.includes(
     "discard_card",

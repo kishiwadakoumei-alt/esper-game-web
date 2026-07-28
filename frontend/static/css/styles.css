@@ -205,7 +205,6 @@ summary:focus-visible {
 
 .entry-card,
 .table-panel,
-.action-panel,
 .log-panel,
 .chat-panel {
   border: 1px solid var(--line);
@@ -770,6 +769,9 @@ input:focus {
 
 .deck-visual {
   display: grid;
+  padding: 0;
+  color: var(--text);
+  cursor: default;
   width: 78px;
   height: 105px;
   place-content: center;
@@ -788,6 +790,24 @@ input:focus {
   font-size: 7px;
   font-weight: 900;
   letter-spacing: 0.18em;
+}
+
+.deck-visual.actionable {
+  cursor: pointer;
+  animation: deck-action-pulse 1.6s ease-in-out infinite;
+}
+
+.deck-visual.actionable:hover,
+.deck-visual.actionable:focus-visible {
+  border-color: var(--orange);
+  outline: 2px solid rgba(255, 157, 46, 0.35);
+  outline-offset: 4px;
+}
+
+@keyframes deck-action-pulse {
+  50% {
+    box-shadow: 5px 5px 0 #080d17, 6px 6px 18px rgba(255, 157, 46, 0.42);
+  }
 }
 
 .deck-visual strong {
@@ -866,12 +886,25 @@ button.card:hover {
 }
 
 .card.selectable-target,
+.card.revealable-card,
 .discard-stack.selectable-target {
   cursor: pointer;
 }
 
+.card.revealable-card::after {
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  content: "見る";
+  color: var(--cyan);
+  font-size: 6px;
+  letter-spacing: 0.06em;
+}
+
 .card.selectable-target:hover,
 .card.selectable-target:focus-visible,
+.card.revealable-card:hover,
+.card.revealable-card:focus-visible,
 .discard-stack.selectable-target:hover .card,
 .discard-stack.selectable-target:focus-visible .card {
   border-color: var(--purple);
@@ -879,6 +912,7 @@ button.card:hover {
 }
 
 .card.selectable-target:focus-visible,
+.card.revealable-card:focus-visible,
 .discard-stack.selectable-target:focus-visible {
   outline: 2px solid var(--purple);
   outline-offset: 3px;
@@ -936,30 +970,79 @@ button.card:hover {
   gap: 14px;
 }
 
-.action-panel,
 .chat-panel {
   padding: 20px;
   border-radius: 5px;
 }
 
-.compact-heading {
-  margin-bottom: 18px;
+.context-action-bar {
+  position: fixed;
+  z-index: 18;
+  right: 16px;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  left: 16px;
+  display: flex;
+  width: min(900px, calc(100% - 32px));
+  min-height: 64px;
+  padding: 12px 14px;
+  margin: 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid rgba(255, 157, 46, 0.42);
+  border-radius: 6px;
+  background: rgba(10, 16, 28, 0.96);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(14px);
 }
 
-.compact-heading h2 {
-  font-size: 22px;
+.context-action-bar[hidden] {
+  display: none;
 }
 
-.action-copy {
-  margin: 0 0 14px;
-  color: #b9c3d4;
+.context-action-bar p {
+  margin: 0;
+  color: #c8d3e3;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.context-action-buttons {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.context-action-buttons .action-button {
+  width: auto;
+  min-width: 132px;
+  text-align: center;
+}
+
+.game-screen.has-context-actions {
+  padding-bottom: 92px;
+}
+
+.choice-dialog-copy {
+  margin: -10px 0 18px;
+  color: var(--muted);
   font-size: 12px;
-  line-height: 1.65;
+  line-height: 1.7;
 }
 
+.choice-dialog-options,
 .action-list {
   display: grid;
   gap: 8px;
+}
+
+.choice-dialog-options {
+  max-height: min(52vh, 440px);
+  overflow-y: auto;
+}
+
+.dialog-actions.single-action {
+  grid-template-columns: 1fr;
 }
 
 .action-button {
@@ -1562,10 +1645,6 @@ button.card:hover {
   .side-column {
     grid-template-columns: repeat(2, 1fr);
   }
-
-  .action-panel {
-    grid-row: span 2;
-  }
 }
 
 @media (max-width: 680px) {
@@ -1651,5 +1730,29 @@ button.card:hover {
 
   .card {
     min-width: 74px;
+  }
+
+  .context-action-bar {
+    right: 10px;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: 10px;
+    width: calc(100% - 20px);
+    padding: 10px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .context-action-buttons {
+    width: 100%;
+  }
+
+  .context-action-buttons .action-button {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .game-screen.has-context-actions {
+    padding-bottom: 128px;
   }
 }

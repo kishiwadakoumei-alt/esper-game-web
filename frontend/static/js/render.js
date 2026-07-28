@@ -764,11 +764,24 @@ function addAction(list, label, callback, options) {
   list.append(actionButton(label, callback, options));
 }
 
+function renderPrescienceHandPreview(containerId, hand) {
+  const container = byId(containerId);
+  const cards = hand || [];
+  clear(container);
+  cards.forEach((card) => container.append(cardNode(card)));
+  container.setAttribute("aria-label", `現在の手札 ${cards.length}枚`);
+  container
+    .closest(".prescience-hand-preview")
+    .querySelector("header strong").textContent =
+      `現在の手札（${cards.length}枚）`;
+}
+
 function showPrescienceConfirmation(state, handlers) {
   const dialog = byId("prescience-dialog");
   const orderList = byId("prescience-order-list");
   const options = state.interaction.options;
   clear(orderList);
+  renderPrescienceHandPreview("prescience-confirm-hand", state.my_hand);
 
   prescienceOrder.forEach((optionIndex, position) => {
     const option = options.find((item) => item.index === optionIndex);
@@ -798,6 +811,9 @@ function showPrescienceConfirmation(state, handlers) {
 }
 
 function renderPrescienceSelection(list, state, handlers) {
+  const preview = byId("prescience-selection-hand-preview");
+  preview.hidden = false;
+  renderPrescienceHandPreview("prescience-selection-hand", state.my_hand);
   const options = state.interaction.options;
   const validIndices = new Set(options.map((option) => option.index));
   prescienceOrder = prescienceOrder.filter((index) => validIndices.has(index));
@@ -871,7 +887,10 @@ function openChoiceDialog({ kicker, title, copy, onBack = null }) {
   const dialog = byId("choice-dialog");
   const options = byId("choice-dialog-options");
   const back = byId("choice-dialog-back-button");
+  const presciencePreview = byId("prescience-selection-hand-preview");
   clear(options);
+  clear(byId("prescience-selection-hand"));
+  presciencePreview.hidden = true;
   byId("choice-dialog-kicker").textContent = kicker;
   byId("choice-dialog-title").textContent = title;
   byId("choice-dialog-copy").textContent = copy;

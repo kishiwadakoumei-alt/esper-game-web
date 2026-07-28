@@ -579,6 +579,17 @@
       <p class="prescience-dialog-copy">
         次に引く順番を確認してください。
       </p>
+      <section class="prescience-hand-preview">
+        <header>
+          <span>CURRENT HAND</span>
+          <strong>現在の手札</strong>
+        </header>
+        <div
+          id="prescience-confirm-hand"
+          class="prescience-hand-row"
+          aria-label="現在の手札"
+        ></div>
+      </section>
       <ol id="prescience-order-list" class="prescience-order-list"></ol>
       <div class="dialog-actions">
         <button id="prescience-back-button" class="action-button" type="button">
@@ -661,6 +672,21 @@
       <p id="choice-dialog-kicker" class="eyebrow"></p>
       <h2 id="choice-dialog-title"></h2>
       <p id="choice-dialog-copy" class="choice-dialog-copy"></p>
+      <section
+        id="prescience-selection-hand-preview"
+        class="prescience-hand-preview"
+        hidden
+      >
+        <header>
+          <span>CURRENT HAND</span>
+          <strong>現在の手札</strong>
+        </header>
+        <div
+          id="prescience-selection-hand"
+          class="prescience-hand-row"
+          aria-label="現在の手札"
+        ></div>
+      </section>
       <div id="choice-dialog-options" class="choice-dialog-options"></div>
       <div class="dialog-actions">
         <button id="choice-dialog-back-button" class="action-button" type="button">

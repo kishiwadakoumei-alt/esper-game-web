@@ -75,6 +75,31 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("from backend.main import app", entrypoint)
         self.assertIn("os.environ.get(\"PORT\", \"8000\")", entrypoint)
 
+    def test_rules_dialog_explains_setup_turns_and_win_conditions(self):
+        html = (FRONTEND_ROOT / "index.html").read_text()
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+
+        self.assertIn("遊び方・能力一覧", html)
+        self.assertIn("basic-rules-title", html)
+        self.assertIn("turn-rules-title", html)
+        self.assertIn("同じ能力カードを5枚以上", html)
+        self.assertIn("手札6枚から開始", html)
+        self.assertIn("相手のターンでも宣言可能", html)
+        self.assertIn("カードを1枚捨てる", html)
+        self.assertIn("山札から引く", html)
+        self.assertIn("能力を使うか決める", html)
+        self.assertIn("伏せ札", html)
+        self.assertIn("捨て札が18組", html)
+        self.assertIn("カモフラージュのESPER判定", html)
+        self.assertIn("7つの能力", html)
+        self.assertIn(".game-rules", css)
+        self.assertIn(".rule-summary-grid", css)
+        self.assertIn(".turn-rules", css)
+        self.assertIn(".rule-detail-grid", css)
+        self.assertIn("overflow-y: auto", css)
+
     def test_discard_confirmation_modal_is_separated_from_action(self):
         html = (FRONTEND_ROOT / "index.html").read_text()
         css = (

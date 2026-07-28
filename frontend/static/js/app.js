@@ -21,15 +21,30 @@ const toast = document.getElementById("toast");
 const rulesDialog = document.getElementById("rules-dialog");
 const logToggleButton = document.getElementById("log-toggle-button");
 const logToggleLabel = document.getElementById("log-toggle-label");
-const logList = document.getElementById("log-list");
+const chatToggleButton = document.getElementById("chat-toggle-button");
+const logPanel = document.getElementById("log-panel");
+const chatPanel = document.getElementById("chat-panel");
+const utilityPanelBackdrop = document.getElementById("utility-panel-backdrop");
+
+function setUtilityPanel(openPanel = null) {
+  const logOpen = openPanel === "log";
+  const chatOpen = openPanel === "chat";
+  logPanel.hidden = !logOpen;
+  chatPanel.hidden = !chatOpen;
+  utilityPanelBackdrop.hidden = !logOpen && !chatOpen;
+  logToggleButton.setAttribute("aria-expanded", String(logOpen));
+  chatToggleButton.setAttribute("aria-expanded", String(chatOpen));
+  logToggleButton.classList.toggle("open", logOpen);
+  chatToggleButton.classList.toggle("open", chatOpen);
+  logToggleLabel.textContent = "バトルログ";
+  document.body.classList.toggle("utility-panel-open", logOpen || chatOpen);
+  if (chatOpen) {
+    chatInput.focus();
+  }
+}
 
 function setBattleLogOpen(open) {
-  logList.hidden = !open;
-  logToggleButton.setAttribute("aria-expanded", String(open));
-  logToggleLabel.textContent = open
-    ? "バトルログを閉じる"
-    : "バトルログを見る";
-  logToggleButton.classList.toggle("open", open);
+  setUtilityPanel(open ? "log" : null);
 }
 
 function showToast(message) {
@@ -202,7 +217,29 @@ chatForm.addEventListener("submit", async (event) => {
 });
 
 logToggleButton.addEventListener("click", () => {
-  setBattleLogOpen(logList.hidden);
+  setUtilityPanel(logPanel.hidden ? "log" : null);
+});
+
+chatToggleButton.addEventListener("click", () => {
+  setUtilityPanel(chatPanel.hidden ? "chat" : null);
+});
+
+document.getElementById("log-close-button").addEventListener("click", () => {
+  setUtilityPanel();
+});
+
+document.getElementById("chat-close-button").addEventListener("click", () => {
+  setUtilityPanel();
+});
+
+utilityPanelBackdrop.addEventListener("click", () => {
+  setUtilityPanel();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && (!logPanel.hidden || !chatPanel.hidden)) {
+    setUtilityPanel();
+  }
 });
 
 document.getElementById("leave-button").addEventListener("click", leaveRoom);

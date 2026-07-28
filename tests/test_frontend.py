@@ -356,7 +356,7 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("font-size: clamp(64px, 9.5vw, 132px)", css)
         self.assertIn("font-size: clamp(58px, 17vw, 82px)", css)
 
-    def test_battle_log_is_hidden_behind_a_toggle_button(self):
+    def test_log_and_chat_are_hidden_behind_utility_buttons(self):
         html = (FRONTEND_ROOT / "index.html").read_text()
         css = (
             FRONTEND_ROOT / "static" / "css" / "styles.css"
@@ -365,17 +365,90 @@ class FrontendDeliveryTests(unittest.TestCase):
             FRONTEND_ROOT / "static" / "js" / "app.js"
         ).read_text()
 
-        self.assertIn("log-toggle-button", html)
-        self.assertIn('aria-expanded="false"', html)
-        self.assertIn('aria-controls="log-list"', html)
-        self.assertIn("バトルログを見る", html)
-        self.assertIn('id="log-list" class="log-list" hidden', html)
-        self.assertNotIn('<details class="log-panel" open>', html)
-        self.assertIn("setBattleLogOpen", app)
-        self.assertIn("バトルログを閉じる", app)
-        self.assertIn("logList.hidden", app)
-        self.assertIn(".log-toggle-button", css)
-        self.assertIn(".log-list[hidden]", css)
+        for panel in ("log", "chat"):
+            self.assertIn(f'id="{panel}-toggle-button"', html)
+            self.assertIn(f'aria-controls="{panel}-panel"', html)
+            self.assertIn(f'id="{panel}-panel"', html)
+            self.assertIn(f'id="{panel}-close-button"', html)
+        self.assertIn('id="utility-panel-backdrop"', html)
+        self.assertNotIn('class="side-column"', html)
+        self.assertIn("setUtilityPanel", app)
+        self.assertIn('openPanel === "log"', app)
+        self.assertIn('openPanel === "chat"', app)
+        self.assertIn("utilityPanelBackdrop.hidden", app)
+        self.assertIn(".utility-toggle-button", css)
+        self.assertIn(".utility-panel", css)
+        self.assertIn(".utility-panel-backdrop", css)
+
+    def test_cards_use_ability_specific_tarot_skin(self):
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+        renderer = (
+            FRONTEND_ROOT / "static" / "js" / "render.js"
+        ).read_text()
+
+        self.assertIn("CARD_ART_FILES", renderer)
+        self.assertIn("decorateVisibleCard", renderer)
+        self.assertIn("node.dataset.cardName = name", renderer)
+        self.assertIn("if (name && !hidden)", renderer)
+        self.assertIn("Illustrated ivory ability cards", css)
+        for card in (
+            "クレヤボヤンス",
+            "タイムリープ",
+            "サイコキネシス",
+            "プリサイエンス",
+            "テレポート",
+            "ヒーリング",
+            "カモフラージュ",
+        ):
+            self.assertIn(f'.card[data-card-name="{card}"]', css)
+        self.assertIn(".card::before", css)
+        self.assertIn(".card::after", css)
+        self.assertIn(".card.hidden-card", css)
+        self.assertIn(".card.selected:not(.hidden-card)", css)
+        self.assertIn("color-mix(in srgb, var(--card-accent)", css)
+        expected_colors = {
+            "クレヤボヤンス": "#f59a2a",
+            "タイムリープ": "#20b8d4",
+            "サイコキネシス": "#e55b9a",
+            "プリサイエンス": "#18aaa9",
+            "テレポート": "#247fbd",
+            "ヒーリング": "#ef6264",
+            "カモフラージュ": "#8171bd",
+        }
+        for card, color in expected_colors.items():
+            selector = f'.card[data-card-name="{card}"] {{'
+            block = css.split(selector, 1)[1].split("}", 1)[0]
+            self.assertIn(f"--card-accent: {color}", block)
+
+    def test_card_svg_art_is_served_for_all_abilities(self):
+        expected_files = (
+            "clairvoyance.svg",
+            "time-leap.svg",
+            "psychokinesis.svg",
+            "prescience.svg",
+            "teleport.svg",
+            "healing.svg",
+            "camouflage.svg",
+        )
+        for file_name in expected_files:
+            response = self.client.get(f"/static/assets/cards/{file_name}")
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("image/svg+xml", response.headers["content-type"])
+            self.assertIn("<svg", response.text)
+
+    def test_battle_board_uses_landscape_first_layout(self):
+        html = (FRONTEND_ROOT / "index.html").read_text()
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+
+        self.assertIn('class="arena-mark"', html)
+        self.assertIn('class="excluded-zone"', html)
+        self.assertIn("Landscape-first battle board", css)
+        self.assertIn("grid-template-columns: minmax(0, 1fr)", css)
+        self.assertIn("@media (max-width: 760px) and (orientation: landscape)", css)
 
     def test_html_css_and_javascript_have_distinct_responsibilities(self):
         html = (FRONTEND_ROOT / "index.html").read_text()

@@ -76,6 +76,33 @@ function emptyNote(text = "まだありません") {
   return create("p", "empty-note", text);
 }
 
+const CARD_ART_FILES = {
+  クレヤボヤンス: "clairvoyance.svg",
+  タイムリープ: "time-leap.svg",
+  サイコキネシス: "psychokinesis.svg",
+  プリサイエンス: "prescience.svg",
+  テレポート: "teleport.svg",
+  ヒーリング: "healing.svg",
+  カモフラージュ: "camouflage.svg",
+};
+
+function decorateVisibleCard(node, name) {
+  const fileName = CARD_ART_FILES[name];
+  node.dataset.cardName = name;
+  if (!fileName) {
+    node.textContent = name;
+    return;
+  }
+
+  const art = create("img", "card-art");
+  art.src = `/static/assets/cards/${fileName}`;
+  art.alt = "";
+  art.setAttribute("aria-hidden", "true");
+  art.draggable = false;
+  const label = create("span", "card-name", name);
+  node.replaceChildren(art, label);
+}
+
 function cardNode(
   name,
   { hidden = false, selected = false, newlyDrawnElapsed = null } = {},
@@ -87,6 +114,9 @@ function cardNode(
     }`,
     hidden ? "？" : name,
   );
+  if (name && !hidden) {
+    decorateVisibleCard(node, name);
+  }
   if (newlyDrawnElapsed !== null) {
     node.style.animationDelay = `-${newlyDrawnElapsed}ms`;
   }
@@ -132,7 +162,7 @@ function renderDiscardGroups(
   groups.forEach((group, groupIndex) => {
     const stack = create("div", "discard-stack");
     const selectedGroup = selectedGroups.has(groupIndex);
-    stack.style.height = `${43 + Math.max(0, group.length - 1) * 5}px`;
+    stack.style.height = `${84 + Math.max(0, group.length - 1) * 6}px`;
     group.forEach((card, index) => {
       const selected =
         selectedGroup || selectedCards.has(`${groupIndex}:${index}`);
@@ -393,6 +423,7 @@ function renderHand(state, onAction) {
       button.style.animationDelay = `-${newlyDrawnElapsed}ms`;
     }
     button.type = "button";
+    decorateVisibleCard(button, card);
     button.title = `${card}を捨てる`;
     button.addEventListener("click", () =>
       confirmDiscard(card, option.index, onAction),

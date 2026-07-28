@@ -1756,3 +1756,918 @@ button.card:hover {
     padding-bottom: 128px;
   }
 }
+
+
+/* Landscape-first battle board */
+.app-shell {
+  width: min(1720px, 100%);
+}
+
+.landing-grid {
+  width: min(1440px, 100%);
+  margin: 0 auto;
+}
+
+.game-screen {
+  max-width: 1680px;
+}
+
+.game-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: -2px 0 10px;
+}
+
+.utility-toggle-button {
+  display: inline-flex;
+  min-height: 38px;
+  padding: 0 14px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(86, 216, 228, 0.24);
+  border-radius: 4px;
+  color: #c9d5e8;
+  background: rgba(12, 20, 35, 0.82);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.utility-toggle-button:hover,
+.utility-toggle-button:focus-visible,
+.utility-toggle-button.open {
+  border-color: rgba(86, 216, 228, 0.72);
+  color: #a9f3f5;
+  background: rgba(86, 216, 228, 0.09);
+}
+
+.utility-toggle-icon {
+  color: var(--cyan);
+  font-size: 15px;
+}
+
+.game-layout {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.table-panel {
+  position: relative;
+  border-color: rgba(111, 134, 170, 0.28);
+  border-radius: 9px;
+  background:
+    linear-gradient(rgba(86, 216, 228, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(86, 216, 228, 0.025) 1px, transparent 1px),
+    radial-gradient(circle at 50% 50%, rgba(255, 157, 46, 0.07), transparent 36%),
+    rgba(10, 17, 30, 0.94);
+  background-size: 34px 34px, 34px 34px, auto, auto;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.48), inset 0 0 80px rgba(50, 71, 110, 0.08);
+}
+
+.player-zone {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(150px, 0.2fr) minmax(340px, 1fr) minmax(190px, 0.36fr);
+  gap: clamp(18px, 3vw, 48px);
+  min-height: 174px;
+  padding: clamp(18px, 2.1vw, 30px);
+  align-items: center;
+}
+
+.opponent-zone {
+  border-bottom: 1px solid rgba(255, 100, 117, 0.1);
+  background:
+    linear-gradient(90deg, rgba(255, 100, 117, 0.055), transparent 32%),
+    linear-gradient(180deg, rgba(255, 100, 117, 0.035), transparent);
+}
+
+.my-zone {
+  border-top: 1px solid rgba(86, 216, 228, 0.1);
+  background:
+    linear-gradient(90deg, rgba(86, 216, 228, 0.065), transparent 32%),
+    linear-gradient(0deg, rgba(86, 216, 228, 0.04), transparent);
+}
+
+.opponent-zone::before,
+.my-zone::before {
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  left: 0;
+  width: 3px;
+  content: "";
+}
+
+.opponent-zone::before {
+  background: var(--red);
+  box-shadow: 0 0 18px rgba(255, 100, 117, 0.72);
+}
+
+.my-zone::before {
+  background: var(--cyan);
+  box-shadow: 0 0 18px rgba(86, 216, 228, 0.72);
+}
+
+.opponent-zone > .zone-heading,
+.my-zone > .zone-heading {
+  grid-column: 1;
+  margin: 0;
+}
+
+.opponent-zone > .card-row,
+.my-zone > .hand-row {
+  grid-column: 2;
+}
+
+.opponent-zone > div:last-child,
+.my-zone > div:first-child {
+  grid-column: 3;
+}
+
+.my-zone > div:first-child {
+  grid-row: 1;
+}
+
+.my-zone > .zone-heading,
+.my-zone > .hand-row {
+  grid-row: 1;
+}
+
+.zone-heading {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.zone-heading h2 {
+  font-size: clamp(20px, 2vw, 28px);
+}
+
+.zone-label {
+  color: #b9c5d8;
+}
+
+.opponent-zone .zone-label {
+  color: #ff8c99;
+}
+
+.my-zone .zone-label {
+  color: #8ce7ec;
+}
+
+.counter-row {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.center-zone {
+  position: relative;
+  grid-template-columns: minmax(150px, 1fr) auto minmax(230px, 1fr);
+  gap: clamp(28px, 5vw, 80px);
+  min-height: 176px;
+  padding: 22px clamp(26px, 5vw, 72px);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 157, 46, 0.13), transparent 32%),
+    linear-gradient(90deg, rgba(86, 216, 228, 0.025), rgba(255, 157, 46, 0.035), rgba(255, 100, 117, 0.025)),
+    rgba(7, 12, 22, 0.82);
+}
+
+.arena-mark {
+  display: grid;
+  justify-items: center;
+  color: rgba(157, 174, 200, 0.4);
+  letter-spacing: 0.24em;
+}
+
+.arena-mark span {
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.arena-mark strong {
+  display: grid;
+  width: 82px;
+  height: 82px;
+  margin-top: 8px;
+  place-items: center;
+  border: 1px solid rgba(86, 216, 228, 0.14);
+  border-radius: 50%;
+  color: rgba(86, 216, 228, 0.38);
+  font-size: 27px;
+  box-shadow: inset 0 0 28px rgba(86, 216, 228, 0.07);
+}
+
+.deck-visual {
+  width: 90px;
+  height: 124px;
+  border-color: rgba(255, 157, 46, 0.72);
+  box-shadow: 6px 6px 0 #080d17, 7px 7px 0 rgba(255, 157, 46, 0.3), 0 0 34px rgba(255, 157, 46, 0.12);
+}
+
+.deck-visual strong {
+  font-size: 31px;
+}
+
+.excluded-zone {
+  min-width: 0;
+  justify-self: end;
+}
+
+.card-row,
+.discard-row {
+  align-content: center;
+}
+
+.hand-row {
+  gap: 12px;
+}
+
+.hand-row .card {
+  min-width: clamp(80px, 7vw, 108px);
+  min-height: 64px;
+}
+
+body.utility-panel-open {
+  overflow: hidden;
+}
+
+.utility-panel-backdrop {
+  position: fixed;
+  z-index: 23;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: rgba(2, 6, 14, 0.58);
+  backdrop-filter: blur(3px);
+}
+
+.utility-panel {
+  position: fixed;
+  z-index: 24;
+  top: 0;
+  right: 0;
+  display: flex;
+  width: min(390px, calc(100% - 28px));
+  height: 100dvh;
+  padding: 24px;
+  flex-direction: column;
+  border: 0;
+  border-left: 1px solid rgba(86, 216, 228, 0.28);
+  border-radius: 0;
+  background:
+    linear-gradient(150deg, rgba(86, 216, 228, 0.07), transparent 38%),
+    rgba(10, 17, 30, 0.98);
+  box-shadow: -24px 0 70px rgba(0, 0, 0, 0.5);
+  animation: utility-panel-enter 180ms ease-out;
+}
+
+@keyframes utility-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.utility-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.utility-panel-header .eyebrow {
+  margin-bottom: 4px;
+  font-size: 8px;
+}
+
+.utility-panel-header h2 {
+  margin: 0;
+  font-family: Georgia, "Yu Mincho", serif;
+  font-size: 23px;
+  font-weight: 500;
+}
+
+.utility-panel-close {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--muted);
+  background: transparent;
+  font-size: 22px;
+}
+
+.utility-panel-close:hover,
+.utility-panel-close:focus-visible {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.utility-panel .log-list {
+  max-height: none;
+  padding: 8px 2px 20px;
+  flex: 1;
+}
+
+.utility-panel .chat-list {
+  min-height: 0;
+  max-height: none;
+  padding: 12px 2px;
+  margin: 0;
+  flex: 1;
+}
+
+.utility-panel .chat-form {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 1080px) {
+  .player-zone {
+    grid-template-columns: minmax(135px, 0.2fr) minmax(280px, 1fr) minmax(155px, 0.32fr);
+    gap: 18px;
+  }
+
+  .center-zone {
+    grid-template-columns: minmax(110px, 1fr) auto minmax(180px, 1fr);
+    gap: 26px;
+  }
+}
+
+@media (max-width: 760px) and (orientation: landscape) {
+  .site-header {
+    min-height: 54px;
+  }
+
+  .app-shell {
+    padding-top: 18px;
+  }
+
+  .game-screen {
+    margin-top: -14px;
+  }
+
+  .room-bar {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .player-zone {
+    grid-template-columns: 120px minmax(250px, 1fr) 150px;
+    min-height: 148px;
+    padding: 14px 18px;
+  }
+
+  .center-zone {
+    min-height: 148px;
+    padding: 15px 24px;
+  }
+
+  .arena-mark strong {
+    width: 62px;
+    height: 62px;
+  }
+
+  .deck-visual {
+    width: 74px;
+    height: 102px;
+  }
+}
+
+@media (max-width: 680px) and (orientation: portrait) {
+  .game-toolbar {
+    justify-content: stretch;
+  }
+
+  .utility-toggle-button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .player-zone {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .opponent-zone > .zone-heading,
+  .opponent-zone > .card-row,
+  .opponent-zone > div:last-child,
+  .my-zone > div:first-child,
+  .my-zone > .zone-heading,
+  .my-zone > .hand-row {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .center-zone {
+    grid-template-columns: 1fr auto;
+  }
+
+  .arena-mark {
+    display: none;
+  }
+
+  .excluded-zone {
+    justify-self: stretch;
+  }
+}
+
+
+/* Psychic tarot card skin */
+.card {
+  --card-accent: #7f91ad;
+  --card-glyph: "✦";
+  isolation: isolate;
+  overflow: hidden;
+  width: 78px;
+  min-width: 78px;
+  height: 108px;
+  min-height: 108px;
+  padding: 52px 7px 20px;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 78%, white 8%);
+  border-radius: 7px;
+  color: #edf4ff;
+  background:
+    linear-gradient(135deg, transparent 48%, color-mix(in srgb, var(--card-accent) 12%, transparent) 49% 51%, transparent 52%),
+    radial-gradient(circle at 50% 27%, color-mix(in srgb, var(--card-accent) 18%, transparent), transparent 30%),
+    linear-gradient(155deg, #17233a, #0a1221 68%);
+  box-shadow:
+    inset 0 0 0 2px #0a1221,
+    inset 0 0 0 3px color-mix(in srgb, var(--card-accent) 32%, transparent),
+    0 8px 18px rgba(0, 0, 0, 0.34);
+  font-family: "Yu Mincho", "Noto Serif JP", serif;
+  font-size: 10px;
+  line-height: 1.35;
+  letter-spacing: 0.03em;
+  text-shadow: 0 1px 4px #000;
+  transition: transform 170ms ease, border-color 170ms ease, box-shadow 170ms ease, filter 170ms ease;
+}
+
+.card::before {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 48%, transparent);
+  border-radius: 50%;
+  content: var(--card-glyph);
+  color: var(--card-accent);
+  font-family: Georgia, serif;
+  font-size: 18px;
+  line-height: 1;
+  text-shadow: 0 0 12px var(--card-accent);
+  box-shadow: inset 0 0 14px color-mix(in srgb, var(--card-accent) 12%, transparent);
+  transform: translateX(-50%);
+}
+
+.card::after {
+  position: absolute;
+  right: 0;
+  bottom: 7px;
+  left: 0;
+  content: "ESPER";
+  color: color-mix(in srgb, var(--card-accent) 72%, #dce7f5);
+  font-family: Inter, sans-serif;
+  font-size: 5px;
+  font-weight: 900;
+  letter-spacing: 0.24em;
+  text-align: center;
+  text-shadow: 0 0 8px var(--card-accent);
+}
+
+.card[data-card-name="クレヤボヤンス"] {
+  --card-accent: #f59a2a;
+  --card-glyph: "◉";
+}
+
+.card[data-card-name="タイムリープ"] {
+  --card-accent: #20b8d4;
+  --card-glyph: "↻";
+}
+
+.card[data-card-name="サイコキネシス"] {
+  --card-accent: #e55b9a;
+  --card-glyph: "◇";
+}
+
+.card[data-card-name="プリサイエンス"] {
+  --card-accent: #18aaa9;
+  --card-glyph: "✦";
+}
+
+.card[data-card-name="テレポート"] {
+  --card-accent: #247fbd;
+  --card-glyph: "◎";
+}
+
+.card[data-card-name="ヒーリング"] {
+  --card-accent: #ef6264;
+  --card-glyph: "✚";
+}
+
+.card[data-card-name="カモフラージュ"] {
+  --card-accent: #8171bd;
+  --card-glyph: "◈";
+}
+
+button.card:hover,
+.card.selectable-target:hover,
+.card.selectable-target:focus-visible,
+.card.revealable-card:hover,
+.card.revealable-card:focus-visible,
+.discard-stack.selectable-target:hover .card,
+.discard-stack.selectable-target:focus-visible .card {
+  border-color: var(--card-accent);
+  box-shadow:
+    inset 0 0 0 2px #09111f,
+    inset 0 0 0 3px color-mix(in srgb, var(--card-accent) 70%, transparent),
+    0 0 22px color-mix(in srgb, var(--card-accent) 44%, transparent),
+    0 12px 20px rgba(0, 0, 0, 0.42);
+  filter: brightness(1.1);
+  transform: translateY(-5px);
+}
+
+.card.selected,
+.card.selected:not(.hidden-card) {
+  border-color: #fff6df;
+  color: #fff;
+  background:
+    linear-gradient(135deg, transparent 48%, color-mix(in srgb, var(--card-accent) 22%, transparent) 49% 51%, transparent 52%),
+    radial-gradient(circle at 50% 27%, color-mix(in srgb, var(--card-accent) 34%, transparent), transparent 34%),
+    linear-gradient(155deg, color-mix(in srgb, var(--card-accent) 18%, #17233a), #0a1221 68%);
+  box-shadow:
+    inset 0 0 0 2px #09111f,
+    inset 0 0 0 3px var(--card-accent),
+    0 0 9px var(--card-accent),
+    0 0 28px color-mix(in srgb, var(--card-accent) 72%, transparent);
+  transform: translateY(-6px) scale(1.035);
+}
+
+.card.hidden-card {
+  --card-accent: #7183a2;
+  padding: 0;
+  color: transparent;
+  background:
+    radial-gradient(circle, transparent 18%, rgba(92, 118, 157, 0.13) 19% 20%, transparent 21%),
+    repeating-linear-gradient(45deg, transparent 0 8px, rgba(130, 151, 184, 0.055) 8px 9px),
+    linear-gradient(145deg, #1a2841, #091220);
+  background-size: 48px 48px, auto, auto;
+}
+
+.card.hidden-card::before {
+  top: 50%;
+  width: 43px;
+  height: 43px;
+  content: "✦";
+  color: #93a7c5;
+  transform: translate(-50%, -50%);
+}
+
+.card.hidden-card::after {
+  bottom: 8px;
+  content: "ESPER";
+  color: #7f93b2;
+}
+
+.opponent-zone .card.hidden-card {
+  --card-accent: #c75e72;
+  background:
+    radial-gradient(circle, transparent 18%, rgba(255, 100, 117, 0.12) 19% 20%, transparent 21%),
+    repeating-linear-gradient(45deg, transparent 0 8px, rgba(255, 100, 117, 0.045) 8px 9px),
+    linear-gradient(145deg, #2b1d31, #100f1d);
+  background-size: 48px 48px, auto, auto;
+}
+
+.card.hidden-card.selected {
+  --card-accent: #ffae57;
+  color: transparent;
+  background:
+    radial-gradient(circle, transparent 18%, rgba(255, 174, 87, 0.18) 19% 20%, transparent 21%),
+    repeating-linear-gradient(45deg, transparent 0 8px, rgba(255, 174, 87, 0.07) 8px 9px),
+    linear-gradient(145deg, #3a271b, #15101a);
+  box-shadow:
+    inset 0 0 0 2px #120d09,
+    inset 0 0 0 3px var(--card-accent),
+    0 0 10px var(--card-accent),
+    0 0 30px rgba(255, 157, 46, 0.52);
+}
+
+.card.revealable-card::after {
+  right: 5px;
+  bottom: 5px;
+  left: auto;
+  padding: 2px 4px;
+  border: 1px solid rgba(86, 216, 228, 0.4);
+  border-radius: 2px;
+  content: "見る";
+  color: var(--cyan);
+  background: rgba(7, 14, 25, 0.82);
+  font-size: 6px;
+  letter-spacing: 0.06em;
+}
+
+.compact .card {
+  width: 60px;
+  min-width: 60px;
+  height: 82px;
+  min-height: 82px;
+  padding: 39px 5px 16px;
+  border-radius: 5px;
+  font-size: 7px;
+}
+
+.compact .card::before,
+.discard-stack .card::before {
+  top: 10px;
+  width: 26px;
+  height: 26px;
+  font-size: 13px;
+}
+
+.compact .card::after,
+.discard-stack .card::after {
+  bottom: 5px;
+  font-size: 4px;
+}
+
+.compact .card.hidden-card::before,
+.discard-stack .card.hidden-card::before {
+  top: 50%;
+  width: 31px;
+  height: 31px;
+}
+
+.discard-stack {
+  width: 61px;
+  min-height: 84px;
+  margin-right: 7px;
+}
+
+.discard-stack .card {
+  width: 58px;
+  min-width: 58px;
+  height: 80px;
+  min-height: 80px;
+  padding: 38px 4px 15px;
+  border-radius: 5px;
+  font-size: 7px;
+}
+
+.hand-row .card {
+  width: clamp(78px, 6vw, 92px);
+  min-width: clamp(78px, 6vw, 92px);
+  height: clamp(108px, 8.3vw, 126px);
+  min-height: clamp(108px, 8.3vw, 126px);
+}
+
+.player-zone {
+  min-height: 214px;
+}
+
+.card.newly-drawn {
+  animation: newly-drawn-card 3.4s ease-out both;
+}
+
+@keyframes newly-drawn-card {
+  0%,
+  88.235% {
+    border-color: #ffd39c;
+    box-shadow:
+      inset 0 0 0 2px #2a1709,
+      inset 0 0 0 3px #ffb966,
+      0 0 12px #ffb966,
+      0 0 34px rgba(255, 174, 87, 0.62);
+    filter: brightness(1.24) saturate(0.82);
+  }
+
+  100% {
+    border-color: color-mix(in srgb, var(--card-accent) 78%, white 8%);
+    box-shadow:
+      inset 0 0 0 2px #0a1221,
+      inset 0 0 0 3px color-mix(in srgb, var(--card-accent) 32%, transparent),
+      0 8px 18px rgba(0, 0, 0, 0.34);
+    filter: none;
+  }
+}
+
+@media (max-width: 760px) and (orientation: landscape) {
+  .player-zone {
+    min-height: 190px;
+  }
+
+  .hand-row .card {
+    width: 72px;
+    min-width: 72px;
+    height: 100px;
+    min-height: 100px;
+  }
+}
+
+
+/* Illustrated ivory ability cards */
+.card:not(.hidden-card) {
+  padding: 19px 7px 8px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 4px;
+  border-color: var(--card-accent);
+  color: #20283a;
+  background:
+    linear-gradient(var(--card-accent) 0 0) top 7px left 7px / 6px 6px no-repeat,
+    linear-gradient(var(--card-accent) 0 0) top 7px right 7px / 6px 6px no-repeat,
+    linear-gradient(var(--card-accent) 0 0) bottom 7px left 7px / 6px 6px no-repeat,
+    linear-gradient(var(--card-accent) 0 0) bottom 7px right 7px / 6px 6px no-repeat,
+    radial-gradient(circle at 50% 43%, color-mix(in srgb, var(--card-accent) 7%, transparent), transparent 52%),
+    linear-gradient(145deg, #fffef9, #f1efe7);
+  box-shadow:
+    inset 0 0 0 2px #fbfaf5,
+    inset 0 0 0 3px color-mix(in srgb, var(--card-accent) 62%, white),
+    0 8px 18px rgba(0, 0, 0, 0.38);
+  font-family: "Yu Gothic", "Noto Sans JP", sans-serif;
+  text-shadow: none;
+}
+
+.card:not(.hidden-card)::before {
+  top: 7px;
+  left: 50%;
+  width: auto;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  content: "ESPER ABILITY";
+  color: color-mix(in srgb, var(--card-accent) 78%, #596274);
+  background: transparent;
+  font-family: Inter, sans-serif;
+  font-size: 4px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-shadow: none;
+  box-shadow: none;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.card:not(.hidden-card)::after {
+  right: 8px;
+  bottom: 6px;
+  left: auto;
+  content: "✦";
+  color: var(--card-accent);
+  font-family: Georgia, serif;
+  font-size: 6px;
+  letter-spacing: 0;
+  text-shadow: none;
+}
+
+.card-art {
+  display: block;
+  width: 70%;
+  height: 100%;
+  min-height: 0;
+  margin: 0 auto;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--card-accent) 18%, transparent));
+  transition: filter 170ms ease, transform 170ms ease;
+}
+
+.card-name {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #1c2332;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.15;
+  text-align: center;
+}
+
+button.card:hover .card-art,
+.card.selectable-target:hover .card-art,
+.card.selectable-target:focus-visible .card-art,
+.card.revealable-card:hover .card-art,
+.card.revealable-card:focus-visible .card-art,
+.discard-stack.selectable-target:hover .card-art,
+.discard-stack.selectable-target:focus-visible .card-art {
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--card-accent) 58%, transparent));
+  transform: scale(1.045);
+}
+
+.card.selected:not(.hidden-card) {
+  color: #171e2c;
+  background:
+    linear-gradient(var(--card-accent) 0 0) top 7px left 7px / 6px 6px no-repeat,
+    linear-gradient(var(--card-accent) 0 0) top 7px right 7px / 6px 6px no-repeat,
+    linear-gradient(var(--card-accent) 0 0) bottom 7px left 7px / 6px 6px no-repeat,
+    linear-gradient(var(--card-accent) 0 0) bottom 7px right 7px / 6px 6px no-repeat,
+    radial-gradient(circle at 50% 43%, color-mix(in srgb, var(--card-accent) 22%, transparent), transparent 58%),
+    linear-gradient(145deg, #fffef9, color-mix(in srgb, var(--card-accent) 9%, #f1efe7));
+  box-shadow:
+    inset 0 0 0 2px #fffef9,
+    inset 0 0 0 3px var(--card-accent),
+    0 0 10px var(--card-accent),
+    0 0 30px color-mix(in srgb, var(--card-accent) 58%, transparent),
+    0 12px 22px rgba(0, 0, 0, 0.42);
+}
+
+.card.selected:not(.hidden-card) .card-art {
+  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--card-accent) 72%, transparent));
+}
+
+.compact .card:not(.hidden-card),
+.discard-stack .card:not(.hidden-card) {
+  padding: 15px 4px 6px;
+  gap: 2px;
+}
+
+.compact .card:not(.hidden-card)::before,
+.discard-stack .card:not(.hidden-card)::before {
+  top: 5px;
+  width: auto;
+  height: auto;
+  font-size: 3px;
+}
+
+.compact .card:not(.hidden-card)::after,
+.discard-stack .card:not(.hidden-card)::after {
+  right: 6px;
+  bottom: 4px;
+  font-size: 4px;
+}
+
+.compact .card-art,
+.discard-stack .card-art {
+  width: 72%;
+}
+
+.compact .card-name,
+.discard-stack .card-name {
+  font-size: 6px;
+}
+
+.card.revealable-card:not(.hidden-card)::after {
+  right: 5px;
+  bottom: 5px;
+  padding: 2px 4px;
+  border: 1px solid rgba(86, 216, 228, 0.4);
+  border-radius: 2px;
+  content: "見る";
+  color: var(--cyan);
+  background: rgba(7, 14, 25, 0.86);
+  font-family: Inter, sans-serif;
+  font-size: 6px;
+}
+
+
+/* Strong draw-ready deck glow */
+.deck-visual.actionable {
+  border-color: #ffc56f;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(255, 174, 87, 0.16), transparent 58%),
+    repeating-linear-gradient(135deg, transparent 0 7px, rgba(255, 157, 46, 0.09) 7px 8px),
+    #151b2b;
+  animation: deck-action-pulse 1.35s ease-in-out infinite;
+}
+
+.deck-visual.actionable:hover,
+.deck-visual.actionable:focus-visible {
+  border-color: #ffe0aa;
+  outline: 3px solid rgba(255, 174, 87, 0.62);
+  outline-offset: 5px;
+}
+
+@keyframes deck-action-pulse {
+  0%,
+  100% {
+    box-shadow:
+      6px 6px 0 #080d17,
+      7px 7px 0 rgba(255, 157, 46, 0.38),
+      0 0 12px rgba(255, 157, 46, 0.46),
+      0 0 28px rgba(255, 157, 46, 0.22);
+    filter: brightness(1.06);
+    transform: scale(1);
+  }
+
+  50% {
+    box-shadow:
+      6px 6px 0 #080d17,
+      7px 7px 0 rgba(255, 188, 104, 0.72),
+      0 0 18px rgba(255, 205, 138, 0.92),
+      0 0 46px rgba(255, 157, 46, 0.72),
+      0 0 76px rgba(255, 132, 28, 0.34);
+    filter: brightness(1.25);
+    transform: scale(1.045);
+  }
+}

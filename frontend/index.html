@@ -121,6 +121,29 @@
 
         <div id="phase-banner" class="phase-banner" role="status"></div>
 
+        <nav class="game-toolbar" aria-label="対戦中の補助機能">
+          <button
+            id="log-toggle-button"
+            class="utility-toggle-button"
+            type="button"
+            aria-expanded="false"
+            aria-controls="log-panel"
+          >
+            <span class="utility-toggle-icon" aria-hidden="true">☷</span>
+            <span id="log-toggle-label">バトルログ</span>
+          </button>
+          <button
+            id="chat-toggle-button"
+            class="utility-toggle-button"
+            type="button"
+            aria-expanded="false"
+            aria-controls="chat-panel"
+          >
+            <span class="utility-toggle-icon" aria-hidden="true">◇</span>
+            <span>チャット</span>
+          </button>
+        </nav>
+
         <div class="game-layout">
           <section class="table-panel">
             <div class="player-zone opponent-zone">
@@ -142,6 +165,10 @@
             </div>
 
             <div class="center-zone">
+              <div class="arena-mark" aria-hidden="true">
+                <span>MIND FIELD</span>
+                <strong>✦</strong>
+              </div>
               <button
                 id="deck-action-button"
                 class="deck-visual"
@@ -152,7 +179,7 @@
                 <strong id="deck-count-center">0</strong>
                 <small>CARDS</small>
               </button>
-              <div>
+              <div class="excluded-zone">
                 <p class="mini-heading">ゲーム外カード</p>
                 <div id="excluded-cards" class="card-row compact"></div>
               </div>
@@ -174,36 +201,6 @@
             </div>
           </section>
 
-          <aside class="side-column">
-            <section class="log-panel">
-              <button
-                id="log-toggle-button"
-                class="log-toggle-button"
-                type="button"
-                aria-expanded="false"
-                aria-controls="log-list"
-              >
-                <span id="log-toggle-label">バトルログを見る</span>
-                <span class="log-toggle-icon" aria-hidden="true">⌄</span>
-              </button>
-              <div id="log-list" class="log-list" hidden></div>
-            </section>
-
-            <section class="chat-panel">
-              <h2>チャット</h2>
-              <div id="chat-list" class="chat-list" aria-live="polite"></div>
-              <form id="chat-form" class="chat-form">
-                <label class="sr-only" for="chat-message">メッセージ</label>
-                <input
-                  id="chat-message"
-                  maxlength="200"
-                  placeholder="メッセージを入力"
-                  autocomplete="off"
-                >
-                <button type="submit" aria-label="送信">➤</button>
-              </form>
-            </section>
-          </aside>
         </div>
 
         <section
@@ -215,6 +212,66 @@
           <p id="context-action-copy"></p>
           <div id="context-action-buttons" class="context-action-buttons"></div>
         </section>
+
+        <button
+          id="utility-panel-backdrop"
+          class="utility-panel-backdrop"
+          type="button"
+          aria-label="パネルを閉じる"
+          hidden
+        ></button>
+
+        <aside
+          id="log-panel"
+          class="utility-panel log-panel"
+          aria-labelledby="log-panel-title"
+          hidden
+        >
+          <header class="utility-panel-header">
+            <div>
+              <p class="eyebrow">BATTLE HISTORY</p>
+              <h2 id="log-panel-title">バトルログ</h2>
+            </div>
+            <button
+              id="log-close-button"
+              class="utility-panel-close"
+              type="button"
+              aria-label="バトルログを閉じる"
+            >×</button>
+          </header>
+          <div id="log-list" class="log-list"></div>
+        </aside>
+
+        <aside
+          id="chat-panel"
+          class="utility-panel chat-panel"
+          aria-labelledby="chat-panel-title"
+          hidden
+        >
+          <header class="utility-panel-header">
+            <div>
+              <p class="eyebrow">PSYCHIC LINK</p>
+              <h2 id="chat-panel-title">チャット</h2>
+            </div>
+            <button
+              id="chat-close-button"
+              class="utility-panel-close"
+              type="button"
+              aria-label="チャットを閉じる"
+            >×</button>
+          </header>
+          <div id="chat-list" class="chat-list" aria-live="polite"></div>
+          <form id="chat-form" class="chat-form">
+            <label class="sr-only" for="chat-message">メッセージ</label>
+            <input
+              id="chat-message"
+              maxlength="200"
+              placeholder="メッセージを入力"
+              autocomplete="off"
+            >
+            <button type="submit" aria-label="送信">➤</button>
+          </form>
+        </aside>
       </section>
     </main>
 

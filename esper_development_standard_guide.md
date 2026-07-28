@@ -379,6 +379,7 @@ APIハンドラーへ能力ルールやカード操作を直接書かない。
 - 勝利・敗北・引き分けの結果オーバーレイ
 - カード詳細ツールチップ
 - Web App Manifest、favicon、Apple Touch Iconの関連付け
+- SVGを基準にした180px・192px・512pxアプリアイコンの同一デザイン管理
 
 ゲーム状態によって変わる内容はJavaScriptが描画する。
 HTMLへゲームロジックやインラインJavaScriptを書かない。

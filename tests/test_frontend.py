@@ -43,12 +43,12 @@ class FrontendDeliveryTests(unittest.TestCase):
     def test_home_screen_manifest_and_icons_are_served(self):
         html = self.client.get("/").text
         self.assertIn(
-            'rel="manifest" href="/static/manifest.webmanifest?v=2"',
+            'rel="manifest" href="/static/manifest.webmanifest?v=3"',
             html,
         )
         self.assertIn('rel="apple-touch-icon" sizes="180x180"', html)
         self.assertIn(
-            'rel="icon" href="/static/assets/icons/esper-icon.svg?v=2"',
+            'rel="icon" href="/static/assets/icons/esper-icon.svg?v=3"',
             html,
         )
 
@@ -58,6 +58,9 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertEqual(manifest["name"], "超能力カードゲーム ESPER")
         self.assertEqual(manifest["short_name"], "ESPER")
         self.assertEqual(manifest["display"], "standalone")
+        self.assertTrue(
+            all(icon["purpose"] == "any" for icon in manifest["icons"])
+        )
         self.assertEqual(
             [icon["sizes"] for icon in manifest["icons"]],
             ["192x192", "512x512"],

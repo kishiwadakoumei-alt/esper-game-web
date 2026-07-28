@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">ESPER</title>
+  <desc id="desc">七つの超能力を表す光に囲まれた眼</desc>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="72%">
+      <stop offset="0" stop-color="#172b48"/>
+      <stop offset="0.58" stop-color="#0b1528"/>
+      <stop offset="1" stop-color="#050914"/>
+    </radialGradient>
+    <linearGradient id="neon" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#56d8e4"/>
+      <stop offset="0.5" stop-color="#8b7ce8"/>
+      <stop offset="1" stop-color="#e55b9a"/>
+    </linearGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="104" fill="url(#bg)"/>
+  <rect x="18" y="18" width="476" height="476" rx="88" fill="none" stroke="url(#neon)" stroke-width="7" opacity=".8"/>
+  <g filter="url(#glow)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M102 220 Q256 91 410 220 Q256 349 102 220Z" stroke="url(#neon)" stroke-width="12"/>
+    <circle cx="256" cy="220" r="65" stroke="#56d8e4" stroke-width="10"/>
+    <path d="M256 178 L270 206 L298 220 L270 234 L256 262 L242 234 L214 220 L242 206Z" fill="#f4fbff" stroke="#e55b9a" stroke-width="5"/>
+  </g>
+  <g fill="#56d8e4">
+    <circle cx="132" cy="106" r="10"/><circle cx="256" cy="70" r="10" fill="#28b8dc"/>
+    <circle cx="380" cy="106" r="10" fill="#e071a4"/><circle cx="433" cy="220" r="10" fill="#ff6b75"/>
+    <circle cx="364" cy="343" r="10" fill="#907dcc"/><circle cx="148" cy="343" r="10" fill="#f5a348"/>
+    <circle cx="79" cy="220" r="10" fill="#18b7b3"/>
+  </g>
+  <text x="256" y="423" text-anchor="middle" fill="#f4fbff" font-family="DejaVu Sans,Arial,sans-serif" font-size="62" font-weight="900" letter-spacing="10">ESPER</text>
+  <path d="M151 446 H361" stroke="url(#neon)" stroke-width="5" stroke-linecap="round"/>
+</svg>

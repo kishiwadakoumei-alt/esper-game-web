@@ -27,8 +27,15 @@ OpenAPIは `http://localhost:8000/docs` で確認できる。
 frontend/
 ├── index.html
 └── static/
+    ├── assets/
+    │   └── icons/
+    │       ├── esper-icon.svg
+    │       ├── esper-icon-180.png
+    │       ├── esper-icon-192.png
+    │       └── esper-icon-512.png
     ├── css/
     │   └── styles.css
+    ├── manifest.webmanifest
     └── js/
         ├── api.js
         ├── app.js
@@ -40,6 +47,15 @@ frontend/
 - `api.js`: HTTP API、Bearerセッション、WebSocket接続
 - `app.js`: 画面遷移、フォームイベント、セッション復元
 - `render.js`: 公開ゲーム状態からDOMへの描画と操作選択肢の生成
+- `manifest.webmanifest`: ホーム画面追加時のアプリ名、表示形式、アイコン設定
+- `assets/icons/`: favicon、iPhone、Android・PC向けのESPERアイコン
+
+## ホーム画面への追加
+
+`index.html` はWeb App Manifestと端末別アイコンを関連付ける。
+Android・PCでは192px／512pxのManifestアイコンを使用し、
+iPhone・iPadでは180pxのApple Touch Iconを使用する。
+ホーム画面から起動した場合は、Manifestの `standalone` 表示を使用する。
 
 ゲームルールと状態変更はブラウザ側へ移していない。
 すべての操作はHTTP APIへ送られ、サーバーで再検証・実行される。

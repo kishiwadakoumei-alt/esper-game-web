@@ -38,6 +38,35 @@ class FrontendDeliveryTests(unittest.TestCase):
             response.text,
         )
 
+    def test_room_invitation_url_prefills_room_and_can_be_shared(self):
+        html = (FRONTEND_ROOT / "index.html").read_text()
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+        app = (
+            FRONTEND_ROOT / "static" / "js" / "app.js"
+        ).read_text()
+
+        for element_id in (
+            "invite-banner",
+            "invite-room-code",
+            "join-room-button",
+            "share-room-button",
+        ):
+            self.assertIn(f'id="{element_id}"', html)
+        self.assertIn("URLSearchParams(window.location.search)", app)
+        self.assertIn('.get("room")', app)
+        self.assertIn("applyRoomInvitation", app)
+        self.assertIn('url.searchParams.set("room", roomId)', app)
+        self.assertIn('const roomId = roomInput.value.trim()', app)
+        self.assertIn("共有するあいことばを入力してください。", app)
+        self.assertNotIn('url.searchParams.set("token"', app)
+        self.assertIn('typeof navigator.share === "function"', app)
+        self.assertIn("navigator.clipboard.writeText(url)", app)
+        self.assertIn("この部屋に参加する", app)
+        self.assertIn(".invite-banner", css)
+        self.assertIn(".entry-share-button", css)
+
     def test_css_and_javascript_are_served_separately(self):
         html = self.client.get("/").text
         css = self.client.get("/static/css/styles.css")
@@ -74,6 +103,31 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertNotIn("flet", entrypoint.lower())
         self.assertIn("from backend.main import app", entrypoint)
         self.assertIn("os.environ.get(\"PORT\", \"8000\")", entrypoint)
+
+    def test_rules_dialog_explains_setup_turns_and_win_conditions(self):
+        html = (FRONTEND_ROOT / "index.html").read_text()
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+
+        self.assertIn("遊び方・能力一覧", html)
+        self.assertIn("basic-rules-title", html)
+        self.assertIn("turn-rules-title", html)
+        self.assertIn("同じ能力カードを5枚以上", html)
+        self.assertIn("手札6枚から開始", html)
+        self.assertIn("相手のターンでも宣言可能", html)
+        self.assertIn("カードを1枚捨てる", html)
+        self.assertIn("山札から引く", html)
+        self.assertIn("能力を使うか決める", html)
+        self.assertIn("伏せ札", html)
+        self.assertIn("捨て札が18組", html)
+        self.assertIn("カモフラージュのESPER判定", html)
+        self.assertIn("7つの能力", html)
+        self.assertIn(".game-rules", css)
+        self.assertIn(".rule-summary-grid", css)
+        self.assertIn(".turn-rules", css)
+        self.assertIn(".rule-detail-grid", css)
+        self.assertIn("overflow-y: auto", css)
 
     def test_discard_confirmation_modal_is_separated_from_action(self):
         html = (FRONTEND_ROOT / "index.html").read_text()
@@ -147,9 +201,19 @@ class FrontendDeliveryTests(unittest.TestCase):
 
         self.assertIn("prescience-dialog", html)
         self.assertIn("prescience-order-list", html)
+        self.assertIn("prescience-selection-hand-preview", html)
+        self.assertIn("prescience-selection-hand", html)
+        self.assertIn("prescience-confirm-hand", html)
         self.assertIn("prescience-back-button", html)
         self.assertIn("prescience-confirm-button", html)
         self.assertIn(".prescience-option.selected", css)
+        self.assertIn(".prescience-hand-preview", css)
+        self.assertIn(".prescience-hand-row", css)
+        self.assertIn("repeat(6, minmax(0, 1fr))", css)
+        self.assertIn("repeat(3, minmax(0, 1fr))", css)
+        self.assertIn("renderPrescienceHandPreview", renderer)
+        self.assertIn('"prescience-selection-hand", state.my_hand', renderer)
+        self.assertIn('"prescience-confirm-hand", state.my_hand', renderer)
         self.assertIn("prescienceOrder.splice(selectedPosition, 1)", renderer)
         self.assertIn("prescienceOrder.pop()", renderer)
         self.assertIn("上から${position + 1}枚目", renderer)
@@ -196,7 +260,7 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn(".healing-confirm-dialog", css)
         self.assertIn(".healing-confirm-list", css)
 
-    def test_stacked_discards_expand_before_card_selection(self):
+    def test_stacked_discards_expand_only_during_healing_selection(self):
         css = (
             FRONTEND_ROOT / "static" / "css" / "styles.css"
         ).read_text()
@@ -206,7 +270,16 @@ class FrontendDeliveryTests(unittest.TestCase):
 
         self.assertIn("expandedDiscardStacks", renderer)
         self.assertIn("applyDiscardStackLayout", renderer)
-        self.assertIn("group.length > 1", renderer)
+        self.assertIn("allowStackExpansion && group.length > 1", renderer)
+        self.assertIn(
+            "state.interaction?.kind === \"healing\"",
+            renderer,
+        )
+        self.assertIn(
+            "{ allowStackExpansion: allowDiscardStackExpansion }",
+            renderer,
+        )
+        self.assertIn("if (!allowDiscardStackExpansion)", renderer)
         self.assertIn('stack.addEventListener("click", expand, true)', renderer)
         self.assertIn("event.stopPropagation()", renderer)
         self.assertIn("discard-stack-toggle", renderer)
@@ -247,6 +320,9 @@ class FrontendDeliveryTests(unittest.TestCase):
         renderer = (
             FRONTEND_ROOT / "static" / "js" / "render.js"
         ).read_text()
+        app = (
+            FRONTEND_ROOT / "static" / "js" / "app.js"
+        ).read_text()
 
         self.assertIn("psychokinesis-dialog", html)
         self.assertIn("psychokinesis-target-label", html)
@@ -261,7 +337,19 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("psychokinesisSelection = null", renderer)
         self.assertIn("select_psychokinesis_discard", renderer)
         self.assertIn("select_psychokinesis_push", renderer)
+        self.assertIn("psychokinesisPushGuideShown", renderer)
+        self.assertIn("psychokinesisPushGuideOpen", renderer)
+        self.assertIn('dataset.mode = "psychokinesis-push-guide"', renderer)
+        self.assertIn("PSYCHOKINESIS — STEP 2 / 2", renderer)
+        self.assertIn("interaction.discarded_card", renderer)
+        self.assertIn("handlers.openOpponentDiscards", renderer)
+        self.assertIn("STEP 2 / 2：相手の裏向き捨て札", renderer)
+        self.assertIn('setDiscardPanelOpen("opponent", true)', app)
+        self.assertIn("scrollIntoView", app)
         self.assertIn(".psychokinesis-dialog", css)
+        self.assertIn(".psychokinesis-step-summary", css)
+        self.assertIn(".psychokinesis-targeting", css)
+        self.assertIn("@keyframes psychokinesis-target-pulse", css)
         self.assertIn(".card.selectable-target", css)
         self.assertIn(".discard-stack.selectable-target", css)
 

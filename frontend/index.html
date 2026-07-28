@@ -53,6 +53,15 @@
             </div>
           </div>
 
+          <aside id="invite-banner" class="invite-banner" role="status" hidden>
+            <span>ROOM INVITATION</span>
+            <div>
+              <p>対戦へ招待されています</p>
+              <strong id="invite-room-code"></strong>
+            </div>
+            <small>名前を確認して、この部屋へ参加してください。</small>
+          </aside>
+
           <form id="join-form" novalidate>
             <label for="player-name">あなたの名前</label>
             <input
@@ -74,9 +83,18 @@
                 autocomplete="off"
                 required
               >
-              <button class="primary-button" type="submit">入室する</button>
+              <button id="join-room-button" class="primary-button" type="submit">
+                入室する
+              </button>
             </div>
             <p class="field-hint">同じあいことばを入力した2人が対戦できます。</p>
+            <button id="share-room-button" class="entry-share-button" type="button">
+              <span aria-hidden="true">↗</span>
+              <span>
+                <strong>このあいことばの招待URLを共有</strong>
+                <small>LINEなどで対戦相手を招待</small>
+              </span>
+            </button>
           </form>
 
           <div class="divider"><span>OR PLAY SOLO</span></div>
@@ -384,16 +402,93 @@
       <form method="dialog">
         <button class="dialog-close" aria-label="閉じる">×</button>
       </form>
-      <p class="eyebrow">PSYCHIC ABILITY ARCHIVE</p>
-      <h2>能力一覧</h2>
+      <p class="eyebrow">GAME RULES &amp; PSYCHIC ABILITY ARCHIVE</p>
+      <h2>遊び方・能力一覧</h2>
+      <section class="game-rules" aria-labelledby="basic-rules-title">
+        <div class="rules-section-heading">
+          <span>01</span>
+          <div>
+            <p>BASIC RULES</p>
+            <h3 id="basic-rules-title">基本ルール</h3>
+          </div>
+        </div>
+
+        <div class="rule-summary-grid">
+          <article>
+            <span>GOAL</span>
+            <b>同じ能力を5枚集める</b>
+            <p>同じ能力カードを5枚以上そろえ、「ESPER」を宣言すると勝利です。</p>
+          </article>
+          <article>
+            <span>SETUP</span>
+            <b>手札6枚から開始</b>
+            <p>7種類×8枚の山札から3枚をゲーム外にし、各プレイヤーへ6枚配ります。</p>
+          </article>
+          <article>
+            <span>ESPER</span>
+            <b>相手のターンでも宣言可能</b>
+            <p>ESPERが完成していれば、自分のターンを待たずに宣言できます。</p>
+          </article>
+        </div>
+
+        <section class="turn-rules" aria-labelledby="turn-rules-title">
+          <h3 id="turn-rules-title">1ターンの流れ</h3>
+          <ol>
+            <li>
+              <span>01</span>
+              <div><b>カードを1枚捨てる</b><p>手札から任意のカードを選びます。</p></div>
+            </li>
+            <li>
+              <span>02</span>
+              <div><b>山札から引く</b><p>手札が6枚になるまで補充します。</p></div>
+            </li>
+            <li>
+              <span>03</span>
+              <div><b>能力を使うか決める</b><p>使わない場合は、そのままターンを終了します。</p></div>
+            </li>
+          </ol>
+        </section>
+
+        <div class="rule-detail-grid">
+          <article>
+            <b>伏せ札</b>
+            <p>通常の捨て札は、自分の伏せ札が5枚になるまで裏向きです。それ以降は表向きで置きます。</p>
+          </article>
+          <article>
+            <b>能力の発動</b>
+            <p>同名カード2枚を表向きで捨てると、その能力を使用できます。能力解決後は手札を補充します。</p>
+          </article>
+          <article>
+            <b>カモフラージュ</b>
+            <p>カモフラージュ2枚と別能力カード1枚を捨て、そのカードの能力を発動します。</p>
+          </article>
+          <article>
+            <b>自動決着</b>
+            <p>山札がなくなるか、どちらかの捨て札が18組になると終了。ESPER成立を優先し、未成立なら同種カードの枚数構成を比較します。</p>
+          </article>
+        </div>
+
+        <aside class="esper-wildcard-note">
+          <strong>カモフラージュのESPER判定</strong>
+          <p>カモフラージュ2枚は、ほかの同種カード1枚分のワイルドカードとして数えられます。</p>
+        </aside>
+      </section>
+
+      <div class="rules-ability-heading">
+        <span>02</span>
+        <div>
+          <p>SEVEN PSYCHIC POWERS</p>
+          <h3>7つの能力</h3>
+        </div>
+      </div>
       <div class="rule-grid">
         <article><b>千里眼</b><span>クレヤボヤンス</span><p>相手の手札または裏向きの場札から2枚まで選んで見る。</p></article>
         <article><b>時間移動</b><span>タイムリープ</span><p>このターンの後、もう一度自分のターンを行う。</p></article>
         <article><b>念力</b><span>サイコキネシス</span><p>相手の手札を1枚捨てさせ、裏向きの捨て札1枚を戻す。</p></article>
         <article><b>未来予知</b><span>プリサイエンス</span><p>山札の上から3枚を見て、好きな順番で山札へ戻す。</p></article>
         <article><b>瞬間移動</b><span>テレポート</span><p>宣言した能力カードを相手の手札からすべて捨てさせる。</p></article>
-        <article><b>再生</b><span>ヒーリング</span><p>場のカードを3枚まで山札に加えてシャッフルする。</p></article>
-        <article><b>擬態</b><span>カモフラージュ</span><p>2枚を別の能力カード1枚として使用する。</p></article>
+        <article><b>再生</b><span>ヒーリング</span><p>両者の捨て札から3枚まで山札へ戻し、シャッフルする。</p></article>
+        <article><b>擬態</b><span>カモフラージュ</span><p>2枚と別能力カード1枚を使い、そのカードの能力を発動する。</p></article>
       </div>
     </dialog>
 
@@ -484,6 +579,17 @@
       <p class="prescience-dialog-copy">
         次に引く順番を確認してください。
       </p>
+      <section class="prescience-hand-preview">
+        <header>
+          <span>CURRENT HAND</span>
+          <strong>現在の手札</strong>
+        </header>
+        <div
+          id="prescience-confirm-hand"
+          class="prescience-hand-row"
+          aria-label="現在の手札"
+        ></div>
+      </section>
       <ol id="prescience-order-list" class="prescience-order-list"></ol>
       <div class="dialog-actions">
         <button id="prescience-back-button" class="action-button" type="button">
@@ -566,6 +672,21 @@
       <p id="choice-dialog-kicker" class="eyebrow"></p>
       <h2 id="choice-dialog-title"></h2>
       <p id="choice-dialog-copy" class="choice-dialog-copy"></p>
+      <section
+        id="prescience-selection-hand-preview"
+        class="prescience-hand-preview"
+        hidden
+      >
+        <header>
+          <span>CURRENT HAND</span>
+          <strong>現在の手札</strong>
+        </header>
+        <div
+          id="prescience-selection-hand"
+          class="prescience-hand-row"
+          aria-label="現在の手札"
+        ></div>
+      </section>
       <div id="choice-dialog-options" class="choice-dialog-options"></div>
       <div class="dialog-actions">
         <button id="choice-dialog-back-button" class="action-button" type="button">

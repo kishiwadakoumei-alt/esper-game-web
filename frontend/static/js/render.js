@@ -38,6 +38,7 @@ const CARD_EFFECTS = {
 
 let prescienceOrder = [];
 let psychokinesisSelection = null;
+let psychokinesisPushGuideShown = false;
 const expandedDiscardStacks = new Set();
 let lastActionEventId = null;
 let lastTurnOwner = null;
@@ -373,6 +374,7 @@ function renderDiscardGroups(
   groups,
   selectedGroups = new Set(),
   selectedCards = new Set(),
+  { allowStackExpansion = false } = {},
 ) {
   clear(container);
   if (!groups.length) {
@@ -383,7 +385,7 @@ function renderDiscardGroups(
   groups.forEach((group, groupIndex) => {
     const stack = create("div", "discard-stack");
     const stackKey = `${container.id}:${groupIndex}`;
-    const expandable = group.length > 1;
+    const expandable = allowStackExpansion && group.length > 1;
     const selectedGroup = selectedGroups.has(groupIndex);
     stack.style.height = `${84 + Math.max(0, group.length - 1) * 6}px`;
     group.forEach((card, index) => {
@@ -669,6 +671,7 @@ export function resetRenderState() {
   dismissedResultKey = null;
   newlyDrawnCards.clear();
   psychokinesisSelection = null;
+  psychokinesisPushGuideShown = false;
   expandedDiscardStacks.clear();
   lastActionEventId = null;
   lastTurnOwner = null;
@@ -764,11 +767,24 @@ function addAction(list, label, callback, options) {
   list.append(actionButton(label, callback, options));
 }
 
+function renderPrescienceHandPreview(containerId, hand) {
+  const container = byId(containerId);
+  const cards = hand || [];
+  clear(container);
+  cards.forEach((card) => container.append(cardNode(card)));
+  container.setAttribute("aria-label", `現在の手札 ${cards.length}枚`);
+  container
+    .closest(".prescience-hand-preview")
+    .querySelector("header strong").textContent =
+      `現在の手札（${cards.length}枚）`;
+}
+
 function showPrescienceConfirmation(state, handlers) {
   const dialog = byId("prescience-dialog");
   const orderList = byId("prescience-order-list");
   const options = state.interaction.options;
   clear(orderList);
+  renderPrescienceHandPreview("prescience-confirm-hand", state.my_hand);
 
   prescienceOrder.forEach((optionIndex, position) => {
     const option = options.find((item) => item.index === optionIndex);
@@ -798,6 +814,9 @@ function showPrescienceConfirmation(state, handlers) {
 }
 
 function renderPrescienceSelection(list, state, handlers) {
+  const preview = byId("prescience-selection-hand-preview");
+  preview.hidden = false;
+  renderPrescienceHandPreview("prescience-selection-hand", state.my_hand);
   const options = state.interaction.options;
   const validIndices = new Set(options.map((option) => option.index));
   prescienceOrder = prescienceOrder.filter((index) => validIndices.has(index));
@@ -869,9 +888,13 @@ function openChoiceDialog({ kicker, title, copy, onBack = null }) {
     return null;
   }
   const dialog = byId("choice-dialog");
+  delete dialog.dataset.mode;
   const options = byId("choice-dialog-options");
   const back = byId("choice-dialog-back-button");
+  const presciencePreview = byId("prescience-selection-hand-preview");
   clear(options);
+  clear(byId("prescience-selection-hand"));
+  presciencePreview.hidden = true;
   byId("choice-dialog-kicker").textContent = kicker;
   byId("choice-dialog-title").textContent = title;
   byId("choice-dialog-copy").textContent = copy;
@@ -1036,6 +1059,14 @@ function renderChoiceDialog(state, handlers) {
   const actions = new Set(state.available_actions);
   const interaction = state.interaction;
   const step = state.game.turn_step;
+  const choiceDialog = byId("choice-dialog");
+  const psychokinesisPushGuideOpen =
+    choiceDialog.open &&
+    choiceDialog.dataset.mode === "psychokinesis-push-guide";
+  const showPsychokinesisPushGuide =
+    step === "PSY_PUSH_SELECTION" &&
+    interaction?.kind === "psychokinesis_push" &&
+    (!psychokinesisPushGuideShown || psychokinesisPushGuideOpen);
   const modalStep = [
     "ABILITY",
     "MIMIC_SELECTION",
@@ -1044,10 +1075,43 @@ function renderChoiceDialog(state, handlers) {
     "PRESCIENCE_SELECT_1",
     "PRESCIENCE_SELECT_2",
     "ROOM_DISBANDED",
-  ].includes(step) || state.game.finished;
+  ].includes(step) || showPsychokinesisPushGuide || state.game.finished;
 
   if (!modalStep) {
     closeChoiceDialog();
+    return;
+  }
+
+  if (showPsychokinesisPushGuide) {
+    const options = openChoiceDialog({
+      kicker: "PSYCHOKINESIS — STEP 2 / 2",
+      title: "次に、手札へ戻すカードを選びます",
+      copy: "相手の裏向き捨て札から1枚選び、相手の手札へ戻してください。",
+    });
+    if (!options) {
+      return;
+    }
+    psychokinesisPushGuideShown = true;
+    byId("choice-dialog").dataset.mode = "psychokinesis-push-guide";
+    const summary = create("div", "psychokinesis-step-summary");
+    summary.append(
+      create("span", "", "捨てさせたカード"),
+      create(
+        "strong",
+        "",
+        interaction.discarded_card || "選択したカード",
+      ),
+    );
+    options.append(summary);
+    addAction(
+      options,
+      "相手の捨て札を開く",
+      () => {
+        closeChoiceDialog();
+        handlers.openOpponentDiscards();
+      },
+      { kind: "primary" },
+    );
     return;
   }
 
@@ -1298,6 +1362,17 @@ function renderActionBar(state, handlers) {
       "選択を確定する",
       () => handlers.action("confirm_clairvoyance"),
       { kind: "primary" },
+    );
+  } else if (
+    step === "PSY_PUSH_SELECTION" &&
+    interaction?.kind === "psychokinesis_push"
+  ) {
+    message = "STEP 2 / 2：相手の裏向き捨て札から、手札へ戻す1枚を選択してください。";
+    addAction(
+      buttons,
+      "相手の捨て札を開く",
+      handlers.openOpponentDiscards,
+      { kind: "secondary" },
     );
   }
 
@@ -1784,6 +1859,10 @@ export function renderGame(
     healingConfirmDialog.close();
   }
   const psychokinesisDialog = byId("psychokinesis-dialog");
+  if (state.game.turn_step !== "PSY_PUSH_SELECTION") {
+    psychokinesisPushGuideShown = false;
+    delete byId("choice-dialog").dataset.mode;
+  }
   if (
     !["PSY_DISCARD_SELECTION", "PSY_PUSH_SELECTION"].includes(
       state.game.turn_step,
@@ -1807,6 +1886,11 @@ export function renderGame(
   const clairHighlights = clairvoyanceHighlights(state);
   const psychHighlights = psychokinesisHighlights(state);
   const regenHighlights = healingHighlights(state);
+  const allowDiscardStackExpansion =
+    state.interaction?.kind === "healing";
+  if (!allowDiscardStackExpansion) {
+    expandedDiscardStacks.clear();
+  }
   const opponentHandHighlights = new Set([
     ...clairHighlights.hand,
     ...psychHighlights.hand,
@@ -1832,6 +1916,7 @@ export function renderGame(
       ...psychHighlights.discards,
     ]),
     regenHighlights.opponent,
+    { allowStackExpansion: allowDiscardStackExpansion },
   );
   const opponentDiscardCount = state.discards.opponent.reduce(
     (count, group) => count + group.length,
@@ -1844,11 +1929,16 @@ export function renderGame(
       state.interaction?.kind,
     ),
   );
+  byId("opponent-discard-panel").classList.toggle(
+    "psychokinesis-targeting",
+    state.interaction?.kind === "psychokinesis_push",
+  );
   renderDiscardGroups(
     byId("my-discards"),
     state.discards.mine,
     new Set(),
     regenHighlights.mine,
+    { allowStackExpansion: allowDiscardStackExpansion },
   );
   const myDiscardCount = state.discards.mine.reduce(
     (count, group) => count + group.length,

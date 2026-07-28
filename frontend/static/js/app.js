@@ -15,6 +15,10 @@ const gameScreen = document.getElementById("game-screen");
 const joinForm = document.getElementById("join-form");
 const nameInput = document.getElementById("player-name");
 const roomInput = document.getElementById("room-id");
+const joinRoomButton = document.getElementById("join-room-button");
+const inviteBanner = document.getElementById("invite-banner");
+const inviteRoomCode = document.getElementById("invite-room-code");
+const invitedRoomId = readInvitedRoomId();
 const chatForm = document.getElementById("chat-form");
 const chatInput = document.getElementById("chat-message");
 const toast = document.getElementById("toast");
@@ -26,6 +30,7 @@ const sessionToggleButton = document.getElementById("session-toggle-button");
 const logPanel = document.getElementById("log-panel");
 const chatPanel = document.getElementById("chat-panel");
 const sessionPanel = document.getElementById("session-panel");
+const shareRoomButton = document.getElementById("share-room-button");
 const utilityPanelBackdrop = document.getElementById("utility-panel-backdrop");
 const discardLayoutMedia = window.matchMedia("(orientation: landscape)");
 const discardPanels = {
@@ -127,6 +132,19 @@ function setBattleLogOpen(open) {
   setUtilityPanel(open ? "log" : null);
 }
 
+function openOpponentDiscards() {
+  setUtilityPanel();
+  setDiscardPanelOpen("opponent", true);
+  if (!discardLayoutMedia.matches) {
+    window.requestAnimationFrame(() => {
+      discardPanels.opponent.panel.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+  }
+}
+
 function showToast(message) {
   window.clearTimeout(toastTimer);
   toast.textContent = message;
@@ -143,6 +161,82 @@ function errorMessage(error) {
   return "予期しないエラーが発生しました。";
 }
 
+function readInvitedRoomId() {
+  const roomId = new URLSearchParams(window.location.search)
+    .get("room")
+    ?.trim();
+  const maxLength = roomInput?.maxLength || 40;
+  if (
+    !roomId ||
+    roomId.length > maxLength ||
+    /[\u0000-\u001f\u007f]/.test(roomId)
+  ) {
+    return null;
+  }
+  return roomId;
+}
+
+function syncInvitePresentation() {
+  const isInvitedRoom = Boolean(
+    invitedRoomId && roomInput.value.trim() === invitedRoomId,
+  );
+  inviteBanner.hidden = !isInvitedRoom;
+  inviteRoomCode.textContent = isInvitedRoom ? invitedRoomId : "";
+  joinRoomButton.textContent = isInvitedRoom
+    ? "この部屋に参加する"
+    : "入室する";
+}
+
+function applyRoomInvitation() {
+  if (invitedRoomId) {
+    roomInput.value = invitedRoomId;
+  }
+  syncInvitePresentation();
+}
+
+function buildRoomInviteUrl(roomId) {
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set("room", roomId);
+  return url.toString();
+}
+
+async function copyRoomInviteUrl(url) {
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast("招待URLをコピーしました。LINEなどで共有できます。");
+  } catch {
+    window.prompt("招待URLをコピーしてください。", url);
+  }
+}
+
+async function shareRoomInvite() {
+  const roomId = roomInput.value.trim();
+  if (!roomId) {
+    showToast("共有するあいことばを入力してください。");
+    roomInput.focus();
+    return;
+  }
+  const url = buildRoomInviteUrl(roomId);
+  if (typeof navigator.share === "function") {
+    try {
+      await navigator.share({
+        title: "超能力カードゲーム ESPER",
+        text: "ESPERの対戦に招待します。リンクを開いて参加してください。",
+        url,
+      });
+      showToast("招待URLを共有しました。");
+      return;
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        return;
+      }
+    }
+  }
+  await copyRoomInviteUrl(url);
+}
+
 function setBusy(value) {
   busy = value;
   document.getElementById("app").setAttribute("aria-busy", String(value));
@@ -157,12 +251,14 @@ function showLanding() {
   gameScreen.hidden = true;
   landingScreen.hidden = false;
   setConnectionStatus(false);
-  roomInput.focus();
+  syncInvitePresentation();
+  (inviteBanner.hidden ? roomInput : nameInput).focus();
 }
 
 function handlers() {
   return {
     action: performAction,
+    openOpponentDiscards,
     rematch: requestRematch,
     leave: leaveRoom,
     returnHome: () => {
@@ -266,6 +362,8 @@ async function leaveRoom() {
   }
 }
 
+roomInput.addEventListener("input", syncInvitePresentation);
+
 joinForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const name = nameInput.value.trim() || "プレイヤー";
@@ -364,6 +462,8 @@ document.addEventListener("keydown", (event) => {
 
 document.getElementById("leave-button").addEventListener("click", leaveRoom);
 
+shareRoomButton.addEventListener("click", shareRoomInvite);
+
 document.getElementById("copy-room-button").addEventListener("click", async () => {
   if (!api.session) {
     return;
@@ -398,5 +498,6 @@ async function restoreSession() {
   }
 }
 
+applyRoomInvitation();
 syncDiscardLayout();
 restoreSession();

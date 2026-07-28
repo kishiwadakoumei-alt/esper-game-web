@@ -326,6 +326,32 @@ class StateServiceInteractionTests(unittest.TestCase):
             json.dumps(state, ensure_ascii=False),
         )
 
+    def test_psychokinesis_push_exposes_only_the_face_up_discarded_card(self):
+        game = make_game()
+        game.turn_step = "PSY_PUSH_SELECTION"
+        game.active_ability = {
+            "role": "p1",
+            "name": "サイコキネシス",
+            "psych_discarded_card": "PUBLIC_OPPONENT_DISCARD",
+        }
+
+        state = StateService.build_public_state(game, "p1")
+        interaction = state["interaction"]
+
+        self.assertEqual(interaction["kind"], "psychokinesis_push")
+        self.assertEqual(
+            interaction["discarded_card"],
+            "PUBLIC_OPPONENT_DISCARD",
+        )
+        self.assertEqual(
+            interaction["options"],
+            [{"group_index": 0, "label": "裏向きの捨て札 1"}],
+        )
+        self.assertNotIn(
+            "SECRET_OPPONENT_DISCARD",
+            json.dumps(state, ensure_ascii=False),
+        )
+
     def test_psychokinesis_options_do_not_contain_card_names(self):
         game = make_game()
         game.turn_step = "PSY_DISCARD_SELECTION"

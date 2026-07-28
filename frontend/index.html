@@ -53,6 +53,15 @@
             </div>
           </div>
 
+          <aside id="invite-banner" class="invite-banner" role="status" hidden>
+            <span>ROOM INVITATION</span>
+            <div>
+              <p>対戦へ招待されています</p>
+              <strong id="invite-room-code"></strong>
+            </div>
+            <small>名前を確認して、この部屋へ参加してください。</small>
+          </aside>
+
           <form id="join-form" novalidate>
             <label for="player-name">あなたの名前</label>
             <input
@@ -74,9 +83,18 @@
                 autocomplete="off"
                 required
               >
-              <button class="primary-button" type="submit">入室する</button>
+              <button id="join-room-button" class="primary-button" type="submit">
+                入室する
+              </button>
             </div>
             <p class="field-hint">同じあいことばを入力した2人が対戦できます。</p>
+            <button id="share-room-button" class="entry-share-button" type="button">
+              <span aria-hidden="true">↗</span>
+              <span>
+                <strong>このあいことばの招待URLを共有</strong>
+                <small>LINEなどで対戦相手を招待</small>
+              </span>
+            </button>
           </form>
 
           <div class="divider"><span>OR PLAY SOLO</span></div>

@@ -332,6 +332,62 @@ input:focus {
   font-size: 11px;
 }
 
+.invite-banner {
+  margin: 0 0 22px;
+  padding: 16px 18px;
+  border: 1px solid rgba(86, 216, 228, 0.38);
+  border-left: 3px solid var(--cyan);
+  border-radius: 4px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(86, 216, 228, 0.13), transparent 44%),
+    rgba(8, 18, 31, 0.9);
+  box-shadow: 0 0 26px rgba(86, 216, 228, 0.08);
+}
+
+.invite-banner[hidden] {
+  display: none;
+}
+
+.invite-banner > span {
+  display: block;
+  color: var(--cyan);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.invite-banner > div {
+  display: flex;
+  margin-top: 7px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.invite-banner p {
+  margin: 0;
+  color: #edf8ff;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.invite-banner strong {
+  overflow-wrap: anywhere;
+  color: var(--cyan);
+  text-align: right;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  text-shadow: 0 0 14px rgba(86, 216, 228, 0.38);
+}
+
+.invite-banner small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
 .divider {
   display: flex;
   gap: 14px;
@@ -3618,6 +3674,58 @@ button.card:hover .card-art,
   width: 100%;
   justify-content: center;
   background: #0b1322;
+}
+
+.entry-share-button {
+  display: flex;
+  width: 100%;
+  margin-top: 14px;
+  min-height: 58px;
+  padding: 11px 14px;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(86, 216, 228, 0.38);
+  border-radius: 4px;
+  color: #dffbff;
+  text-align: left;
+  background:
+    linear-gradient(90deg, rgba(86, 216, 228, 0.12), transparent),
+    #0b1424;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.entry-share-button > span:first-child {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border: 1px solid rgba(86, 216, 228, 0.42);
+  border-radius: 50%;
+  color: var(--cyan);
+  font-size: 16px;
+}
+
+.entry-share-button strong,
+.entry-share-button small {
+  display: block;
+}
+
+.entry-share-button strong {
+  font-size: 11px;
+}
+
+.entry-share-button small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.entry-share-button:hover,
+.entry-share-button:focus-visible {
+  border-color: var(--cyan);
+  box-shadow: 0 0 22px rgba(86, 216, 228, 0.18);
+  transform: translateY(-1px);
 }
 
 .session-leave-button {

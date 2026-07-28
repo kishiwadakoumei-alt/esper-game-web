@@ -38,6 +38,35 @@ class FrontendDeliveryTests(unittest.TestCase):
             response.text,
         )
 
+    def test_room_invitation_url_prefills_room_and_can_be_shared(self):
+        html = (FRONTEND_ROOT / "index.html").read_text()
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+        app = (
+            FRONTEND_ROOT / "static" / "js" / "app.js"
+        ).read_text()
+
+        for element_id in (
+            "invite-banner",
+            "invite-room-code",
+            "join-room-button",
+            "share-room-button",
+        ):
+            self.assertIn(f'id="{element_id}"', html)
+        self.assertIn("URLSearchParams(window.location.search)", app)
+        self.assertIn('.get("room")', app)
+        self.assertIn("applyRoomInvitation", app)
+        self.assertIn('url.searchParams.set("room", roomId)', app)
+        self.assertIn('const roomId = roomInput.value.trim()', app)
+        self.assertIn("共有するあいことばを入力してください。", app)
+        self.assertNotIn('url.searchParams.set("token"', app)
+        self.assertIn('typeof navigator.share === "function"', app)
+        self.assertIn("navigator.clipboard.writeText(url)", app)
+        self.assertIn("この部屋に参加する", app)
+        self.assertIn(".invite-banner", css)
+        self.assertIn(".entry-share-button", css)
+
     def test_css_and_javascript_are_served_separately(self):
         html = self.client.get("/").text
         css = self.client.get("/static/css/styles.css")

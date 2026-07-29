@@ -3372,6 +3372,14 @@ button.card:hover .card-art,
   overflow: visible;
 }
 
+.opponent-zone .battle-hand-row {
+  direction: rtl;
+}
+
+.opponent-zone .battle-hand-row .card {
+  direction: ltr;
+}
+
 .battle-hand-row .card,
 .my-zone .battle-hand-row .card,
 .opponent-zone .battle-hand-row .card {
@@ -3491,22 +3499,53 @@ button.card:hover .card-art,
 
   .battle-hand-row,
   .my-zone .battle-hand-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: flex-start;
+    --fan-card-width: clamp(72px, 22vw, 88px);
+    position: relative;
+    display: block;
+    width: 100%;
+    min-height: clamp(106px, 33vw, 138px);
     overflow: visible;
   }
 
   .battle-hand-row .card,
   .my-zone .battle-hand-row .card,
   .opponent-zone .battle-hand-row .card {
-    width: 68px;
-    min-width: 68px;
-    max-width: 68px;
-    height: 94px;
-    min-height: 94px;
-    aspect-ratio: auto;
+    position: absolute;
+    top: 50%;
+    left: var(--fan-left);
+    width: var(--fan-card-width);
+    min-width: var(--fan-card-width);
+    max-width: var(--fan-card-width);
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 78 / 108;
+    transform: translate(
+      var(--fan-offset),
+      calc(-50% + var(--fan-y))
+    ) rotate(var(--fan-angle));
+    transform-origin: center bottom;
+  }
+
+  .battle-hand-row .card:is(:hover, :focus-visible, .selected) {
+    z-index: 20;
+    transform: translate(
+      var(--fan-offset),
+      calc(-50% + var(--fan-y) + var(--fan-lift))
+    ) rotate(var(--fan-angle));
+  }
+
+  body.game-active .game-screen .card-name {
+    display: none;
+  }
+
+  body.game-active .game-screen .card:not(.hidden-card) {
+    padding: clamp(12px, 3vw, 16px) 3px 5px;
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  body.game-active .game-screen .card-art {
+    width: 82%;
   }
 
   .discard-toggle-button,
@@ -3532,7 +3571,7 @@ button.card:hover .card-art,
 
   .discard-popover .discard-row {
     grid-template-columns: repeat(6, minmax(0, 61px));
-    gap: clamp(4px, 1.5vw, 8px);
+    gap: clamp(6px, 2vw, 10px);
     overflow: visible;
   }
 
@@ -3543,6 +3582,7 @@ button.card:hover .card-art,
 
   .discard-popover .discard-stack:not(.expanded) .card {
     width: 100%;
+    left: min(var(--discard-stack-offset), 2px) !important;
     min-width: 0;
     height: auto;
     min-height: 0;
@@ -3656,9 +3696,9 @@ button.card:hover .card-art,
   body.game-active .battle-hand-row .card,
   body.game-active .my-zone .battle-hand-row .card,
   body.game-active .opponent-zone .battle-hand-row .card {
-    width: auto;
-    max-width: 100%;
-    height: clamp(58px, 17dvh, 128px);
+    width: var(--fan-card-width);
+    max-width: var(--fan-card-width);
+    height: auto;
     min-height: 0;
     aspect-ratio: 78 / 108;
     justify-self: center;

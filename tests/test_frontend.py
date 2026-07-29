@@ -840,6 +840,19 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn('matchMedia("(hover: hover) and (pointer: fine)")', renderer)
         self.assertIn('event.pointerType === "mouse"', renderer)
         self.assertIn("CARD_EFFECTS[name]", renderer)
+        focus_handler = renderer.split(
+            'addEventListener("focusin"',
+            1,
+        )[1].split("});", 1)[0]
+        self.assertIn('cardDetailInputModality !== "keyboard"', focus_handler)
+        self.assertLess(
+            focus_handler.index("cardDetailInputModality"),
+            focus_handler.index("showCardDetail"),
+        )
+        self.assertIn('["contextmenu", "selectstart"]', renderer)
+        self.assertIn("user-select: none", css)
+        self.assertIn('closest(".game-screen .card")', renderer)
+        self.assertIn("-webkit-touch-callout: none", css)
         self.assertIn('closest(".battle-hand-row")', renderer)
         self.assertIn("(max-width: 680px) and (orientation: portrait)", renderer)
         self.assertIn('tooltip.dataset.placement = "above-hand"', renderer)

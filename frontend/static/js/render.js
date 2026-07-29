@@ -174,6 +174,7 @@ let cardDetailLongPressTimer = null;
 let cardDetailTouch = null;
 let cardDetailAnchor = null;
 let suppressCardDetailClick = false;
+let cardDetailInputModality = "pointer";
 
 function visibleCardFromTarget(target) {
   return target instanceof Element
@@ -268,6 +269,25 @@ function hideCardDetail() {
 function initializeCardDetails() {
   const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
 
+  document.addEventListener("keydown", () => {
+    cardDetailInputModality = "keyboard";
+  }, true);
+
+  document.addEventListener("pointerdown", () => {
+    cardDetailInputModality = "pointer";
+  }, true);
+
+  ["contextmenu", "selectstart"].forEach((eventName) => {
+    document.addEventListener(eventName, (event) => {
+      const card = event.target instanceof Element
+        ? event.target.closest(".game-screen .card")
+        : null;
+      if (card) {
+        event.preventDefault();
+      }
+    });
+  });
+
   document.addEventListener("pointerover", (event) => {
     if (!finePointer.matches) {
       return;
@@ -290,6 +310,9 @@ function initializeCardDetails() {
 
   document.addEventListener("focusin", (event) => {
     const card = visibleCardFromTarget(event.target);
+    if (cardDetailInputModality !== "keyboard") {
+      return;
+    }
     if (card) {
       showCardDetail(card);
     }

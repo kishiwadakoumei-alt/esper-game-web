@@ -726,6 +726,26 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("direction: rtl", opponent_hand)
         self.assertIn("direction: ltr", opponent_cards)
 
+    def test_portrait_hand_fits_six_cards_on_one_row(self):
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+        portrait = css.split(
+            "@media (max-width: 680px) and (orientation: portrait) {",
+            3,
+        )[3].split("@media", 1)[0]
+
+        self.assertIn("display: grid", portrait)
+        self.assertIn(
+            "grid-template-columns: repeat(6, minmax(0, 68px))",
+            portrait,
+        )
+        card_names = portrait.split(
+            "body.game-active .game-screen .card-name {",
+            1,
+        )[1].split("}", 1)[0]
+        self.assertIn("display: none", card_names)
+
     def test_discard_overlay_stays_visible_above_context_actions(self):
         css = (
             FRONTEND_ROOT / "static" / "css" / "styles.css"

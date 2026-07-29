@@ -3499,22 +3499,36 @@ button.card:hover .card-art,
 
   .battle-hand-row,
   .my-zone .battle-hand-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: flex-start;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 68px));
+    gap: clamp(3px, 1vw, 8px);
+    justify-content: center;
     overflow: visible;
   }
 
   .battle-hand-row .card,
   .my-zone .battle-hand-row .card,
   .opponent-zone .battle-hand-row .card {
-    width: 68px;
-    min-width: 68px;
+    width: 100%;
+    min-width: 0;
     max-width: 68px;
-    height: 94px;
-    min-height: 94px;
-    aspect-ratio: auto;
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 78 / 108;
+  }
+
+  body.game-active .game-screen .card-name {
+    display: none;
+  }
+
+  body.game-active .game-screen .card:not(.hidden-card) {
+    padding: clamp(12px, 3vw, 16px) 3px 5px;
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  body.game-active .game-screen .card-art {
+    width: 82%;
   }
 
   .discard-toggle-button,
@@ -3664,9 +3678,9 @@ button.card:hover .card-art,
   body.game-active .battle-hand-row .card,
   body.game-active .my-zone .battle-hand-row .card,
   body.game-active .opponent-zone .battle-hand-row .card {
-    width: auto;
+    width: 100%;
     max-width: 100%;
-    height: clamp(58px, 17dvh, 128px);
+    height: auto;
     min-height: 0;
     aspect-ratio: 78 / 108;
     justify-self: center;

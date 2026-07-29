@@ -710,6 +710,22 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("repeat(6, minmax(0, 61px))", css)
         self.assertIn(".discard-popover-header", css)
 
+    def test_opponent_hand_is_aligned_from_viewers_right(self):
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+
+        opponent_hand = css.split(
+            ".opponent-zone .battle-hand-row {",
+            1,
+        )[1].split("}", 1)[0]
+        opponent_cards = css.split(
+            ".opponent-zone .battle-hand-row .card {",
+            1,
+        )[1].split("}", 1)[0]
+        self.assertIn("direction: rtl", opponent_hand)
+        self.assertIn("direction: ltr", opponent_cards)
+
     def test_discard_overlay_stays_visible_above_context_actions(self):
         css = (
             FRONTEND_ROOT / "static" / "css" / "styles.css"

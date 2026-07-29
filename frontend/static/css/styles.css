@@ -3372,6 +3372,14 @@ button.card:hover .card-art,
   overflow: visible;
 }
 
+.opponent-zone .battle-hand-row {
+  direction: rtl;
+}
+
+.opponent-zone .battle-hand-row .card {
+  direction: ltr;
+}
+
 .battle-hand-row .card,
 .my-zone .battle-hand-row .card,
 .opponent-zone .battle-hand-row .card {

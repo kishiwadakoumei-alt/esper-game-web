@@ -388,9 +388,13 @@ class GameServiceAbilityNotificationTests(unittest.TestCase):
             {"type": "discard", "label": "捨て札", "name": "SECRET_DISCARD"},
         ]
         game.temp_selection = [0, 1]
+        game.p1_hand = ["A", "B", "C", "D", "E", "F"]
         game.deck = ["D1", "D2"]
 
         GameService.finish_clairvoyance(game, "p1", "Alice")
+        self.assertEqual(game.temp_selection, [])
+        self.assertEqual(game.current_turn, "p2")
+        self.assertEqual(game.turn_step, "DISCARD")
 
         victim_event = StateService.build_public_state(game, "p2")[
             "action_events"

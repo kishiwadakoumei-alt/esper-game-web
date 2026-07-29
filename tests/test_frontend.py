@@ -238,6 +238,9 @@ class FrontendDeliveryTests(unittest.TestCase):
         renderer = (
             FRONTEND_ROOT / "static" / "js" / "render.js"
         ).read_text()
+        app = (
+            FRONTEND_ROOT / "static" / "js" / "app.js"
+        ).read_text()
 
         self.assertIn("clairvoyanceHighlights", renderer)
         self.assertIn("option.target.zone === \"opponent_hand\"", renderer)
@@ -252,6 +255,22 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("toggle_clairvoyance_selection", renderer)
         self.assertIn("透視対象に選択", renderer)
         self.assertIn(".card.hidden-card.selected", css)
+        self.assertIn("revealClairvoyanceTargets", renderer)
+        self.assertIn('interaction?.kind !== "clairvoyance_reveal"', renderer)
+        self.assertIn('classList.remove("hidden-card", "selected")', renderer)
+        self.assertIn("decorateVisibleCard(node, option.name)", renderer)
+        self.assertIn(
+            'classList.add("clairvoyance-revealed", "newly-drawn")',
+            renderer,
+        )
+        self.assertIn('handlers.action("finish_clairvoyance")', renderer)
+        self.assertIn("表向きになったカードを確認してください", renderer)
+        self.assertNotIn("CLAIRVOYANCE RESULT", renderer)
+        self.assertNotIn("【透視】", renderer)
+        self.assertIn("revealsOpponentDiscard", app)
+        self.assertIn('setDiscardPanelOpen("opponent", true)', app)
+        self.assertIn('"finish_clairvoyance"', app)
+        self.assertIn(".card.newly-drawn", css)
 
     def test_prescience_orders_three_cards_before_confirmation(self):
         html = (FRONTEND_ROOT / "index.html").read_text()

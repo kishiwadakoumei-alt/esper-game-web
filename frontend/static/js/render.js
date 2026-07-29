@@ -1164,7 +1164,6 @@ function renderChoiceDialog(state, handlers) {
     "ABILITY",
     "MIMIC_SELECTION",
     "TELEPORT_SELECTION",
-    "CLAIR_REVEAL",
     "PRESCIENCE_SELECT_1",
     "PRESCIENCE_SELECT_2",
     "ROOM_DISBANDED",
@@ -1330,36 +1329,6 @@ function renderChoiceDialog(state, handlers) {
     return;
   }
 
-  if (step === "CLAIR_REVEAL" && interaction) {
-    const options = openChoiceDialog({
-      kicker: "CLAIRVOYANCE RESULT",
-      title: "透視結果",
-      copy: PHASE_MESSAGES[step],
-    });
-    if (!options) {
-      return;
-    }
-    interaction.options.forEach((option) => {
-      if (option.selected) {
-        options.append(create(
-          "div",
-          "action-button primary",
-          `【透視】${option.name}`,
-        ));
-      }
-    });
-    addAction(
-      options,
-      "確認完了",
-      () => {
-        closeChoiceDialog();
-        handlers.action("finish_clairvoyance");
-      },
-      { kind: "primary" },
-    );
-    return;
-  }
-
   if (state.game.finished) {
     const options = openChoiceDialog({
       kicker: "GAME RESULT",
@@ -1454,6 +1423,14 @@ function renderActionBar(state, handlers) {
       buttons,
       "選択を確定する",
       () => handlers.action("confirm_clairvoyance"),
+      { kind: "primary" },
+    );
+  } else if (step === "CLAIR_REVEAL" && interaction) {
+    message = "表向きになったカードを確認してください。";
+    addAction(
+      buttons,
+      "確認完了",
+      () => handlers.action("finish_clairvoyance"),
       { kind: "primary" },
     );
   } else if (
@@ -1881,10 +1858,7 @@ function clairvoyanceHighlights(state) {
     discards: new Set(),
   };
   const interaction = state.interaction;
-  if (
-    !interaction ||
-    !["clairvoyance", "clairvoyance_reveal"].includes(interaction.kind)
-  ) {
+  if (!interaction || interaction.kind !== "clairvoyance") {
     return highlights;
   }
 
@@ -1898,6 +1872,38 @@ function clairvoyanceHighlights(state) {
       }
     });
   return highlights;
+}
+
+function revealClairvoyanceTargets(state) {
+  const interaction = state.interaction;
+  if (interaction?.kind !== "clairvoyance_reveal") {
+    return;
+  }
+
+  interaction.options
+    .filter((option) => option.selected && option.name && option.target)
+    .forEach((option) => {
+      let node;
+      if (option.target.zone === "opponent_hand") {
+        node = byId("opponent-hand").children[option.target.index];
+      } else {
+        const stack = byId("opponent-discards").children[option.target.index];
+        const cards = stack
+          ? [...stack.querySelectorAll(":scope > .card")]
+          : [];
+        node = cards[cards.length - 1];
+      }
+      if (!node) {
+        return;
+      }
+      node.classList.remove("hidden-card", "selected");
+      decorateVisibleCard(node, option.name);
+      node.classList.add("clairvoyance-revealed", "newly-drawn");
+      node.setAttribute(
+        "aria-label",
+        `${option.label}: ${option.name}`,
+      );
+    });
 }
 
 export function renderGame(
@@ -2011,6 +2017,7 @@ export function renderGame(
     regenHighlights.opponent,
     { allowStackExpansion: allowDiscardStackExpansion },
   );
+  revealClairvoyanceTargets(state);
   const opponentDiscardCount = state.discards.opponent.reduce(
     (count, group) => count + group.length,
     0,

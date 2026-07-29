@@ -849,6 +849,21 @@ class FrontendDeliveryTests(unittest.TestCase):
             focus_handler.index("cardDetailInputModality"),
             focus_handler.index("showCardDetail"),
         )
+        focusout_handler = renderer.split(
+            'addEventListener("focusout"',
+            1,
+        )[1].split("});", 1)[0]
+        self.assertIn('cardDetailInputModality !== "keyboard"', focusout_handler)
+        pointerdown_handler = renderer.split(
+            'addEventListener("pointerdown", (event)',
+            1,
+        )[1].split("});", 1)[0]
+        self.assertIn("cardDetailAnchor !== card", pointerdown_handler)
+        self.assertIn("suppressCardDetailClick = false", pointerdown_handler)
+        self.assertLess(
+            pointerdown_handler.index("hideCardDetail"),
+            pointerdown_handler.index("window.setTimeout"),
+        )
         self.assertIn('["contextmenu", "selectstart"]', renderer)
         self.assertIn("user-select: none", css)
         self.assertIn('closest(".game-screen .card")', renderer)

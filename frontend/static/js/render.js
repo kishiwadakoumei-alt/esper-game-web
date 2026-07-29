@@ -193,6 +193,34 @@ function positionCardDetail(card) {
   const tooltipRect = tooltip.getBoundingClientRect();
   const margin = 12;
   const gap = 10;
+  const hand = card.closest(".battle-hand-row");
+  const portraitHand =
+    hand &&
+    window.matchMedia(
+      "(max-width: 680px) and (orientation: portrait)",
+    ).matches;
+  if (portraitHand) {
+    const handTop = Math.min(
+      ...[...hand.children].map(
+        (node) => node.getBoundingClientRect().top,
+      ),
+    );
+    const handRect = hand.getBoundingClientRect();
+    const left = Math.max(
+      margin,
+      Math.min(
+        handRect.left + (handRect.width - tooltipRect.width) / 2,
+        window.innerWidth - tooltipRect.width - margin,
+      ),
+    );
+    const top = Math.max(margin, handTop - tooltipRect.height - gap);
+    tooltip.dataset.placement = "above-hand";
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+    return;
+  }
+  delete tooltip.dataset.placement;
+
   let left = cardRect.right + gap;
   if (left + tooltipRect.width > window.innerWidth - margin) {
     left = cardRect.left - tooltipRect.width - gap;
@@ -327,6 +355,33 @@ function initializeCardDetails() {
 
 initializeCardDetails();
 
+const HAND_FAN_SLOT_COUNT = 6;
+
+function appendHandCard(container, node, index, total) {
+  if (container.classList.contains("battle-hand-row")) {
+    const isOpponent = container.id === "opponent-hand";
+    const visualIndex = isOpponent ? total - index - 1 : index;
+    const firstSlot = isOpponent ? HAND_FAN_SLOT_COUNT - total : 0;
+    const slot = firstSlot + visualIndex;
+    const position = (slot / (HAND_FAN_SLOT_COUNT - 1)) * 100;
+    const center = (total - 1) / 2;
+    const distanceFromCenter = Math.abs(visualIndex - center);
+    const verticalOffset = isOpponent
+      ? (center - distanceFromCenter) * 4
+      : distanceFromCenter * 4;
+
+    node.style.setProperty("--fan-left", `${position}%`);
+    node.style.setProperty("--fan-offset", `${-position}%`);
+    node.style.setProperty(
+      "--fan-angle",
+      `${(visualIndex - center) * 2.4}deg`,
+    );
+    node.style.setProperty("--fan-y", `${verticalOffset}px`);
+    node.style.setProperty("--fan-lift", isOpponent ? "12px" : "-12px");
+  }
+  container.append(node);
+}
+
 function renderCards(
   container,
   cards,
@@ -334,20 +389,20 @@ function renderCards(
 ) {
   clear(container);
   if (cards) {
-    cards.forEach((card, index) =>
-      container.append(
-        cardNode(card, { selected: selectedIndices.has(index) }),
-      ),
-    );
+    cards.forEach((card, index) => {
+      const node = cardNode(card, {
+        selected: selectedIndices.has(index),
+      });
+      appendHandCard(container, node, index, cards.length);
+    });
     return;
   }
   for (let index = 0; index < hiddenCount; index += 1) {
-    container.append(
-      cardNode(null, {
-        hidden: true,
-        selected: selectedIndices.has(index),
-      }),
-    );
+    const node = cardNode(null, {
+      hidden: true,
+      selected: selectedIndices.has(index),
+    });
+    appendHandCard(container, node, index, hiddenCount);
   }
 }
 
@@ -356,8 +411,10 @@ function applyDiscardStackLayout(stack, expanded) {
   stack.setAttribute("aria-expanded", String(expanded));
   const cards = [...stack.querySelectorAll(":scope > .card")];
   cards.forEach((card, index) => {
-    card.style.left = expanded ? "0" : `${index * 5}px`;
-    card.style.top = expanded ? "0" : `${index * 5}px`;
+    const offset = `${index * 5}px`;
+    card.style.setProperty("--discard-stack-offset", offset);
+    card.style.left = expanded ? "0" : "var(--discard-stack-offset)";
+    card.style.top = expanded ? "0" : offset;
   });
   const toggle = stack.querySelector(":scope > .discard-stack-toggle");
   if (toggle) {
@@ -721,7 +778,12 @@ function renderHand(state, onAction) {
         ? null
         : Math.min(now - startedAt, NEW_CARD_HIGHLIGHT_MS);
     if (!canDiscard) {
-      container.append(cardNode(card, { newlyDrawnElapsed }));
+      appendHandCard(
+        container,
+        cardNode(card, { newlyDrawnElapsed }),
+        index,
+        state.my_hand.length,
+      );
       return;
     }
     const option = options.find((item) => item.index === index);
@@ -739,7 +801,7 @@ function renderHand(state, onAction) {
     button.addEventListener("click", () =>
       confirmDiscard(card, option.index, onAction),
     );
-    container.append(button);
+    appendHandCard(container, button, index, state.my_hand.length);
   });
 }
 

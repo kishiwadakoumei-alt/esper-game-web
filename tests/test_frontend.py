@@ -349,6 +349,8 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn('expanded ? "−" : "＋"', renderer)
         self.assertIn("expandedDiscardStacks.delete(stackKey)", renderer)
         self.assertIn('querySelectorAll(":scope > .card")', renderer)
+        self.assertIn('"--discard-stack-offset"', renderer)
+        self.assertIn("min(var(--discard-stack-offset), 2px)", css)
         self.assertIn("expandedDiscardStacks.clear()", renderer)
         self.assertIn(".discard-stack.expanded", css)
         self.assertIn(".discard-stack.expandable:not(.expanded)", css)
@@ -726,20 +728,27 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("direction: rtl", opponent_hand)
         self.assertIn("direction: ltr", opponent_cards)
 
-    def test_portrait_hand_fits_six_cards_on_one_row(self):
+    def test_portrait_hand_uses_responsive_fan(self):
         css = (
             FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+        renderer = (
+            FRONTEND_ROOT / "static" / "js" / "render.js"
         ).read_text()
         portrait = css.split(
             "@media (max-width: 680px) and (orientation: portrait) {",
             3,
         )[3].split("@media", 1)[0]
 
-        self.assertIn("display: grid", portrait)
-        self.assertIn(
-            "grid-template-columns: repeat(6, minmax(0, 68px))",
-            portrait,
-        )
+        self.assertIn("--fan-card-width: clamp(72px, 22vw, 88px)", portrait)
+        self.assertIn("position: absolute", portrait)
+        self.assertIn("rotate(var(--fan-angle))", portrait)
+        self.assertIn("HAND_FAN_SLOT_COUNT = 6", renderer)
+        self.assertIn('node.style.setProperty("--fan-left"', renderer)
+        self.assertIn('"--fan-angle"', renderer)
+        self.assertIn('node.style.setProperty("--fan-lift"', renderer)
+        self.assertIn("HAND_FAN_SLOT_COUNT - total", renderer)
+        self.assertIn("total - index - 1", renderer)
         card_names = portrait.split(
             "body.game-active .game-screen .card-name {",
             1,
@@ -831,6 +840,10 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn('matchMedia("(hover: hover) and (pointer: fine)")', renderer)
         self.assertIn('event.pointerType === "mouse"', renderer)
         self.assertIn("CARD_EFFECTS[name]", renderer)
+        self.assertIn('closest(".battle-hand-row")', renderer)
+        self.assertIn("(max-width: 680px) and (orientation: portrait)", renderer)
+        self.assertIn('tooltip.dataset.placement = "above-hand"', renderer)
+        self.assertIn("handTop - tooltipRect.height - gap", renderer)
         self.assertIn(".card-detail-tooltip", css)
         self.assertIn("@keyframes card-detail-appear", css)
 

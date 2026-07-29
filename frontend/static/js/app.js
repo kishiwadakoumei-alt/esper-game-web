@@ -46,6 +46,7 @@ const discardPanels = {
 const DISCARD_SELECTION_CONFIRM_ACTIONS = new Set([
   "confirm_healing",
   "confirm_clairvoyance",
+  "finish_clairvoyance",
   "select_psychokinesis_push",
 ]);
 const discardPanelAnchors = Object.fromEntries(
@@ -309,8 +310,18 @@ async function performAction(action, payload = {}) {
   }
   setBusy(true);
   try {
-    updateState(await api.performAction(action, payload));
-    if (DISCARD_SELECTION_CONFIRM_ACTIONS.has(action)) {
+    const nextState = await api.performAction(action, payload);
+    updateState(nextState);
+    const revealsOpponentDiscard =
+      action === "confirm_clairvoyance" &&
+      nextState.interaction?.kind === "clairvoyance_reveal" &&
+      nextState.interaction.options.some(
+        (option) => option.selected &&
+          option.target?.zone === "opponent_discard",
+      );
+    if (revealsOpponentDiscard) {
+      setDiscardPanelOpen("opponent", true);
+    } else if (DISCARD_SELECTION_CONFIRM_ACTIONS.has(action)) {
       closeDiscardPanels();
     }
   } catch (error) {

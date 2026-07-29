@@ -319,6 +319,9 @@ function initializeCardDetails() {
   });
 
   document.addEventListener("focusout", (event) => {
+    if (cardDetailInputModality !== "keyboard") {
+      return;
+    }
     if (visibleCardFromTarget(event.target)) {
       hideCardDetail();
     }
@@ -333,6 +336,11 @@ function initializeCardDetails() {
       hideCardDetail();
       return;
     }
+    if (cardDetailAnchor && cardDetailAnchor !== card) {
+      hideCardDetail();
+      suppressCardDetailClick = false;
+    }
+
     clearCardDetailLongPress();
     cardDetailTouch = { x: event.clientX, y: event.clientY, card };
     cardDetailLongPressTimer = window.setTimeout(() => {

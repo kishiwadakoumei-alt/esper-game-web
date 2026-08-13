@@ -138,6 +138,7 @@ class EsperGameLogAndEndgameTests(unittest.TestCase):
         self.assertEqual(self.game.turn_step, "GAME_OVER")
         self.assertEqual(self.game.winner_role, "p1")
         self.assertEqual(self.game.result_reason, "ESPER達成")
+        self.assertEqual(self.game.end_trigger_reason, "テスト終了")
         self.assertIn("ESPER達成", self.game.log_message)
         self.assertIn("Alice の大勝利", self.game.log_message)
 
@@ -162,6 +163,7 @@ class EsperGameLogAndEndgameTests(unittest.TestCase):
         self.game.trigger_draw("補充するカードが足りません")
 
         self.assertEqual(self.game.turn_step, "GAME_OVER")
+        self.assertEqual(self.game.end_trigger_reason, "補充するカードが足りません")
         self.assertIn("【引き分け】", self.game.log_message)
         self.assertIsNone(self.game.log_history[-1]["role"])
 

@@ -155,6 +155,34 @@ const DEFEAT_COPY_BY_CARD = {
   カモフラージュ: "相手は最後まで正体を隠し、勝利だけを表にしました",
 };
 
+const HAND_VICTORY_COPY_BY_CARD = {
+  クレヤボヤンス: "最後の読み合いで、あなたの視界が一歩先を捉えました",
+  タイムリープ: "積み重ねた時間が、最後の判定を動かしました",
+  サイコキネシス: "見えない圧が、最後の判定で一歩押し切りました",
+  プリサイエンス: "先読みの積み重ねが、最後の判定で効きました",
+  テレポート: "遠回りせず、最後の判定で勝ち筋へ届きました",
+  ヒーリング: "立て直した流れが、最後の判定で実りました",
+  カモフラージュ: "隠していた輪郭が、最後の判定で効きました",
+};
+
+const HAND_DEFEAT_COPY_BY_CARD = {
+  クレヤボヤンス: "相手の視界が、最後の判定で一歩先を捉えました",
+  タイムリープ: "相手が積み重ねた時間が、最後の判定を動かしました",
+  サイコキネシス: "相手の見えない圧が、最後の判定を押し切りました",
+  プリサイエンス: "相手の先読みが、最後の判定で効きました",
+  テレポート: "相手は遠回りせず、最後の勝ち筋へ届きました",
+  ヒーリング: "相手が立て直した流れが、最後の判定で実りました",
+  カモフラージュ: "相手の隠していた輪郭が、最後の判定で効きました",
+};
+
+const END_TRIGGER_LABELS = {
+  ESPERを宣言: "ESPER DECLARATION",
+  山札が尽きました: "DECK OUT",
+  "捨て札が18組（上限）に達しました": "DISCARD LIMIT",
+  補充に必要な山札が足りなくなりました: "DECK SHORTAGE",
+  補充するカードが足りません: "DECK SHORTAGE",
+};
+
 function decorateVisibleCard(node, name) {
   const fileName = CARD_ART_FILES[name];
   node.dataset.cardName = name;
@@ -1158,14 +1186,57 @@ function renderResultCardFan(container, dominant) {
   });
 }
 
-function resultCopyText(presentation, outcome, dominant) {
+function isEsperResult(state, dominant) {
+  const reason = state.game.result?.reason;
+  return Boolean(
+    dominant.completed ||
+    reason === "ESPERを宣言" ||
+    reason === "ESPER達成" ||
+    reason === "双方がESPER達成"
+  );
+}
+
+function resultKickerText(presentation, outcome, dominant, state) {
+  if (["victory", "defeat"].includes(outcome) && !isEsperResult(state, dominant)) {
+    return "HAND VERDICT";
+  }
+  return presentation.kicker;
+}
+
+function resultTitleText(presentation, outcome, dominant, state) {
+  if (!isEsperResult(state, dominant)) {
+    if (outcome === "victory") {
+      return "判定勝利";
+    }
+    if (outcome === "defeat") {
+      return "判定敗北";
+    }
+  }
+  return presentation.title;
+}
+
+function resultCopyText(presentation, outcome, dominant, state) {
+  const esperResult = isEsperResult(state, dominant);
   if (outcome === "victory") {
-    return VICTORY_COPY_BY_CARD[dominant.card] || presentation.copy;
+    return esperResult
+      ? VICTORY_COPY_BY_CARD[dominant.card] || presentation.copy
+      : HAND_VICTORY_COPY_BY_CARD[dominant.card] ||
+          "最後の手札判定で、あなたが一歩先へ出ました";
   }
   if (outcome === "defeat") {
-    return DEFEAT_COPY_BY_CARD[dominant.card] || presentation.copy;
+    return esperResult
+      ? DEFEAT_COPY_BY_CARD[dominant.card] || presentation.copy
+      : HAND_DEFEAT_COPY_BY_CARD[dominant.card] ||
+          "相手が最後の手札判定で一歩上回りました";
   }
   return presentation.copy;
+}
+
+function resultConditionLabel(presentation, outcome, dominant, state) {
+  if (["victory", "defeat"].includes(outcome) && !isEsperResult(state, dominant)) {
+    return "FINAL HAND CHECK";
+  }
+  return presentation.condition;
 }
 
 function resultDominantLabel(outcome, dominant) {
@@ -1180,6 +1251,14 @@ function resultDominantLabel(outcome, dominant) {
   const prefix = outcome === "defeat" ? "相手の" : "";
   const suffix = dominant.completed ? "ESPER HAND" : "BEST HAND";
   return `${prefix}${dominant.card} — ${dominant.cards.length}枚 — ${suffix}`;
+}
+
+function resultEndTriggerText(state) {
+  const trigger = state.game.result?.end_trigger;
+  if (!trigger) {
+    return null;
+  }
+  return END_TRIGGER_LABELS[trigger] || "GAME ENDED";
 }
 
 function resultReasonText(state, outcome) {
@@ -1233,14 +1312,34 @@ function renderVictoryOverlay(state, handlers) {
     outcome === "draw" ? "159, 130, 232" : "86, 216, 228",
   );
   byId("victory-sigil-icon").textContent = presentation.sigil;
-  byId("victory-kicker").textContent = presentation.kicker;
-  byId("victory-title").textContent = presentation.title;
+  byId("victory-kicker").textContent = resultKickerText(
+    presentation,
+    outcome,
+    winnerDominant,
+    state,
+  );
+  byId("victory-title").textContent = resultTitleText(
+    presentation,
+    outcome,
+    winnerDominant,
+    state,
+  );
   byId("victory-copy").textContent = resultCopyText(
     presentation,
     outcome,
     winnerDominant,
+    state,
   );
-  byId("result-condition-label").textContent = presentation.condition;
+  const endTrigger = resultEndTriggerText(state);
+  const endTriggerPanel = byId("result-end-trigger");
+  endTriggerPanel.hidden = !endTrigger;
+  byId("result-end-trigger-value").textContent = endTrigger || "";
+  byId("result-condition-label").textContent = resultConditionLabel(
+    presentation,
+    outcome,
+    winnerDominant,
+    state,
+  );
   byId("victory-reason").textContent = resultReasonText(state, outcome);
   byId("my-result-status").textContent = presentation.myStatus;
   byId("opponent-result-status").textContent = presentation.opponentStatus;

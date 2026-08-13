@@ -493,6 +493,8 @@ class FrontendDeliveryTests(unittest.TestCase):
             "victory-card-fan",
             "opponent-result-card-fan",
             "victory-dominant-label",
+            "result-end-trigger",
+            "result-end-trigger-value",
             "result-condition-label",
             "victory-reason",
             "my-result-status",
@@ -518,12 +520,30 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("resultReasonText", renderer)
         self.assertIn("renderResultCardFan", renderer)
         self.assertIn("resultCopyText", renderer)
+        self.assertIn("resultKickerText", renderer)
+        self.assertIn("resultTitleText", renderer)
+        self.assertIn("resultConditionLabel", renderer)
+        self.assertIn("resultEndTriggerText", renderer)
+        self.assertIn("END_TRIGGER_LABELS", renderer)
+        self.assertIn("END TRIGGER", html)
+        self.assertIn("DECK OUT", renderer)
+        self.assertIn("DISCARD LIMIT", renderer)
+        self.assertIn("ESPER DECLARATION", renderer)
+        self.assertIn("state.game.result?.end_trigger", renderer)
+        self.assertIn("HAND VERDICT", renderer)
+        self.assertIn("FINAL HAND CHECK", renderer)
+        self.assertIn("判定勝利", renderer)
+        self.assertIn("判定敗北", renderer)
         self.assertIn("resultDominantLabel", renderer)
         self.assertIn("VICTORY_COPY_BY_CARD", renderer)
         self.assertIn("DEFEAT_COPY_BY_CARD", renderer)
+        self.assertIn("HAND_VICTORY_COPY_BY_CARD", renderer)
+        self.assertIn("HAND_DEFEAT_COPY_BY_CARD", renderer)
         self.assertIn("見えないはずの未来まで、あなたは読み切りました", renderer)
         self.assertIn("勝利までの距離を、一瞬で跳び越えました", renderer)
         self.assertIn("相手は勝利までの距離を、一瞬で跳び越えました", renderer)
+        self.assertIn("最後の判定で一歩押し切りました", renderer)
+        self.assertIn("相手が最後の手札判定で一歩上回りました", renderer)
         self.assertIn("state.opponent.hand || []", renderer)
         self.assertIn("winnerDominant", renderer)
         self.assertIn("outcome === \"defeat\"", renderer)
@@ -567,6 +587,8 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn(".outcome-defeat", css)
         self.assertIn(".outcome-draw", css)
         self.assertIn(".victory-card-display", css)
+        self.assertIn(".victory-result-trigger", css)
+        self.assertIn(".victory-result-detail", css)
         self.assertIn("--victory-fan-width", css)
         self.assertIn("--fan-x", css)
         self.assertIn("--fan-angle", css)

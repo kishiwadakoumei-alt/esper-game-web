@@ -93,6 +93,7 @@ class GameService:
         game.extra_turn_chain = 0
         game.winner_role = role
         game.result_reason = "ESPERを宣言"
+        game.end_trigger_reason = "ESPERを宣言"
         game.turn_step = "GAME_CLEAR"
 
     @staticmethod

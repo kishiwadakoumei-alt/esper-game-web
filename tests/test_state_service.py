@@ -120,6 +120,7 @@ class StateServiceVisibilityTests(unittest.TestCase):
         game.turn_step = "GAME_CLEAR"
         game.winner_role = "p1"
         game.result_reason = "ESPERを宣言"
+        game.end_trigger_reason = "ESPERを宣言"
 
         winner_state = StateService.build_public_state(game, "p1")
         loser_state = StateService.build_public_state(game, "p2")
@@ -130,6 +131,10 @@ class StateServiceVisibilityTests(unittest.TestCase):
         self.assertFalse(loser_state["game"]["result"]["is_winner"])
         self.assertEqual(
             winner_state["game"]["result"]["reason"],
+            "ESPERを宣言",
+        )
+        self.assertEqual(
+            winner_state["game"]["result"]["end_trigger"],
             "ESPERを宣言",
         )
 

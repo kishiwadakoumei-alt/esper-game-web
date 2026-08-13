@@ -55,6 +55,10 @@ const newlyDrawnCards = new Map();
 const NEW_CARD_HOLD_MS = 3000;
 const NEW_CARD_FADE_MS = 400;
 const NEW_CARD_HIGHLIGHT_MS = NEW_CARD_HOLD_MS + NEW_CARD_FADE_MS;
+const TURN_GUIDE_FULL_MS = 3400;
+const TURN_GUIDE_SHORT_MS = 1700;
+const TURN_GUIDE_SHORTEN_FROM_TURN = 3;
+const OPPONENT_TURN_NOTICE_MS = 2000;
 
 function byId(id) {
   return document.getElementById(id);
@@ -462,7 +466,7 @@ function renderDiscardGroups(
   groups,
   selectedGroups = new Set(),
   selectedCards = new Set(),
-  { allowStackExpansion = false } = {},
+  { allowStackExpansion = false, revealFaceDown = false } = {},
 ) {
   clear(container);
   if (!groups.length) {
@@ -479,10 +483,16 @@ function renderDiscardGroups(
     group.forEach((card, index) => {
       const selected =
         selectedGroup || selectedCards.has(`${groupIndex}:${index}`);
+      const wasFaceDown = revealFaceDown && !card.is_face_up && card.name;
       const node = cardNode(card.name, {
-        hidden: !card.is_face_up,
+        hidden: !card.is_face_up && !wasFaceDown,
         selected,
       });
+      if (wasFaceDown) {
+        node.classList.add("former-face-down");
+        node.append(create("span", "former-face-down-badge", "元裏向き"));
+        node.setAttribute("aria-label", `${card.name}（元は裏向き）`);
+      }
       stack.append(node);
     });
 
@@ -1138,6 +1148,12 @@ function renderVictoryOverlay(state, handlers) {
     dismissedResultKey = resultStateKey(state);
     overlay.hidden = true;
     renderActions(state, handlers);
+    window.requestAnimationFrame(() => {
+      byId("game-screen").scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   };
   byId("victory-leave-button").onclick = handlers.leave;
   closeChoiceDialog();
@@ -1160,6 +1176,11 @@ function renderChoiceDialog(state, handlers) {
     step === "PSY_PUSH_SELECTION" &&
     interaction?.kind === "psychokinesis_push" &&
     (!psychokinesisPushGuideShown || psychokinesisPushGuideOpen);
+  if (state.game.finished) {
+    closeChoiceDialog();
+    return;
+  }
+
   const modalStep = [
     "ABILITY",
     "MIMIC_SELECTION",
@@ -1167,7 +1188,7 @@ function renderChoiceDialog(state, handlers) {
     "PRESCIENCE_SELECT_1",
     "PRESCIENCE_SELECT_2",
     "ROOM_DISBANDED",
-  ].includes(step) || showPsychokinesisPushGuide || state.game.finished;
+  ].includes(step) || showPsychokinesisPushGuide;
 
   if (!modalStep) {
     closeChoiceDialog();
@@ -1329,35 +1350,6 @@ function renderChoiceDialog(state, handlers) {
     return;
   }
 
-  if (state.game.finished) {
-    const options = openChoiceDialog({
-      kicker: "GAME RESULT",
-      title: "対戦結果",
-      copy: state.game.latest_log,
-    });
-    if (!options) {
-      return;
-    }
-    if (state.rematch.requested_by_me) {
-      options.append(emptyNote("相手の再戦承認を待っています…"));
-    } else {
-      addAction(
-        options,
-        state.rematch.requested_by_opponent
-          ? "相手の希望を承認して再戦する"
-          : "もう一度対戦する",
-        () => {
-          closeChoiceDialog();
-          handlers.rematch();
-        },
-        { kind: "primary" },
-      );
-    }
-    addAction(options, "ルームを退出する", handlers.leave, {
-      kind: "danger",
-    });
-    return;
-  }
 
   if (step === "ROOM_DISBANDED") {
     const options = openChoiceDialog({
@@ -1392,7 +1384,33 @@ function renderActionBar(state, handlers) {
     );
   }
 
-  if (step === "THINK") {
+  if (state.game.finished) {
+    message = "公開された盤面を確認できます。";
+    addAction(
+      buttons,
+      "結果画面に戻る",
+      () => {
+        dismissedResultKey = null;
+        renderActions(state, handlers);
+      },
+      { kind: "secondary" },
+    );
+    if (state.rematch.requested_by_me) {
+      addAction(buttons, "相手の再戦承認を待っています…", () => {}, {
+        kind: "primary result-rematch-button",
+        disabled: true,
+      });
+    } else {
+      addAction(
+        buttons,
+        state.rematch.requested_by_opponent
+          ? "相手の希望を承認して再戦する"
+          : "もう一度対戦する",
+        handlers.rematch,
+        { kind: "primary result-rematch-button" },
+      );
+    }
+  } else if (step === "THINK") {
     message = "次の行動を選択してください。";
     if (actions.has("open_ability_selection")) {
       addAction(
@@ -1584,6 +1602,16 @@ function renderActionEvents(state, { suppress = false } = {}) {
   lastActionEventId = Math.max(lastActionEventId, newestId);
 }
 
+function turnChangeDuration(state, isMyTurn) {
+  if (!isMyTurn) {
+    return OPPONENT_TURN_NOTICE_MS;
+  }
+  const turnNumber = state.game.turn_counts?.[state.viewer.role] || 1;
+  return turnNumber >= TURN_GUIDE_SHORTEN_FROM_TURN
+    ? TURN_GUIDE_SHORT_MS
+    : TURN_GUIDE_FULL_MS;
+}
+
 function renderTurnChange(state, { suppress = false } = {}) {
   const currentOwner = state.game.current_turn;
   const currentStep = state.game.turn_step;
@@ -1617,7 +1645,7 @@ function renderTurnChange(state, { suppress = false } = {}) {
     detail: isMyTurn
       ? "手札からカードを1枚選んで捨て、山札から1枚引いてください。"
       : "",
-    duration_ms: isMyTurn ? 3400 : 2000,
+    duration_ms: turnChangeDuration(state, isMyTurn),
   });
 }
 
@@ -1792,12 +1820,9 @@ function bindClairvoyanceBoardTargets(state, handlers) {
   });
 }
 
-function bindOwnDiscardReveal(state) {
-  if (state.game.turn_step === "REGEN_SELECTION") {
-    return;
-  }
-  const container = byId("my-discards");
-  state.discards.mine.forEach((group, groupIndex) => {
+function bindDiscardReveal(containerId, groups) {
+  const container = byId(containerId);
+  groups.forEach((group, groupIndex) => {
     group.forEach((card, itemIndex) => {
       if (card.is_face_up || !card.name) {
         return;
@@ -1813,6 +1838,13 @@ function bindOwnDiscardReveal(state) {
       );
     });
   });
+}
+
+function bindOwnDiscardReveal(state) {
+  if (state.game.turn_step === "REGEN_SELECTION") {
+    return;
+  }
+  bindDiscardReveal("my-discards", state.discards.mine);
 }
 
 function bindBoardInteractions(state, handlers) {
@@ -1986,7 +2018,8 @@ export function renderGame(
   const psychHighlights = psychokinesisHighlights(state);
   const regenHighlights = healingHighlights(state);
   const allowDiscardStackExpansion =
-    state.interaction?.kind === "healing";
+    state.interaction?.kind === "healing" || state.game.finished;
+  const revealFinalBoard = state.game.finished;
   if (!allowDiscardStackExpansion) {
     expandedDiscardStacks.clear();
   }
@@ -2015,7 +2048,10 @@ export function renderGame(
       ...psychHighlights.discards,
     ]),
     regenHighlights.opponent,
-    { allowStackExpansion: allowDiscardStackExpansion },
+    {
+      allowStackExpansion: allowDiscardStackExpansion,
+      revealFaceDown: revealFinalBoard,
+    },
   );
   revealClairvoyanceTargets(state);
   const opponentDiscardCount = state.discards.opponent.reduce(
@@ -2038,7 +2074,10 @@ export function renderGame(
     state.discards.mine,
     new Set(),
     regenHighlights.mine,
-    { allowStackExpansion: allowDiscardStackExpansion },
+    {
+      allowStackExpansion: allowDiscardStackExpansion,
+      revealFaceDown: revealFinalBoard,
+    },
   );
   const myDiscardCount = state.discards.mine.reduce(
     (count, group) => count + group.length,

@@ -785,6 +785,7 @@ export function resetRenderState() {
     "choice-dialog",
     "discard-reveal-dialog",
     "healing-confirm-dialog",
+    "deck-order-dialog",
   ].forEach((id) => {
     const dialog = byId(id);
     if (dialog?.open) {
@@ -1854,15 +1855,79 @@ function bindBoardInteractions(state, handlers) {
   bindOwnDiscardReveal(state);
 }
 
+function deckOrderLabel(index, total) {
+  if (total === 1) {
+    return "山札の上・底";
+  }
+  if (index === 0) {
+    return "山札の上・次に引く";
+  }
+  if (index === total - 1) {
+    return "山札の底";
+  }
+  return `上から${index + 1}枚目`;
+}
+
+function showDeckOrderDialog(deckCards) {
+  const dialog = byId("deck-order-dialog");
+  const list = byId("deck-order-list");
+  if (!dialog || !list || !deckCards?.length) {
+    return;
+  }
+
+  clear(list);
+  deckCards.forEach((card, index) => {
+    const item = create("li", "deck-order-item");
+    item.classList.toggle("is-top", index === 0);
+    item.classList.toggle("is-bottom", index === deckCards.length - 1);
+    const label = deckOrderLabel(index, deckCards.length);
+    item.setAttribute("aria-label", `${label}: ${card}`);
+
+    const position = create(
+      "span",
+      "deck-order-position",
+      `${index + 1}/${deckCards.length}`,
+    );
+    const preview = create("div", "deck-order-card");
+    preview.append(cardNode(card));
+    const detail = create("div", "deck-order-detail");
+    detail.append(create("strong", "", card));
+    detail.append(create("small", "", label));
+    item.append(position, preview, detail);
+    list.append(item);
+  });
+
+  byId("deck-order-count").textContent = `${deckCards.length}枚`;
+  byId("deck-order-close-button").onclick = () => dialog.close();
+  dialog.oncancel = () => {
+    hideCardDetail();
+  };
+  if (!dialog.open) {
+    dialog.showModal();
+  }
+}
+
 function bindDeckAction(state, handlers) {
   const deck = byId("deck-action-button");
   const canDraw = state.available_actions.includes("draw_hand");
-  deck.disabled = !canDraw;
+  const deckCards = state.game.deck || [];
+  const canReviewDeck = state.game.finished && deckCards.length > 0;
+  deck.disabled = !canDraw && !canReviewDeck;
   deck.classList.toggle("actionable", canDraw);
-  deck.setAttribute("aria-label", canDraw ? "山札から1枚引く" : "山札");
+  deck.classList.toggle("reviewable", canReviewDeck);
+  deck.setAttribute(
+    "aria-label",
+    canDraw
+      ? "山札から1枚引く"
+      : canReviewDeck
+        ? "残り山札の順番を見る"
+        : "山札",
+  );
   deck.onclick = canDraw
     ? () => handlers.action("draw_hand")
-    : null;
+    : canReviewDeck
+      ? () => showDeckOrderDialog(deckCards)
+      : null;
 }
 
 function healingHighlights(state) {
@@ -1949,6 +2014,13 @@ export function renderGame(
   const revealDialog = byId("discard-reveal-dialog");
   if (revealDialog.open) {
     revealDialog.close();
+  }
+  const deckOrderDialog = byId("deck-order-dialog");
+  if (
+    deckOrderDialog.open &&
+    (!state.game.finished || !(state.game.deck || []).length)
+  ) {
+    deckOrderDialog.close();
   }
   const discardDialog = byId("discard-dialog");
   if (

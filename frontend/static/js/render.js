@@ -135,6 +135,26 @@ const RESULT_PRESENTATIONS = {
   },
 };
 
+const VICTORY_COPY_BY_CARD = {
+  クレヤボヤンス: "見えないはずの未来まで、あなたは読み切りました",
+  タイムリープ: "巻き戻した時間の先で、勝利だけを選び取りました",
+  サイコキネシス: "見えない力が、勝利の札を引き寄せました",
+  プリサイエンス: "予知した未来を、そのまま現実にしました",
+  テレポート: "勝利までの距離を、一瞬で跳び越えました",
+  ヒーリング: "折れかけた流れを癒やし、勝利へつなぎました",
+  カモフラージュ: "最後まで正体を隠し、勝利だけを表にしました",
+};
+
+const DEFEAT_COPY_BY_CARD = {
+  クレヤボヤンス: "相手は見えない未来まで読み切りました",
+  タイムリープ: "相手は時間を味方につけ、勝利へ戻ってきました",
+  サイコキネシス: "相手の見えない力が、勝利の札を引き寄せました",
+  プリサイエンス: "相手は予知した未来を、そのまま現実にしました",
+  テレポート: "相手は勝利までの距離を、一瞬で跳び越えました",
+  ヒーリング: "相手は折れかけた流れを癒やし、勝利へつなぎました",
+  カモフラージュ: "相手は最後まで正体を隠し、勝利だけを表にしました",
+};
+
 function decorateVisibleCard(node, name) {
   const fileName = CARD_ART_FILES[name];
   node.dataset.cardName = name;
@@ -1040,7 +1060,57 @@ function shouldShowResultOverlay(state) {
 }
 
 function dominantVictoryCard(cards) {
-  const counts = countCards(cards || []);
+  const hand = cards || [];
+  const counts = countCards(hand);
+  const mimicCount = counts.get("カモフラージュ") || 0;
+  const candidates = [];
+
+  if (mimicCount >= 5) {
+    candidates.push({
+      card: "カモフラージュ",
+      count: mimicCount,
+      naturalCount: mimicCount,
+      cards: hand.filter((card) => card === "カモフラージュ"),
+      completed: true,
+    });
+  }
+
+  const wildcardCount = Math.floor(mimicCount / 2);
+  counts.forEach((candidateCount, candidateCard) => {
+    if (candidateCard === "カモフラージュ") {
+      return;
+    }
+    const completed = candidateCount + wildcardCount >= 5;
+    const neededMimics = completed
+      ? Math.max(0, 5 - candidateCount) * 2
+      : 0;
+    const mimicCards = hand
+      .filter((card) => card === "カモフラージュ")
+      .slice(0, neededMimics);
+    candidates.push({
+      card: candidateCard,
+      count: candidateCount + Math.floor(mimicCards.length / 2),
+      naturalCount: candidateCount,
+      cards: [
+        ...hand.filter((card) => card === candidateCard),
+        ...mimicCards,
+      ],
+      completed,
+    });
+  });
+
+  const completedCandidates = candidates
+    .filter((candidate) => candidate.completed)
+    .sort((a, b) =>
+      b.count - a.count ||
+      b.naturalCount - a.naturalCount ||
+      b.cards.length - a.cards.length ||
+      a.card.localeCompare(b.card, "ja"),
+    );
+  if (completedCandidates.length) {
+    return completedCandidates[0];
+  }
+
   let card = null;
   let count = 0;
   counts.forEach((candidateCount, candidateCard) => {
@@ -1049,20 +1119,67 @@ function dominantVictoryCard(cards) {
       count = candidateCount;
     }
   });
-  return { card, count };
+  return {
+    card,
+    count,
+    naturalCount: count,
+    cards: hand.filter((candidateCard) => candidateCard === card),
+    completed: false,
+  };
 }
 
 function renderResultCardFan(container, dominant) {
   clear(container);
   if (!dominant.card) {
+    container.style.removeProperty("--victory-fan-width");
     return;
   }
-  const visibleCardCount = Math.min(Math.max(dominant.count, 1), 3);
-  for (let index = 0; index < visibleCardCount; index += 1) {
-    const card = cardNode(dominant.card);
+  const cards = dominant.cards.length
+    ? dominant.cards
+    : Array.from(
+        { length: Math.max(dominant.naturalCount || dominant.count || 1, 1) },
+        () => dominant.card,
+      );
+  const spacing = cards.length >= 6 ? 38 : cards.length >= 5 ? 44 : 52;
+  const width = Math.max(250, 104 + (cards.length - 1) * spacing);
+  container.style.setProperty(
+    "--victory-fan-width",
+    `${Math.min(width, 440)}px`,
+  );
+  cards.forEach((cardName, index) => {
+    const offset = index - (cards.length - 1) / 2;
+    const card = cardNode(cardName);
     card.classList.add("victory-card");
+    card.style.setProperty("--fan-x", `${offset * spacing}px`);
+    card.style.setProperty("--fan-y", `${Math.abs(offset) * 5}px`);
+    card.style.setProperty("--fan-angle", `${offset * 4.5}deg`);
+    card.style.zIndex = String(100 - Math.round(Math.abs(offset) * 10));
     container.append(card);
+  });
+}
+
+function resultCopyText(presentation, outcome, dominant) {
+  if (outcome === "victory") {
+    return VICTORY_COPY_BY_CARD[dominant.card] || presentation.copy;
   }
+  if (outcome === "defeat") {
+    return DEFEAT_COPY_BY_CARD[dominant.card] || presentation.copy;
+  }
+  return presentation.copy;
+}
+
+function resultDominantLabel(outcome, dominant) {
+  if (outcome === "draw") {
+    return "PSYCHIC EQUILIBRIUM";
+  }
+  if (!dominant.card) {
+    return outcome === "defeat"
+      ? "THE FUTURE CAN STILL CHANGE"
+      : "VICTORY HAND";
+  }
+  const prefix = outcome === "defeat" ? "相手の" : "";
+  const suffix = dominant.completed ? "ESPER HAND" : "BEST HAND";
+  return `${prefix}${dominant.card} — ${dominant.cards.length}枚 — ${suffix}`;
 }
 
 function resultReasonText(state, outcome) {
@@ -1095,8 +1212,11 @@ function renderVictoryOverlay(state, handlers) {
   const presentation = RESULT_PRESENTATIONS[outcome];
   const myDominant = dominantVictoryCard(state.my_hand);
   const opponentDominant = dominantVictoryCard(state.opponent.hand || []);
+  const winnerDominant = outcome === "defeat"
+    ? opponentDominant
+    : myDominant;
   const palette = outcome === "victory"
-    ? VICTORY_CARD_COLORS[myDominant.card] || {
+    ? VICTORY_CARD_COLORS[winnerDominant.card] || {
         color: "#ffbf68",
         rgb: "255, 191, 104",
       }
@@ -1115,7 +1235,11 @@ function renderVictoryOverlay(state, handlers) {
   byId("victory-sigil-icon").textContent = presentation.sigil;
   byId("victory-kicker").textContent = presentation.kicker;
   byId("victory-title").textContent = presentation.title;
-  byId("victory-copy").textContent = presentation.copy;
+  byId("victory-copy").textContent = resultCopyText(
+    presentation,
+    outcome,
+    winnerDominant,
+  );
   byId("result-condition-label").textContent = presentation.condition;
   byId("victory-reason").textContent = resultReasonText(state, outcome);
   byId("my-result-status").textContent = presentation.myStatus;
@@ -1123,19 +1247,19 @@ function renderVictoryOverlay(state, handlers) {
 
   const myFan = byId("victory-card-fan");
   const opponentFan = byId("opponent-result-card-fan");
-  renderResultCardFan(myFan, myDominant);
   if (outcome === "draw") {
+    renderResultCardFan(myFan, myDominant);
     renderResultCardFan(opponentFan, opponentDominant);
     opponentFan.hidden = false;
   } else {
+    renderResultCardFan(myFan, winnerDominant);
     clear(opponentFan);
     opponentFan.hidden = true;
   }
-  byId("victory-dominant-label").textContent = outcome === "victory"
-    ? `${myDominant.card} × ${myDominant.count} — VICTORY COLOR`
-    : outcome === "defeat"
-      ? "THE FUTURE CAN STILL CHANGE"
-      : "PSYCHIC EQUILIBRIUM";
+  byId("victory-dominant-label").textContent = resultDominantLabel(
+    outcome,
+    winnerDominant,
+  );
 
   const rematch = byId("victory-rematch-button");
   rematch.disabled = state.rematch.requested_by_me;

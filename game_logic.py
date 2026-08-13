@@ -4,44 +4,46 @@ import random
 from collections import Counter
 from datetime import datetime
 
+
 class EsperGame:
     def __init__(self):
         self.types = ["クレヤボヤンス", "タイムリープ", "サイコキネシス", "プリサイエンス", "テレポート", "ヒーリング", "カモフラージュ"]
         self.deck = [c for c in self.types for _ in range(8)]
         random.shuffle(self.deck)
-        
+
         self.excluded_cards = self.deck[:3]
         self.deck = self.deck[3:]
-        
+
         self.p1_hand = [self.deck.pop() for _ in range(6)]
         self.p2_hand = [self.deck.pop() for _ in range(6)]
-        
+
         self.p1_discard_groups = []
         self.p2_discard_groups = []
-        
-        self.players = [] 
-        
+
+        self.players = []
+
         self.temp_selection = []
-        self.regen_pool = [] 
-        self.clair_pool = [] 
+        self.regen_pool = []
+        self.clair_pool = []
         self.prescience_cards = []
         self.prescience_ordered = []
-        
+
         self.rematch_requests = set()
         self.extra_turn = False
         self.extra_turn_chain = 0
         self.turn_counts = {"p1": 0, "p2": 0}
         self.winner_role = None
         self.result_reason = None
-        
+        self.end_trigger_reason = None
+
         # CPU戦用のフラグ
         self.is_cpu = False
         self.cpu_acting = False
-        
+
         self.current_turn = "p1"
         self.turn_step = "WAITING"
         self.log_message = "対戦相手の入室を待っています..."
-        
+
         self.chat_history = []
         self.log_history = []
 
@@ -90,7 +92,7 @@ class EsperGame:
         counts = Counter(hand)
         mimic_count = counts.get("カモフラージュ", 0)
         if mimic_count >= 5: return True
-        wildcard_count = mimic_count // 2 
+        wildcard_count = mimic_count // 2
         for card, count in counts.items():
             if card != "カモフラージュ" and count + wildcard_count >= 5:
                 return True
@@ -135,22 +137,23 @@ class EsperGame:
         self.extra_turn_chain = 0
         self.winner_role = None
         self.result_reason = reason
+        self.end_trigger_reason = reason
         self.turn_step = "GAME_OVER"
         p1_counts = Counter(self.p1_hand)
         p2_counts = Counter(self.p2_hand)
-        
+
         p1_sorted_counts = sorted(p1_counts.values(), reverse=True)
         p2_sorted_counts = sorted(p2_counts.values(), reverse=True)
-        
+
         p1_name = self.get_player_name("p1")
         p2_name = self.get_player_name("p2")
-        
+
         def format_sets(counts_list):
             return "・".join([f"{c}枚" for c in counts_list])
-            
+
         p1_set_str = format_sets(p1_sorted_counts)
         p2_set_str = format_sets(p2_sorted_counts)
-        
+
         msg = f"【終了】{reason}。"
 
         p1_esper = self.check_esper(self.p1_hand)
@@ -185,21 +188,22 @@ class EsperGame:
         self.extra_turn_chain = 0
         self.winner_role = None
         self.result_reason = reason
+        self.end_trigger_reason = reason
         self.turn_step = "GAME_OVER"
         self.add_log(None, f"⚖️【引き分け】{reason}⚖️")
 
     def end_action(self, current_role, action_msg=""):
         if action_msg:
             self.add_log(current_role, action_msg)
-            
+
         if len(self.deck) == 0:
             self.trigger_endgame("山札が尽きました")
             return
-        
+
         if len(self.p1_discard_groups) >= 18 or len(self.p2_discard_groups) >= 18:
             self.trigger_endgame("捨て札が18組（上限）に達しました")
             return
-        
+
         if self.extra_turn:
             self.extra_turn = False
             self.extra_turn_chain += 1
@@ -213,29 +217,30 @@ class EsperGame:
     def reset_game(self):
         self.deck = [c for c in self.types for _ in range(8)]
         random.shuffle(self.deck)
-        
+
         self.excluded_cards = self.deck[:3]
         self.deck = self.deck[3:]
-        
+
         self.p1_hand = [self.deck.pop() for _ in range(6)]
         self.p2_hand = [self.deck.pop() for _ in range(6)]
-        
+
         self.p1_discard_groups = []
         self.p2_discard_groups = []
-        
+
         self.temp_selection = []
         self.regen_pool = []
         self.clair_pool = []
         self.prescience_cards = []
         self.prescience_ordered = []
-        
+
         self.rematch_requests = set()
         self.extra_turn = False
         self.extra_turn_chain = 0
         self.turn_counts = {"p1": 0, "p2": 0}
         self.winner_role = None
         self.result_reason = None
-        
+        self.end_trigger_reason = None
+
         self.turn_step = "DECIDING_TURN"
         self.timer_started = False
         self.cpu_acting = False

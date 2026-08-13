@@ -107,6 +107,7 @@ class StateService:
             "is_winner": winner_role == viewer_role,
             "is_draw": winner_role is None,
             "reason": getattr(game, "result_reason", None),
+            "end_trigger": getattr(game, "end_trigger_reason", None),
         }
 
     @staticmethod

@@ -4575,7 +4575,15 @@ button.card:hover .card-art,
   animation: victory-result-enter 650ms 1.15s ease-out both;
 }
 
-.victory-result > p {
+.victory-result-detail[hidden] {
+  display: none;
+}
+
+.victory-result-detail + .victory-result-detail {
+  margin-top: 18px;
+}
+
+.victory-result-detail > p {
   margin: 0;
   color: var(--victory-color);
   font-size: 9px;
@@ -4584,7 +4592,7 @@ button.card:hover .card-art,
   text-align: center;
 }
 
-.victory-result > strong {
+.victory-result-detail > strong {
   display: block;
   min-height: 50px;
   padding: 13px 8px 17px;
@@ -4595,6 +4603,15 @@ button.card:hover .card-art,
   font-weight: 500;
   line-height: 1.35;
   text-align: center;
+}
+
+.victory-result-trigger > strong {
+  min-height: 34px;
+  padding-bottom: 12px;
+  font-family: Inter, "Noto Sans JP", sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
 }
 
 .victory-score {
@@ -4835,7 +4852,8 @@ button.card:hover .card-art,
   .victory-main h2 { font-size: clamp(48px, 10vw, 74px); }
   .victory-card-fan { height: 118px; margin-top: 8px; }
   .victory-card-fan .victory-card { width: 68px; min-width: 68px; height: 95px; min-height: 95px; }
-  .victory-result > strong { min-height: 38px; padding: 8px; font-size: 16px; }
+  .victory-result-detail > strong { min-height: 38px; padding: 8px; font-size: 16px; }
+  .victory-result-trigger > strong { min-height: 30px; font-size: 12px; }
   .victory-score { padding: 15px 0; }
   .victory-button { min-height: 40px; }
 }

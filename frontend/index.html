@@ -828,8 +828,18 @@
           <p id="victory-dominant-label" class="victory-dominant-label"></p>
         </div>
         <aside class="victory-result">
-          <p id="result-condition-label">WIN CONDITION</p>
-          <strong id="victory-reason"></strong>
+          <div
+            id="result-end-trigger"
+            class="victory-result-detail victory-result-trigger"
+            hidden
+          >
+            <p>END TRIGGER</p>
+            <strong id="result-end-trigger-value"></strong>
+          </div>
+          <div class="victory-result-detail victory-result-condition">
+            <p id="result-condition-label">WIN CONDITION</p>
+            <strong id="victory-reason"></strong>
+          </div>
           <div class="victory-score">
             <span>あなた <b id="my-result-status">WIN</b></span>
             <i aria-hidden="true">✦</i>

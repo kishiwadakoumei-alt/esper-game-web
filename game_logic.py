@@ -30,6 +30,7 @@ class EsperGame:
         self.rematch_requests = set()
         self.extra_turn = False
         self.extra_turn_chain = 0
+        self.turn_counts = {"p1": 0, "p2": 0}
         self.winner_role = None
         self.result_reason = None
         
@@ -100,6 +101,10 @@ class EsperGame:
     def get_discard_groups(self, role): return self.p1_discard_groups if role == "p1" else self.p2_discard_groups
 
     def get_op_role(self, role): return "p2" if role == "p1" else "p1"
+
+    def start_turn(self, role=None):
+        turn_role = role or self.current_turn
+        self.turn_counts[turn_role] = self.turn_counts.get(turn_role, 0) + 1
 
     def get_flat_discard(self, role):
         groups = self.get_discard_groups(role)
@@ -203,6 +208,7 @@ class EsperGame:
             self.extra_turn_chain = 0
             self.current_turn = self.get_op_role(current_role)
             self.turn_step = "DISCARD"
+        self.start_turn(self.current_turn)
 
     def reset_game(self):
         self.deck = [c for c in self.types for _ in range(8)]
@@ -226,6 +232,7 @@ class EsperGame:
         self.rematch_requests = set()
         self.extra_turn = False
         self.extra_turn_chain = 0
+        self.turn_counts = {"p1": 0, "p2": 0}
         self.winner_role = None
         self.result_reason = None
         

@@ -75,6 +75,7 @@ class GameService:
     def decide_first_player(game: EsperGame) -> str:
         game.current_turn = random.choice(["p1", "p2"])
         game.turn_step = "DISCARD"
+        game.start_turn(game.current_turn)
         first_player_name = game.get_player_name(game.current_turn)
         game.add_log(
             None,

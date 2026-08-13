@@ -41,6 +41,7 @@ class StateService:
                 "is_cpu": game.is_cpu,
                 "deck_count": len(game.deck),
                 "extra_turn_chain": game.extra_turn_chain,
+                "turn_counts": dict(getattr(game, "turn_counts", {})),
                 "latest_log": game.log_message,
                 "finished": is_finished,
                 "result": cls._result(game, viewer_role)
@@ -62,10 +63,12 @@ class StateService:
                 "mine": cls._serialize_discard_groups(
                     game.get_discard_groups(viewer_role),
                     viewer_role,
+                    reveal_all=is_finished,
                 ),
                 "opponent": cls._serialize_discard_groups(
                     game.get_discard_groups(opponent_role),
                     viewer_role,
+                    reveal_all=is_finished,
                 ),
             },
             "excluded_cards": (
@@ -445,6 +448,8 @@ class StateService:
     def _serialize_discard_groups(
         groups: list[list[dict]],
         viewer_role: str,
+        *,
+        reveal_all: bool = False,
     ) -> list[list[dict[str, Any]]]:
         serialized = []
         for group in groups:
@@ -452,7 +457,8 @@ class StateService:
                 {
                     "name": (
                         card["name"]
-                        if card["is_face_up"]
+                        if reveal_all
+                        or card["is_face_up"]
                         or card["owner"] == viewer_role
                         else None
                     ),

@@ -17,6 +17,7 @@ class EsperGameInitializationTests(unittest.TestCase):
         self.assertEqual(len(game.deck), 41)
         self.assertEqual(game.current_turn, "p1")
         self.assertEqual(game.turn_step, "WAITING")
+        self.assertEqual(game.turn_counts, {"p1": 0, "p2": 0})
 
         all_cards = (
             game.deck
@@ -182,6 +183,7 @@ class EsperGameTurnTests(unittest.TestCase):
 
         self.assertEqual(self.game.current_turn, "p2")
         self.assertEqual(self.game.turn_step, "DISCARD")
+        self.assertEqual(self.game.turn_counts["p2"], 1)
         self.assertEqual(self.game.log_message, "ターン終了")
 
     def test_end_action_keeps_current_player_for_extra_turn(self):
@@ -194,6 +196,7 @@ class EsperGameTurnTests(unittest.TestCase):
         self.assertEqual(self.game.turn_step, "DISCARD")
         self.assertFalse(self.game.extra_turn)
         self.assertEqual(self.game.extra_turn_chain, 1)
+        self.assertEqual(self.game.turn_counts["p1"], 1)
 
     def test_extra_turn_chain_increments_to_four_and_then_resets(self):
         self.game.current_turn = "p1"
@@ -204,11 +207,13 @@ class EsperGameTurnTests(unittest.TestCase):
 
             self.assertEqual(self.game.current_turn, "p1")
             self.assertEqual(self.game.extra_turn_chain, expected_count)
+            self.assertEqual(self.game.turn_counts["p1"], expected_count)
 
         self.game.end_action("p1")
 
         self.assertEqual(self.game.current_turn, "p2")
         self.assertEqual(self.game.extra_turn_chain, 0)
+        self.assertEqual(self.game.turn_counts["p2"], 1)
 
     def test_end_action_ends_game_when_deck_is_empty(self):
         self.game.deck = []
@@ -260,6 +265,7 @@ class EsperGameResetTests(unittest.TestCase):
         self.assertFalse(game.cpu_acting)
         self.assertFalse(game.extra_turn)
         self.assertEqual(game.extra_turn_chain, 0)
+        self.assertEqual(game.turn_counts, {"p1": 0, "p2": 0})
         self.assertEqual(game.p1_discard_groups, [])
         self.assertEqual(game.p2_discard_groups, [])
         self.assertEqual(game.temp_selection, [])

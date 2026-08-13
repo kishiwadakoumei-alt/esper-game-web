@@ -500,6 +500,10 @@ class FrontendDeliveryTests(unittest.TestCase):
             "victory-rematch-button",
             "victory-result-button",
             "victory-leave-button",
+            "deck-order-dialog",
+            "deck-order-list",
+            "deck-order-count",
+            "deck-order-close-button",
         ):
             self.assertIn(f'id="{element_id}"', html)
 
@@ -529,6 +533,13 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("const revealFinalBoard = state.game.finished", renderer)
         self.assertIn("公開された盤面を確認できます。", renderer)
         self.assertIn("result-rematch-button", renderer)
+        self.assertIn("showDeckOrderDialog", renderer)
+        self.assertIn("deckOrderLabel", renderer)
+        self.assertIn("state.game.deck || []", renderer)
+        self.assertIn("残り山札の順番を見る", renderer)
+        self.assertIn("山札の上・次に引く", renderer)
+        self.assertIn("山札の底", renderer)
+        self.assertIn("deck-order-dialog", renderer)
         self.assertNotIn("結果確認へ", renderer)
         self.assertNotIn("renderResultReview", renderer)
         self.assertNotIn("result-review", html)
@@ -537,6 +548,11 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn(".card.former-face-down", css)
         self.assertIn(".former-face-down-badge", css)
         self.assertIn(".result-rematch-button", css)
+        self.assertIn(".deck-visual.reviewable", css)
+        self.assertIn(".deck-order-dialog", css)
+        self.assertIn(".deck-order-list", css)
+        self.assertIn(".deck-order-item.is-top", css)
+        self.assertIn(".deck-order-item.is-bottom", css)
         self.assertIn(".outcome-defeat", css)
         self.assertIn(".outcome-draw", css)
         self.assertIn(".victory-card-display", css)

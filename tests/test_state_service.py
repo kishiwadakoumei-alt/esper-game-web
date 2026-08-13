@@ -59,6 +59,7 @@ class StateServiceVisibilityTests(unittest.TestCase):
         self.assertEqual(state["room_id"], "room")
         self.assertEqual(state["game"]["extra_turn_chain"], 4)
         self.assertEqual(state["game"]["turn_counts"], {"p1": 3, "p2": 2})
+        self.assertIsNone(state["game"]["deck"])
         self.assertEqual(state["opponent"]["hand_count"], 2)
         self.assertIsNone(state["opponent"]["hand"])
         self.assertEqual(state["excluded_cards"], [None, None, None])
@@ -86,7 +87,7 @@ class StateServiceVisibilityTests(unittest.TestCase):
         ]:
             self.assertNotIn(secret, encoded)
 
-    def test_finished_state_reveals_opponent_hand_excluded_and_discards(self):
+    def test_finished_state_reveals_opponent_hand_deck_excluded_and_discards(self):
         game = make_game()
         game.turn_step = "GAME_OVER"
 
@@ -108,7 +109,10 @@ class StateServiceVisibilityTests(unittest.TestCase):
             state["discards"]["opponent"][0][0]["name"],
             "SECRET_OPPONENT_DISCARD",
         )
-        self.assertNotIn("SECRET_DECK_A", json.dumps(state))
+        self.assertEqual(
+            state["game"]["deck"],
+            ["SECRET_DECK_B", "SECRET_DECK_A"],
+        )
         self.assertTrue(state["game"]["result"]["is_draw"])
 
     def test_finished_state_exposes_structured_winner(self):

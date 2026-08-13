@@ -40,6 +40,7 @@ class StateService:
                 "is_my_turn": game.current_turn == viewer_role,
                 "is_cpu": game.is_cpu,
                 "deck_count": len(game.deck),
+                "deck": list(reversed(game.deck)) if is_finished else None,
                 "extra_turn_chain": game.extra_turn_chain,
                 "turn_counts": dict(getattr(game, "turn_counts", {})),
                 "latest_log": game.log_message,

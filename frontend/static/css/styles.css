@@ -5213,3 +5213,189 @@ button.card:hover .card-art,
     width: 50%;
   }
 }
+
+
+/* Final deck review */
+.deck-visual.reviewable {
+  cursor: pointer;
+  border-color: rgba(86, 216, 228, 0.76);
+  box-shadow:
+    6px 6px 0 #080d17,
+    7px 7px 0 rgba(86, 216, 228, 0.28),
+    0 0 30px rgba(86, 216, 228, 0.18);
+}
+
+.deck-visual.reviewable span,
+.deck-visual.reviewable small {
+  color: var(--cyan);
+}
+
+.deck-visual.reviewable:hover,
+.deck-visual.reviewable:focus-visible {
+  border-color: var(--cyan);
+  outline: 2px solid rgba(86, 216, 228, 0.35);
+  outline-offset: 4px;
+}
+
+.deck-order-dialog {
+  width: min(640px, calc(100% - 30px));
+}
+
+.deck-order-dialog-accent {
+  color: var(--orange);
+}
+
+.deck-order-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(86, 216, 228, 0.24);
+  border-left: 3px solid var(--cyan);
+  background: rgba(7, 12, 22, 0.64);
+}
+
+.deck-order-summary span,
+.deck-order-scale span,
+.deck-order-detail small {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.deck-order-summary strong {
+  color: #a9f3f5;
+  font-size: 13px;
+}
+
+.deck-order-scale {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 8px;
+  padding: 0 4px;
+}
+
+.deck-order-scale span:first-child {
+  color: var(--orange-soft);
+}
+
+.deck-order-list {
+  display: grid;
+  max-height: min(54dvh, 520px);
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.deck-order-item {
+  display: grid;
+  grid-template-columns: 64px 78px minmax(0, 1fr);
+  min-height: 96px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid rgba(86, 216, 228, 0.42);
+  background: rgba(7, 12, 22, 0.64);
+}
+
+.deck-order-item.is-top {
+  border-left-color: var(--orange);
+  background:
+    linear-gradient(90deg, rgba(255, 157, 46, 0.1), transparent 52%),
+    rgba(7, 12, 22, 0.72);
+}
+
+.deck-order-item.is-bottom {
+  border-left-color: var(--purple);
+}
+
+.deck-order-position {
+  color: var(--cyan);
+  font-family: Inter, sans-serif;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.deck-order-card .card {
+  width: 60px;
+  min-width: 60px;
+  height: 82px;
+  min-height: 82px;
+  padding: 39px 5px 16px;
+  border-radius: 5px;
+  font-size: 7px;
+}
+
+.deck-order-card .card:not(.hidden-card)::before {
+  top: 7px;
+  font-size: 4px;
+}
+
+.deck-order-card .card:not(.hidden-card)::after {
+  right: 5px;
+  bottom: 5px;
+  font-size: 5px;
+}
+
+.deck-order-card .card-art {
+  width: 72%;
+}
+
+.deck-order-card .card-name {
+  font-size: 7px;
+}
+
+.deck-order-detail {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.deck-order-detail strong {
+  overflow-wrap: anywhere;
+  color: #f5f7ff;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.deck-order-detail small {
+  display: inline-flex;
+  width: fit-content;
+  padding: 3px 7px;
+  border: 1px solid rgba(255, 198, 111, 0.35);
+  border-radius: 999px;
+  color: var(--orange-soft);
+  background: rgba(255, 157, 46, 0.08);
+  letter-spacing: 0;
+}
+
+@media (max-width: 680px) {
+  .deck-order-dialog {
+    padding: 24px 18px;
+  }
+
+  .deck-order-item {
+    grid-template-columns: 48px 66px minmax(0, 1fr);
+    min-height: 88px;
+    gap: 9px;
+    padding: 9px;
+  }
+
+  .deck-order-card .card {
+    width: 52px;
+    min-width: 52px;
+    height: 72px;
+    min-height: 72px;
+  }
+
+  .deck-order-detail strong {
+    font-size: 13px;
+  }
+}

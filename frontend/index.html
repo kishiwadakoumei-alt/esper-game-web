@@ -721,6 +721,36 @@
       </div>
     </dialog>
 
+    <dialog id="deck-order-dialog" class="prescience-dialog deck-order-dialog">
+      <div
+        class="prescience-dialog-accent deck-order-dialog-accent"
+        aria-hidden="true"
+      >⇅</div>
+      <p class="eyebrow">FINAL DECK ORDER</p>
+      <h2>残り山札の順番</h2>
+      <p class="prescience-dialog-copy">
+        上から順に、次に引かれるカードから表示しています。
+      </p>
+      <div class="deck-order-summary">
+        <span>残り枚数</span>
+        <strong id="deck-order-count">0枚</strong>
+      </div>
+      <div class="deck-order-scale" aria-hidden="true">
+        <span>山札の上</span>
+        <span>山札の底</span>
+      </div>
+      <ol id="deck-order-list" class="deck-order-list"></ol>
+      <div class="dialog-actions single-action">
+        <button
+          id="deck-order-close-button"
+          class="action-button primary"
+          type="button"
+        >
+          閉じる
+        </button>
+      </div>
+    </dialog>
+
     <div
       id="action-event-overlay"
       class="action-event-overlay"

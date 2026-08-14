@@ -497,6 +497,7 @@ class FrontendDeliveryTests(unittest.TestCase):
             "result-end-trigger-value",
             "result-condition-label",
             "victory-reason",
+            "victory-matchup",
             "my-result-status",
             "opponent-result-status",
             "victory-rematch-button",
@@ -518,6 +519,8 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("state.game.result?.is_winner", renderer)
         self.assertIn("shouldShowResultOverlay", renderer)
         self.assertIn("resultReasonText", renderer)
+        self.assertIn("resultMatchupText", renderer)
+        self.assertIn("dominantSummary", renderer)
         self.assertIn("renderResultCardFan", renderer)
         self.assertIn("resultCopyText", renderer)
         self.assertIn("resultKickerText", renderer)
@@ -530,6 +533,7 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("DISCARD LIMIT", renderer)
         self.assertIn("ESPER DECLARATION", renderer)
         self.assertIn("state.game.result?.end_trigger", renderer)
+        self.assertIn("${label}: ${dominant.card}${dominant.cards.length}枚", renderer)
         self.assertIn("HAND VERDICT", renderer)
         self.assertIn("FINAL HAND CHECK", renderer)
         self.assertIn("判定勝利", renderer)
@@ -563,6 +567,11 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("revealFaceDown: revealFinalBoard", renderer)
         self.assertIn("const revealFinalBoard = state.game.finished", renderer)
         self.assertIn("公開された盤面を確認できます。", renderer)
+        self.assertIn("playAssistMessage", renderer)
+        self.assertIn("endgameWarningText", renderer)
+        self.assertIn("mergeAssistMessage", renderer)
+        self.assertIn("捨て札は能力の材料になります。", renderer)
+        self.assertIn("山札残り${deckCount}枚", renderer)
         self.assertIn("result-rematch-button", renderer)
         self.assertIn("showDeckOrderDialog", renderer)
         self.assertIn("deckOrderLabel", renderer)
@@ -589,6 +598,7 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn(".victory-card-display", css)
         self.assertIn(".victory-result-trigger", css)
         self.assertIn(".victory-result-detail", css)
+        self.assertIn(".victory-matchup", css)
         self.assertIn("--victory-fan-width", css)
         self.assertIn("--fan-x", css)
         self.assertIn("--fan-angle", css)
@@ -596,6 +606,7 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("@keyframes defeat-sigil-flicker", css)
         self.assertIn("@keyframes draw-sigil-balance", css)
         self.assertIn("prefers-reduced-motion: reduce", css)
+        self.assertIn(".action-event-overlay", css)
 
     def test_extra_turn_indicator_has_four_color_levels(self):
         html = (FRONTEND_ROOT / "index.html").read_text()

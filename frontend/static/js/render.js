@@ -197,6 +197,7 @@ function decorateVisibleCard(node, name) {
   art.setAttribute("aria-hidden", "true");
   art.draggable = false;
   const label = create("span", "card-name", name);
+  node.setAttribute("aria-label", name);
   node.replaceChildren(art, label);
 }
 
@@ -1261,6 +1262,20 @@ function resultEndTriggerText(state) {
   return END_TRIGGER_LABELS[trigger] || "GAME ENDED";
 }
 
+function dominantSummary(label, dominant) {
+  if (!dominant.card) {
+    return `${label}: なし`;
+  }
+  return `${label}: ${dominant.card}${dominant.cards.length}枚`;
+}
+
+function resultMatchupText(myDominant, opponentDominant) {
+  return [
+    dominantSummary("あなた", myDominant),
+    dominantSummary("相手", opponentDominant),
+  ].join(" / ");
+}
+
 function resultReasonText(state, outcome) {
   const reason = state.game.result?.reason;
   if (outcome === "defeat") {
@@ -1341,6 +1356,10 @@ function renderVictoryOverlay(state, handlers) {
     state,
   );
   byId("victory-reason").textContent = resultReasonText(state, outcome);
+  byId("victory-matchup").textContent = resultMatchupText(
+    myDominant,
+    opponentDominant,
+  );
   byId("my-result-status").textContent = presentation.myStatus;
   byId("opponent-result-status").textContent = presentation.opponentStatus;
 
@@ -1589,6 +1608,64 @@ function renderChoiceDialog(state, handlers) {
   }
 }
 
+function endgameWarningText(state) {
+  if (state.game.finished) {
+    return "";
+  }
+  const warnings = [];
+  const deckCount = state.game.deck_count;
+  if (deckCount > 0 && deckCount <= 5) {
+    warnings.push(`山札残り${deckCount}枚。山札切れで判定に入ります。`);
+  }
+  [
+    ["あなた", state.discards.mine.length],
+    ["相手", state.discards.opponent.length],
+  ].forEach(([owner, count]) => {
+    const remaining = 18 - count;
+    if (remaining > 0 && remaining <= 3) {
+      warnings.push(`${owner}の捨て札が上限まであと${remaining}組です。`);
+    }
+  });
+  return warnings.join(" ");
+}
+
+function playAssistMessage(state) {
+  const actions = new Set(state.available_actions);
+  const step = state.game.turn_step;
+  if (state.game.finished) {
+    return "公開された盤面を確認できます。";
+  }
+  if (step === "DISCARD" && actions.has("discard_card")) {
+    return "手札から1枚捨てます。捨て札は能力の材料になります。";
+  }
+  if (step === "DRAW" && actions.has("draw_hand")) {
+    return "山札を押して1枚引きます。引いた後に能力を使うか選べます。";
+  }
+  if (step === "THINK") {
+    return actions.has("open_ability_selection")
+      ? "同じ能力カード2枚を捨て札にすると能力を使えます。"
+      : "使える能力がなければ、ターンを終了します。";
+  }
+  if (step === "ABILITY") {
+    return "発動できる能力だけ選べます。使う前に効果を確認できます。";
+  }
+  if (step === "MIMIC_SELECTION") {
+    return "カモフラージュ2枚と能力カード1枚で、その能力として発動します。";
+  }
+  if (step === "TELEPORT_SELECTION") {
+    return "相手の手札にありそうな能力を宣言します。当たればその能力カードを捨てさせます。";
+  }
+  return "";
+}
+
+function mergeAssistMessage(message, state) {
+  const warning = endgameWarningText(state);
+  if (message && warning) {
+    return `${message} ${warning}`;
+  }
+  return message || warning;
+}
+
 function renderActionBar(state, handlers) {
   const bar = byId("context-action-bar");
   const copy = byId("context-action-copy");
@@ -1597,7 +1674,7 @@ function renderActionBar(state, handlers) {
   const interaction = state.interaction;
   const step = state.game.turn_step;
   clear(buttons);
-  let message = "";
+  let message = playAssistMessage(state);
 
   if (actions.has("declare_esper")) {
     addAction(
@@ -1609,7 +1686,7 @@ function renderActionBar(state, handlers) {
   }
 
   if (state.game.finished) {
-    message = "公開された盤面を確認できます。";
+    message = playAssistMessage(state);
     addAction(
       buttons,
       "結果画面に戻る",
@@ -1635,7 +1712,7 @@ function renderActionBar(state, handlers) {
       );
     }
   } else if (step === "THINK") {
-    message = "次の行動を選択してください。";
+    message = playAssistMessage(state);
     if (actions.has("open_ability_selection")) {
       addAction(
         buttons,
@@ -1688,6 +1765,7 @@ function renderActionBar(state, handlers) {
     );
   }
 
+  message = mergeAssistMessage(message, state);
   const visible = Boolean(message || buttons.children.length);
   copy.textContent = message;
   bar.hidden = !visible;

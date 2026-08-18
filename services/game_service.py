@@ -1,10 +1,15 @@
-"""プレイヤー操作によるゲーム状態の変更を集約するサービス。"""
+"""プレイヤー操作によるゲーム状態の変更を集約するサービス。
+
+このファイルは「ルール上の操作」を実際の EsperGame 状態変更へ変換する。
+HTTPやWebSocketのことは知らず、カードの移動、ターン遷移、通知文の作成だけを扱う。
+"""
 
 import random
 
 from game_logic import EsperGame
 
 
+# UIやログでは能力名に読みを添えて表示するため、内部名から表示名へ変換する。
 NAME_MAP = {
     "クレヤボヤンス": "クレヤボヤンス(千里眼)",
     "タイムリープ": "タイムリープ(時間移動)",
@@ -17,10 +22,15 @@ NAME_MAP = {
 
 
 class GameService:
-    """UIに依存しないゲーム操作を提供する。"""
+    """UIに依存しないゲーム操作を提供する。
+
+    ここにあるメソッドはすべて「操作を受け取った後の状態更新」を担当する。
+    操作可能かどうかの検証は CommandService/StateService 側で済ませる。
+    """
 
     @staticmethod
     def _actor_name(game: EsperGame, role: str) -> str:
+        """通知文で使う役割名をゲーム状態から取得する。"""
         return game.get_player_name(role)
 
     @staticmethod
@@ -29,6 +39,7 @@ class GameService:
         role: str,
         ability_name: str,
     ) -> str:
+        """通常発動とカモフラージュ発動で通知タイトルを出し分ける。"""
         actor = GameService._actor_name(game, role)
         active = game.active_ability or {}
         if (
@@ -53,6 +64,7 @@ class GameService:
         kind: str = "ability",
         duration_ms: int = 3000,
     ) -> None:
+        """能力演出用イベントを登録し、解決中能力の一時情報を片付ける。"""
         game.add_action_event(
             role,
             kind,
@@ -66,6 +78,7 @@ class GameService:
 
     @staticmethod
     def start_turn_timer(game: EsperGame) -> bool:
+        """先攻抽選タイマーが二重に走らないよう、開始済みならFalseを返す。"""
         if getattr(game, "timer_started", False):
             return False
         game.timer_started = True
@@ -73,6 +86,7 @@ class GameService:
 
     @staticmethod
     def decide_first_player(game: EsperGame) -> str:
+        """先攻をランダムに決め、最初の捨て札ステップへ進める。"""
         game.current_turn = random.choice(["p1", "p2"])
         game.turn_step = "DISCARD"
         game.start_turn(game.current_turn)
@@ -85,6 +99,7 @@ class GameService:
 
     @staticmethod
     def declare_esper(game: EsperGame, role: str, player_name: str) -> None:
+        """ESPER宣言による即時勝利を確定する。"""
         game.add_log(
             role,
             f"🎉【決着】{player_name} が「エスパー！」を宣言しました！",
@@ -103,6 +118,7 @@ class GameService:
         card: str,
         player_name: str,
     ) -> None:
+        """手札から1枚を捨て札グループに移し、補充待ちステップへ進める。"""
         hand = game.get_hand(role)
         hand.remove(card)
 
@@ -113,6 +129,7 @@ class GameService:
             for item in group
             if not item["is_face_up"]
         )
+        # 通常捨て札は、自分の裏向き捨て札が5枚になるまでは伏せて置く。
         is_face_up = face_down_count >= 5
         discard_groups.append(
             [{
@@ -137,10 +154,12 @@ class GameService:
 
     @staticmethod
     def draw_hand(game: EsperGame, role: str, player_name: str) -> None:
+        """山札から手札を6枚まで補充し、能力使用判断ステップへ進める。"""
         before_count = len(game.get_hand(role))
         game.fill_hand_to_6(role)
         drawn_count = len(game.get_hand(role)) - before_count
         pending = game.pending_discards.pop(role, None)
+        # 捨て札と補充は別アクションなので、補充時にまとめて見やすい通知を出す。
         if pending is not None:
             opponent_role = game.get_op_role(role)
             discarded_card = pending["card"]
@@ -175,18 +194,22 @@ class GameService:
 
     @staticmethod
     def open_ability_selection(game: EsperGame) -> None:
+        """能力候補を選ぶモーダル表示用の状態へ進める。"""
         game.turn_step = "ABILITY"
 
     @staticmethod
     def cancel_ability_selection(game: EsperGame) -> None:
+        """能力選択をやめ、能力を使うかパスするかの判断ステップへ戻す。"""
         game.turn_step = "THINK"
 
     @staticmethod
     def open_mimic_selection(game: EsperGame) -> None:
+        """カモフラージュで擬態する能力を選ぶ状態へ進める。"""
         game.turn_step = "MIMIC_SELECTION"
 
     @staticmethod
     def cancel_mimic_selection(game: EsperGame) -> None:
+        """擬態先選択をやめ、通常の能力選択へ戻す。"""
         game.turn_step = "ABILITY"
 
     @staticmethod
@@ -197,6 +220,7 @@ class GameService:
         *,
         cpu: bool = False,
     ) -> None:
+        """能力を使わずにターンを終える。CPU時だけ表示文を短く変える。"""
         message = (
             "CPUはターンを終了しました。"
             if cpu
@@ -213,6 +237,7 @@ class GameService:
         *,
         mimic: bool = False,
     ) -> None:
+        """能力コストを手札から捨て札へ移し、能力ごとの解決処理へ振り分ける。"""
         game.active_ability = {
             "role": role,
             "name": ability_name,
@@ -220,6 +245,7 @@ class GameService:
         }
         hand = game.get_hand(role)
         if mimic:
+            # 擬態はカモフラージュ2枚と、実際にまねる能力カード1枚を表向きで支払う。
             hand.remove("カモフラージュ")
             hand.remove("カモフラージュ")
             hand.remove(ability_name)
@@ -241,6 +267,7 @@ class GameService:
                 },
             ]
         else:
+            # 通常発動は同名2枚を表向きで支払う。
             hand.remove(ability_name)
             hand.remove(ability_name)
             group = [
@@ -271,6 +298,7 @@ class GameService:
         target_name: str,
         player_name: str,
     ) -> None:
+        """宣言した能力名を相手手札からすべて捨てさせ、双方を6枚へ補充する。"""
         opponent_role = game.get_op_role(role)
         hand = game.get_hand(role)
         opponent_hand = game.get_hand(opponent_role)
@@ -278,6 +306,7 @@ class GameService:
         my_needs = 6 - len(hand)
         opponent_needs = 6 - (len(opponent_hand) - removed_count)
 
+        # 効果後に両者が必要枚数を補充できない場合は、途中状態を作らず引き分け終了にする。
         if my_needs + opponent_needs > len(game.deck):
             GameService._emit_ability_event(
                 game,
@@ -354,6 +383,7 @@ class GameService:
         target_card: str,
         player_name: str,
     ) -> None:
+        """念力の1段目として、相手手札1枚を表向きで捨てさせる。"""
         opponent_role = game.get_op_role(role)
         opponent_hand = game.get_hand(opponent_role)
         opponent_groups = game.get_discard_groups(opponent_role)
@@ -381,6 +411,7 @@ class GameService:
             for item in group
             if not item["is_face_up"]
         ]
+        # 2段目の対象がない場合、1段目の捨て札も取り消して通常のターン終了へ進む。
         if not face_down_discards:
             opponent_groups.pop()
             opponent_hand.append(target_card)
@@ -426,6 +457,7 @@ class GameService:
         *,
         display_number: int | None = None,
     ) -> None:
+        """念力の2段目として、相手の裏向き捨て札1枚を相手手札へ戻す。"""
         opponent_role = game.get_op_role(role)
         opponent_groups = game.get_discard_groups(opponent_role)
         target_name = opponent_groups.pop(group_index)[0]["name"]
@@ -467,6 +499,7 @@ class GameService:
 
     @staticmethod
     def toggle_healing_selection(game: EsperGame, target_index: int) -> None:
+        """ヒーリング対象を最大3枚までトグル選択する。"""
         if target_index in game.temp_selection:
             game.temp_selection.remove(target_index)
         elif len(game.temp_selection) < 3:
@@ -478,6 +511,7 @@ class GameService:
         role: str,
         player_name: str,
     ) -> None:
+        """選択した捨て札を山札へ戻してシャッフルし、手札を補充する。"""
         selected_items = [
             game.regen_pool[index] for index in game.temp_selection
         ]
@@ -542,6 +576,7 @@ class GameService:
         game: EsperGame,
         target_index: int,
     ) -> None:
+        """クレヤボヤンス対象を最大2枚までトグル選択する。"""
         if target_index in game.temp_selection:
             game.temp_selection.remove(target_index)
         elif len(game.temp_selection) < 2:
@@ -549,6 +584,7 @@ class GameService:
 
     @staticmethod
     def confirm_clairvoyance(game: EsperGame) -> None:
+        """選択した透視対象を一時的に公開する確認ステップへ進める。"""
         game.turn_step = "CLAIR_REVEAL"
         game.log_message = (
             "「クレヤボヤンス(千里眼)」発動！透視結果を確認中..."
@@ -560,6 +596,7 @@ class GameService:
         role: str,
         player_name: str,
     ) -> None:
+        """透視結果の確認を終え、手札補充とターン終了処理へ進める。"""
         if GameService._is_cpu_actor(game, role):
             message = (
                 "CPUが「クレヤボヤンス(千里眼)」で"
@@ -622,6 +659,7 @@ class GameService:
         target_index: int,
         player_name: str,
     ) -> None:
+        """旧UI互換の1枚ずつ選択方式で、未来予知の戻し順を記録する。"""
         game.prescience_ordered.append(
             game.prescience_cards.pop(target_index)
         )
@@ -638,6 +676,7 @@ class GameService:
         ordered_indices: list[int],
         player_name: str,
     ) -> None:
+        """画面で並べた順序を一括で受け取り、未来予知を完了する。"""
         game.prescience_ordered = [
             game.prescience_cards[index]
             for index in ordered_indices
@@ -647,6 +686,7 @@ class GameService:
 
     @staticmethod
     def send_chat(game: EsperGame, player_name: str, message: str) -> bool:
+        """空文字でなければ表示名付きのチャット履歴として保存する。"""
         if message.strip() == "":
             return False
         game.chat_history.append(f"💬 {player_name}: {message}")
@@ -659,16 +699,19 @@ class GameService:
         ability_name: str,
         player_name: str,
     ) -> None:
+        """能力名ごとに、即時解決か追加選択ステップかを決める。"""
         ability_display = NAME_MAP.get(ability_name, ability_name)
         opponent_role = game.get_op_role(role)
         opponent_hand = game.get_hand(opponent_role)
         is_cpu = GameService._is_cpu_actor(game, role)
 
         if ability_name == "テレポート":
+            # テレポートはプレイヤーが宣言する能力名を追加で選ぶ。
             game.turn_step = "TELEPORT_SELECTION"
             return
 
         if ability_name == "サイコキネシス":
+            # サイコキネシスは「手札を捨てさせる」「裏向き捨て札を戻す」の2段階。
             start_message = (
                 f"CPUが「{ability_display}」を発動！"
                 if is_cpu
@@ -699,6 +742,7 @@ class GameService:
             return
 
         if ability_name == "ヒーリング":
+            # ヒーリングは両者の捨て札を候補化し、最大3枚を選ばせる。
             start_message = (
                 f"CPUが「{ability_display}」を発動！"
                 if is_cpu
@@ -733,6 +777,7 @@ class GameService:
             return
 
         if ability_name == "クレヤボヤンス":
+            # クレヤボヤンスは相手手札と裏向き捨て札を候補化し、選択後だけ公開する。
             start_message = (
                 f"CPUが「{ability_display}」を発動！"
                 if is_cpu
@@ -768,6 +813,7 @@ class GameService:
             return
 
         if ability_name == "プリサイエンス":
+            # プリサイエンスは山札の上から最大3枚を抜き、選んだ順に戻す。
             count = min(3, len(game.deck))
             if count == 0:
                 start_message = (
@@ -802,6 +848,7 @@ class GameService:
             return
 
         if ability_name == "タイムリープ":
+            # タイムリープだけは追加選択なしで、次のend_action時に同じ人のターンを作る。
             game.extra_turn = True
             game.fill_hand_to_6(role)
             next_chain = game.extra_turn_chain + 1
@@ -833,7 +880,9 @@ class GameService:
         role: str,
         player_name: str,
     ) -> None:
+        """並べ替え済みカードを山札上に戻し、未来予知の一時状態を消す。"""
         ordered_cards = game.prescience_ordered + game.prescience_cards
+        # 山札末尾を一番上として扱うため、選択順を逆向きにextendする。
         game.deck.extend(reversed(ordered_cards))
         game.prescience_ordered = []
         game.prescience_cards = []
@@ -864,6 +913,7 @@ class GameService:
 
     @staticmethod
     def _build_regen_pool(game: EsperGame) -> list[dict]:
+        """ヒーリングで選べる全捨て札を、元の位置付きで列挙する。"""
         pool = []
         for owner in ("p1", "p2"):
             for group_index, group in enumerate(
@@ -886,6 +936,7 @@ class GameService:
         *,
         cpu: bool,
     ) -> list[dict]:
+        """クレヤボヤンスで透視できる相手手札と裏向き捨て札を列挙する。"""
         opponent_role = game.get_op_role(role)
         opponent_hand = game.get_hand(opponent_role)
         display_hand = (
@@ -929,10 +980,12 @@ class GameService:
         game: EsperGame,
         selected_items: list[dict],
     ) -> None:
+        """選択済み捨て札を元のグループから抜き、カード名だけを山札へ戻す。"""
         def sort_key(item: dict) -> tuple[int, int]:
             return item["g_idx"], item["item_idx"]
 
         for owner in ("p1", "p2"):
+            # 同じグループから複数枚抜く場合にindexがずれないよう、後ろから削除する。
             items = sorted(
                 (
                     item
@@ -951,4 +1004,5 @@ class GameService:
 
     @staticmethod
     def _is_cpu_actor(game: EsperGame, role: str) -> bool:
+        """p2がCPUとして動いている場面かどうかを返す。"""
         return game.is_cpu and role == "p2"

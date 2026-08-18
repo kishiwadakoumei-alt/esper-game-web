@@ -1,3 +1,9 @@
+"""FastAPI APIとWebSocketの外部挙動を確認するテスト。
+
+HTTP認証、入室、操作検証、チャット配信、CPU/抽選バックグラウンド処理まで、
+ブラウザから見える境界の仕様を守る。
+"""
+
 import json
 import time
 import unittest
@@ -9,7 +15,10 @@ from backend.main import create_app
 
 
 class ApiTests(unittest.TestCase):
+    """TestClientでAPIを実際に呼び、レスポンスと副作用を確認する。"""
+
     def setUp(self):
+        # 先攻抽選は明示的に待つテスト以外で動かないよう長めにし、CPU遅延は短くする。
         self.app = create_app(roulette_delay=60, cpu_delay=0)
         self.client_context = TestClient(self.app)
         self.client = self.client_context.__enter__()
@@ -19,9 +28,11 @@ class ApiTests(unittest.TestCase):
 
     @staticmethod
     def _headers(token):
+        """Bearer認証ヘッダーをテスト内で短く作る。"""
         return {"Authorization": f"Bearer {token}"}
 
     def _join(self, room_id, name):
+        """入室APIを呼び、成功レスポンスJSONを返すヘルパー。"""
         response = self.client.post(
             "/api/rooms/join",
             json={"room_id": room_id, "name": name},

@@ -1,4 +1,8 @@
+# FastAPIでHTTP API/WebSocket/静的ファイル配信を提供する。
 fastapi
+# FastAPI TestClientなどのHTTPテスト基盤として使う。
 httpx2
+# ローカル起動時にASGIアプリを動かすサーバー。standardは高速化/監視系の追加依存を含む。
 uvicorn[standard]
+# WebSocket通信のランタイム依存。
 websockets

@@ -1,3 +1,4 @@
+<!-- ヒーリングカードの中央イラスト。捨て札を山札へ戻す再生効果を表す。 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
   <g stroke="#ef6264" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
     <path d="M52 78 27 53C9 35 34 15 52 35c18-20 43 0 25 18L52 78Z"/>

@@ -1,6 +1,12 @@
 <!doctype html>
+<!--
+  ESPERのブラウザUI。
+  静的HTMLに画面・ダイアログ・通知レイヤーの器を置き、
+  app.js/render.jsが公開状態に応じて内容を差し替える。
+-->
 <html lang="ja">
   <head>
+    <!-- モバイルPWA表示と静的アセット読み込みの基本設定。 -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0b1528">
@@ -19,9 +25,11 @@
     <link rel="stylesheet" href="/static/css/styles.css">
   </head>
   <body>
+    <!-- 装飾用の背景光。ゲーム情報ではないためスクリーンリーダーから隠す。 -->
     <div class="ambient ambient-one" aria-hidden="true"></div>
     <div class="ambient ambient-two" aria-hidden="true"></div>
 
+    <!-- 全画面共通ヘッダー。入室前でもゲーム中でも詳しいルールを開ける。 -->
     <header class="site-header">
       <a class="brand" href="/" aria-label="ESPER ホーム">
         <span class="brand-mark" aria-hidden="true">✦</span>
@@ -36,6 +44,7 @@
     </header>
 
     <main id="app" class="app-shell">
+      <!-- 入室前の画面。対人戦のあいことば、招待URL、CPU戦の入口をまとめる。 -->
       <section id="landing-screen" class="landing-grid">
         <div class="hero-panel">
           <p class="eyebrow">超能力カードゲーム</p>
@@ -60,6 +69,7 @@
             </div>
           </div>
 
+          <!-- 入室前は詳細なルール説明を見せ、ゲーム開始前に全体像を確認できるようにする。 -->
           <div class="entry-rule-link">
             <div>
               <strong>詳しいルール説明</strong>
@@ -70,6 +80,7 @@
             </button>
           </div>
 
+          <!-- roomクエリ付きURLから来た場合だけ表示する招待状態。 -->
           <aside id="invite-banner" class="invite-banner" role="status" hidden>
             <span>ROOM INVITATION</span>
             <div>
@@ -79,6 +90,7 @@
             <small>名前を確認して、この部屋へ参加してください。</small>
           </aside>
 
+          <!-- 名前とあいことばはapp.jsで検証し、同じあいことばの2人を同じ部屋へ入れる。 -->
           <form id="join-form" novalidate>
             <label for="player-name">あなたの名前</label>
             <input
@@ -116,6 +128,7 @@
 
           <div class="divider"><span>OR PLAY SOLO</span></div>
 
+          <!-- CPU戦は難易度ボタンのdata属性をAPIリクエストへ渡す。 -->
           <div class="cpu-options" aria-label="CPU対戦の難易度">
             <button class="cpu-button easy" data-cpu-level="easy" type="button">
               <span>初級</span><small>はじめての方に</small>
@@ -130,7 +143,9 @@
         </section>
       </section>
 
+      <!-- 対戦中の画面。サーバーから公開状態を受け取るまでhiddenにしておく。 -->
       <section id="game-screen" class="game-screen" hidden>
+        <!-- 上部ステータス。ターン表示、フェーズ説明、補助パネルの入口を常時置く。 -->
         <div class="battle-status-row">
           <div
             id="turn-indicator"
@@ -144,6 +159,7 @@
           </div>
           <div id="phase-banner" class="phase-banner" role="status"></div>
 
+          <!-- ゲーム進行を邪魔しない補助機能群。ON/OFFやパネル開閉はapp.jsで同期する。 -->
           <nav class="game-toolbar" aria-label="対戦中の補助機能">
           <button
             id="assist-toggle-button"
@@ -206,6 +222,7 @@
           </nav>
         </div>
 
+        <!-- 盤面本体。相手手札、山札、ゲーム外カード、自分手札をrender.jsが描画する。 -->
         <div class="game-layout">
           <section class="table-panel">
             <div class="player-zone opponent-zone">
@@ -220,6 +237,7 @@
                 </div>
               </div>
               <div id="opponent-hand" class="card-row compact battle-hand-row"></div>
+              <!-- 横画面ではポップオーバー、縦画面では盤面内表示として扱う相手捨て札。 -->
               <div class="discard-access opponent-discard-access">
                 <p class="mini-heading">相手の捨て札</p>
                 <button
@@ -262,6 +280,7 @@
                 <span>MIND FIELD</span>
                 <strong>✦</strong>
               </div>
+              <!-- 山札ボタン。進行中はドロー、終局後は残り山札確認に切り替わる。 -->
               <button
                 id="deck-action-button"
                 class="deck-visual"
@@ -272,6 +291,7 @@
                 <strong id="deck-count-center">0</strong>
                 <small>CARDS</small>
               </button>
+              <!-- ゲーム外カード3枚。終局までは伏せ、結果確認時だけ公開する。 -->
               <div class="excluded-zone">
                 <p class="mini-heading">ゲーム外カード</p>
                 <div id="excluded-cards" class="card-row compact"></div>
@@ -279,6 +299,7 @@
             </div>
 
             <div class="player-zone my-zone">
+              <!-- 自分の捨て札。裏向きでも本人には内容を確認できる。 -->
               <div class="discard-access">
                 <p class="mini-heading">自分の捨て札</p>
                 <button
@@ -327,6 +348,7 @@
 
         </div>
 
+        <!-- 画面下の重要操作バー。自分の手番や終局時だけ必要なボタンを表示する。 -->
         <section
           id="context-action-bar"
           class="context-action-bar"
@@ -337,6 +359,7 @@
           <div id="context-action-buttons" class="context-action-buttons"></div>
         </section>
 
+        <!-- ログ/チャット/セッションのスライドパネルを閉じるための透明バックドロップ。 -->
         <button
           id="utility-panel-backdrop"
           class="utility-panel-backdrop"
@@ -345,6 +368,7 @@
           hidden
         ></button>
 
+        <!-- セッション情報パネル。部屋IDコピー、接続状態、退出をまとめる。 -->
         <aside
           id="session-panel"
           class="utility-panel session-panel"
@@ -397,6 +421,7 @@
           </div>
         </aside>
 
+        <!-- バトルログパネル。render.jsが種別バッジ付きで新しい順に描画する。 -->
         <aside
           id="log-panel"
           class="utility-panel log-panel"
@@ -418,6 +443,7 @@
           <div id="log-list" class="log-list"></div>
         </aside>
 
+        <!-- チャットパネル。履歴表示と送信フォームを置き、新着は別レイヤーにも流す。 -->
         <aside
           id="chat-panel"
           class="utility-panel chat-panel"
@@ -451,6 +477,7 @@
       </section>
     </main>
 
+    <!-- 入室前/ヘッダーから開く詳細ルール。ゲーム前に読む想定なので情報量を多くする。 -->
     <dialog id="rules-dialog" class="rules-dialog">
       <form method="dialog">
         <button class="dialog-close" aria-label="閉じる">×</button>
@@ -600,6 +627,7 @@
       </div>
     </dialog>
 
+    <!-- 対戦中に開く簡易ルール。盤面からすぐ戻れるよう要点だけに絞る。 -->
     <dialog id="quick-rules-dialog" class="rules-dialog quick-rules-dialog">
       <form method="dialog">
         <button class="dialog-close" aria-label="閉じる">×</button>
@@ -642,6 +670,7 @@
       </div>
     </dialog>
 
+    <!-- 捨て札確認。カードを押しただけで即捨てしないための安全確認。 -->
     <dialog id="discard-dialog" class="discard-dialog">
       <div class="discard-dialog-accent" aria-hidden="true">✦</div>
       <p class="eyebrow">CONFIRM DISCARD</p>
@@ -668,6 +697,7 @@
       </div>
     </dialog>
 
+    <!-- 能力発動確認。使用枚数と効果を見せてから発動する。 -->
     <dialog id="ability-dialog" class="ability-dialog">
       <div class="ability-dialog-accent" aria-hidden="true">◈</div>
       <p class="eyebrow">CONFIRM PSYCHIC ABILITY</p>
@@ -700,6 +730,7 @@
       </div>
     </dialog>
 
+    <!-- ヒーリング対象確認。複数カードを戻すため、送信前に一覧確認を挟む。 -->
     <dialog id="healing-confirm-dialog" class="ability-dialog healing-confirm-dialog">
       <div class="ability-dialog-accent" aria-hidden="true">✚</div>
       <p class="eyebrow">CONFIRM HEALING TARGETS</p>
@@ -722,6 +753,7 @@
       </div>
     </dialog>
 
+    <!-- プリサイエンス確認。山札へ戻す順番を確定前に見せる。 -->
     <dialog id="prescience-dialog" class="prescience-dialog">
       <div class="prescience-dialog-accent" aria-hidden="true">⌁</div>
       <p class="eyebrow">CONFIRM DECK ORDER</p>
@@ -755,6 +787,7 @@
       </div>
     </dialog>
 
+    <!-- テレポート対象確認。宣言する能力名を間違えないようにする。 -->
     <dialog id="teleport-dialog" class="teleport-dialog">
       <div class="teleport-dialog-accent" aria-hidden="true">◎</div>
       <p class="eyebrow">CONFIRM TELEPORT TARGET</p>
@@ -781,6 +814,7 @@
       </div>
     </dialog>
 
+    <!-- サイコキネシス確認。2段階能力の各対象を確定前に確認する。 -->
     <dialog
       id="psychokinesis-dialog"
       class="teleport-dialog psychokinesis-dialog"
@@ -817,6 +851,7 @@
       </div>
     </dialog>
 
+    <!-- 能力選択や追加選択で使い回す汎用選択ダイアログ。 -->
     <dialog id="choice-dialog" class="ability-dialog choice-dialog">
       <div class="ability-dialog-accent" aria-hidden="true">◈</div>
       <p id="choice-dialog-kicker" class="eyebrow"></p>
@@ -845,6 +880,7 @@
       </div>
     </dialog>
 
+    <!-- 自分の裏向き捨て札を確認する専用ダイアログ。相手には公開されない。 -->
     <dialog id="discard-reveal-dialog" class="discard-dialog">
       <div class="discard-dialog-accent" aria-hidden="true">◇</div>
       <p class="eyebrow">PRIVATE DISCARD</p>
@@ -864,6 +900,7 @@
       </div>
     </dialog>
 
+    <!-- 終局後の残り山札確認。上から引かれる順にカードを見せる。 -->
     <dialog id="deck-order-dialog" class="prescience-dialog deck-order-dialog">
       <div
         class="prescience-dialog-accent deck-order-dialog-accent"
@@ -894,6 +931,7 @@
       </div>
     </dialog>
 
+    <!-- 能力発動、ターン変更、自ターンリマインダーなどの中央通知。 -->
     <div
       id="action-event-overlay"
       class="action-event-overlay"
@@ -923,6 +961,7 @@
       </ol>
     </div>
 
+    <!-- タイムリープだけは強い演出にするため、通常通知と別レイヤーにする。 -->
     <div
       id="extra-turn-overlay"
       class="extra-turn-overlay"
@@ -936,6 +975,7 @@
       <small id="extra-turn-overlay-count"></small>
     </div>
 
+    <!-- 勝敗確定時の結果オーバーレイ。render.jsが勝敗別の色/文言を流し込む。 -->
     <section
       id="victory-overlay"
       class="victory-overlay"
@@ -1010,6 +1050,7 @@
       </div>
     </section>
 
+    <!-- チャット新着時に、にこにこ風の流れる通知を配置するレイヤー。 -->
     <div
       id="chat-float-layer"
       class="chat-float-layer"
@@ -1030,6 +1071,7 @@
     </aside>
 
     <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
+    <!-- app.jsがAPI接続、入力イベント、render.jsへの描画依頼を開始する。 -->
     <script type="module" src="/static/js/app.js"></script>
   </body>
 </html>

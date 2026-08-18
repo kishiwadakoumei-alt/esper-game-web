@@ -1,3 +1,9 @@
+/*
+  ESPERの画面全体のスタイル。
+  前半は共通UI、後半はゲーム盤面・カード表現・モーダル・レスポンシブ調整を扱う。
+*/
+
+/* 色・影・フォントなど、各セクションで使い回すデザイントークン。 */
 :root {
   color-scheme: dark;
   --bg: #080d19;
@@ -16,6 +22,7 @@
   font-family: Inter, "Noto Sans JP", "Yu Gothic", sans-serif;
 }
 
+/* すべての要素でpadding/border込みの寸法計算にし、カードやボタンの崩れを防ぐ。 */
 * {
   box-sizing: border-box;
 }
@@ -59,6 +66,7 @@ summary:focus-visible {
   display: none !important;
 }
 
+/* 背景の淡い光。クリックや読み上げ対象にならない純粋な装飾。 */
 .ambient {
   position: fixed;
   z-index: -1;
@@ -82,6 +90,7 @@ summary:focus-visible {
   background: var(--orange);
 }
 
+/* 入室前/ゲーム中で共通の上部ヘッダー。 */
 .site-header {
   display: flex;
   align-items: center;
@@ -136,6 +145,7 @@ summary:focus-visible {
   padding: clamp(28px, 5vw, 74px) 4vw 72px;
 }
 
+/* 入室前の2カラムレイアウト。左で世界観、右で入室操作を見せる。 */
 .landing-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.72fr);
@@ -332,6 +342,7 @@ input:focus {
   font-size: 11px;
 }
 
+/* 入室前に詳細ルールへ誘導する小さな情報ブロック。 */
 .entry-rule-link {
   display: flex;
   min-height: 66px;
@@ -383,6 +394,7 @@ input:focus {
   transform: translateY(-1px);
 }
 
+/* 招待URLから来たときだけ表示し、どの部屋へ入るかを強調する。 */
 .invite-banner {
   margin: 0 0 22px;
   padding: 16px 18px;
@@ -499,6 +511,7 @@ input:focus {
   color: #c39fff;
 }
 
+/* 対戦画面の大枠。render.jsが状態を受け取った後に表示する。 */
 .game-screen {
   max-width: 1380px;
   margin: -28px auto 0;
@@ -593,6 +606,7 @@ input:focus {
   --extra-turn-glow: rgba(255, 122, 69, 0.3);
 }
 
+/* タイムリープの連続追加ターン数を小さく表示するバッジ。 */
 .extra-turn-badge {
   padding: 5px 8px;
   border: 1px solid var(--extra-turn-color);
@@ -605,6 +619,7 @@ input:focus {
   letter-spacing: 0.14em;
 }
 
+/* タイムリープ発動時の専用中央通知。通常通知より強く見せる。 */
 .extra-turn-overlay {
   position: fixed;
   z-index: 30;
@@ -633,6 +648,7 @@ input:focus {
   display: none;
 }
 
+/* 能力発動、相手行動、自分の番リマインダーを出す中央通知。 */
 .action-event-overlay {
   --event-color: #b49cff;
   --event-glow: rgba(180, 156, 255, 0.22);
@@ -767,6 +783,7 @@ input:focus {
   }
 }
 
+/* 左上の常設ターン表示。待機/自分/相手/終局を色と文言で区別する。 */
 .turn-indicator {
   display: grid;
   min-width: 168px;
@@ -844,6 +861,7 @@ input:focus {
   color: var(--extra-turn-color);
 }
 
+/* 現在フェーズの短い説明。補助OFFでも最低限の進行状況を見せる。 */
 .phase-banner {
   min-height: 45px;
   margin-bottom: 14px;
@@ -872,6 +890,7 @@ input:focus {
   background: rgba(170, 140, 255, 0.12);
 }
 
+/* 盤面全体の入れ物。レスポンシブブロックで縦横の情報量を調整する。 */
 .game-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(290px, 340px);
@@ -937,6 +956,7 @@ input:focus {
   font-size: 13px;
 }
 
+/* 山札、ゲーム外カード、中央マークを置く盤面中央。 */
 .center-zone {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -951,6 +971,7 @@ input:focus {
     #0c1321;
 }
 
+/* 山札ボタン。進行中はドロー、終局後は山札確認のクリック対象になる。 */
 .deck-visual {
   display: grid;
   padding: 0;
@@ -1008,6 +1029,7 @@ input:focus {
   min-height: 37px;
 }
 
+/* すべてのカード表示の基本形。後半のスキンで能力別の見た目を重ねる。 */
 .card {
   position: relative;
   display: inline-grid;
@@ -1170,6 +1192,7 @@ button.card:hover {
   border-radius: 5px;
 }
 
+/* 画面下に固定する重要操作バー。自分の操作がある時だけ表示する。 */
 .context-action-bar {
   position: fixed;
   z-index: 18;
@@ -1395,6 +1418,7 @@ button.card:hover {
   padding: 0 18px 16px;
 }
 
+/* バトルログ1行。log-kind-*で捨てる/引く/能力/勝敗/システムを色分けする。 */
 .log-entry {
   display: grid;
   grid-template-columns: auto auto minmax(0, 1fr);
@@ -1471,6 +1495,7 @@ button.card:hover {
   display: none;
 }
 
+/* チャット新着を画面上で左から右へ流すための絶対配置レイヤー。 */
 .chat-float-layer {
   position: fixed;
   z-index: 29;
@@ -1541,6 +1566,7 @@ button.card:hover {
   background: var(--cyan);
 }
 
+/* 詳細ルールと簡易ルールの共通ダイアログ。内容量に応じてスクロールする。 */
 .rules-dialog {
   width: min(820px, calc(100% - 30px));
   max-height: calc(100vh - 40px);
@@ -1862,6 +1888,7 @@ button.card:hover {
   text-align: right;
 }
 
+/* 小さい画面ではルールダイアログを画面幅いっぱい近くにして読みやすくする。 */
 @media (max-width: 680px) {
   .rules-dialog {
     width: calc(100% - 20px);
@@ -1892,6 +1919,7 @@ button.card:hover {
   }
 }
 
+/* 捨てる/裏向き確認で使う確認ダイアログの見た目。 */
 .discard-dialog {
   width: min(460px, calc(100% - 30px));
   padding: 30px;
@@ -1975,6 +2003,7 @@ button.card:hover {
   text-align: center;
 }
 
+/* 能力発動や汎用選択で使うダイアログの基本形。 */
 .ability-dialog {
   width: min(500px, calc(100% - 30px));
   padding: 30px;
@@ -2378,6 +2407,7 @@ button.card:hover {
   line-height: 1.6;
 }
 
+/* コピー完了や通信エラーを短時間だけ知らせるトースト。 */
 .toast {
   position: fixed;
   z-index: 20;
@@ -2414,6 +2444,7 @@ button.card:hover {
   border: 0;
 }
 
+/* タブレット以下では入室画面を1カラムへ寄せる。 */
 @media (max-width: 980px) {
   .landing-grid,
   .game-layout {
@@ -2545,6 +2576,7 @@ button.card:hover {
 
 
 /* Landscape-first battle board */
+/* 横画面を基準に、相手/中央/自分の3段で盤面情報を広く使う。 */
 .app-shell {
   width: min(1720px, 100%);
 }
@@ -2558,6 +2590,7 @@ button.card:hover {
   max-width: 1680px;
 }
 
+/* 対戦中の補助機能ボタン列。縦画面では後半のmedia queryでさらに詰める。 */
 .game-toolbar {
   display: flex;
   justify-content: flex-end;
@@ -2791,6 +2824,7 @@ body.utility-panel-open {
   backdrop-filter: blur(3px);
 }
 
+/* ログ・チャット・セッション情報のスライドパネル。 */
 .utility-panel {
   position: fixed;
   z-index: 24;
@@ -2971,6 +3005,7 @@ body.utility-panel-open {
 
 
 /* Psychic tarot card skin */
+/* 基本カードへ能力別カラーと装飾を重ねる、旧スキン互換の見た目。 */
 .card {
   --card-accent: #7f91ad;
   --card-glyph: "✦";
@@ -3265,6 +3300,7 @@ button.card:hover,
 
 
 /* Illustrated ivory ability cards */
+/* SVGカード画像を使う現在の能力カード表現。表向きカードだけに適用する。 */
 .card:not(.hidden-card) {
   padding: 19px 7px 8px;
   grid-template-rows: minmax(0, 1fr) auto;
@@ -3411,6 +3447,7 @@ button.card:hover .card-art,
 
 
 /* Strong draw-ready deck glow */
+/* 山札から引ける状態を、カードではなく山札ボタンの光で知らせる。 */
 .deck-visual.actionable {
   border-color: #ffc56f;
   background:
@@ -3453,6 +3490,7 @@ button.card:hover .card-art,
 
 
 /* Landscape hand row and discard access */
+/* 手札を横一列に収め、捨て札は必要な時だけ開ける導線へまとめる。 */
 .my-zone .hand-row {
   flex-wrap: nowrap;
   justify-content: center;
@@ -3647,6 +3685,7 @@ button.card:hover .card-art,
 
 
 /* Expandable discard stacks */
+/* 能力コストなど複数枚の捨て札グループを、畳み/展開で切り替える。 */
 .discard-stack.expandable:not(.expanded) {
   cursor: pointer;
 }
@@ -3707,6 +3746,7 @@ button.card:hover .card-art,
 }
 
 /* Healing target confirmation */
+/* ヒーリング確定前に、戻すカード一覧を読みやすく表示する。 */
 .healing-confirm-dialog {
   border-color: rgba(239, 98, 100, 0.48);
   background:
@@ -3768,6 +3808,7 @@ button.card:hover .card-art,
 
 
 /* Symmetric six-card landscape layout */
+/* 相手と自分の6枚手札を、左右対称の扇配置として安定させる。 */
 .player-zone {
   grid-template-columns: minmax(112px, 150px) minmax(0, 1fr) minmax(100px, 150px);
   gap: clamp(12px, 2vw, 30px);
@@ -4014,6 +4055,7 @@ button.card:hover .card-art,
 
 
 /* Fit the landscape battle board within the viewport */
+/* 横画面ではページスクロールを避け、盤面全体を1画面内へ収める。 */
 @media (orientation: landscape) {
   html:has(body.game-active),
   body.game-active {
@@ -4187,6 +4229,7 @@ button.card:hover .card-art,
 
 
 /* Slide-in session menu */
+/* 部屋情報や退出操作を常時表示せず、必要時だけ右側から開く。 */
 .session-toggle-button {
   width: 40px;
   min-width: 40px;
@@ -4384,6 +4427,7 @@ button.card:hover .card-art,
 
 
 /* Responsive landscape card scale */
+/* 横画面の高さに合わせてカードサイズを抑え、情報同士の重なりを防ぐ。 */
 @media (orientation: landscape) {
   body.game-active .battle-hand-row,
   body.game-active .my-zone .battle-hand-row {
@@ -4431,6 +4475,7 @@ button.card:hover .card-art,
 
 
 /* Stable floating actions in landscape */
+/* 操作バー表示で盤面サイズが変わらないよう、横画面では浮かせて重ねる。 */
 @media (orientation: landscape) {
   body.game-active .game-screen.has-context-actions {
     padding-bottom: 0;
@@ -4465,6 +4510,7 @@ button.card:hover .card-art,
 }
 
 /* Viewport-safe discard overlay and card details */
+/* 捨て札ポップオーバーとカード詳細ツールチップを画面内へ収める。 */
 .discard-popover[hidden],
 .card-detail-tooltip[hidden] {
   display: none !important;
@@ -4642,6 +4688,7 @@ button.card:hover .card-art,
 }
 
 /* Guided start-of-turn notification */
+/* 自分のターン開始時だけ、最初の操作手順を短く添える通知。 */
 .action-event-overlay.with-turn-guide {
   width: min(560px, calc(100% - 24px));
   min-height: 310px;
@@ -4741,6 +4788,7 @@ button.card:hover .card-art,
 }
 
 /* Cinematic victory presentation */
+/* 終局時に勝敗・主役カード・再戦操作を大きく見せる結果画面。 */
 .victory-overlay[hidden] {
   display: none;
 }
@@ -5309,6 +5357,7 @@ button.card:hover .card-art,
 }
 
 /* Defeat and draw variants of the cinematic result presentation */
+/* 勝利以外の結果でも、色と配置で状態が一目で分かるようにする。 */
 .victory-card-display {
   display: flex;
   width: 100%;
@@ -5636,6 +5685,7 @@ button.card:hover .card-art,
 
 
 /* Final deck review */
+/* 終局後にだけ、残り山札の順番を確認できる表示を追加する。 */
 .deck-visual.reviewable {
   cursor: pointer;
   border-color: rgba(86, 216, 228, 0.76);
@@ -5821,6 +5871,8 @@ button.card:hover .card-art,
 }
 
 /* Orientation-specific information density */
+/* 縦画面では手札と操作を優先して補助情報を減らし、
+   横画面ではログ・捨て札・山札周りを広く見せる。 */
 @media (max-width: 680px) and (orientation: portrait) {
   body.game-active .battle-status-row {
     gap: 6px;

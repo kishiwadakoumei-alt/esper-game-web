@@ -1,3 +1,4 @@
+<!-- テレポートカードの中央イラスト。能力カードを一気に移動させる効果を表す。 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
   <g stroke="#247fbd" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
     <ellipse cx="60" cy="17" rx="39" ry="9"/><ellipse cx="60" cy="103" rx="39" ry="9"/>

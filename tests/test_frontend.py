@@ -1,3 +1,9 @@
+"""ブラウザへ配信するHTML/CSS/JSの構成とUI仕様を確認するテスト。
+
+実ブラウザの代わりに静的ファイルとFastAPI配信結果を読み、
+画面要素、レスポンシブCSS、通知/ログ/ルールUIの存在を固定する。
+"""
+
 import struct
 import unittest
 import zlib
@@ -13,7 +19,10 @@ FRONTEND_ROOT = PROJECT_ROOT / "frontend"
 
 
 class FrontendDeliveryTests(unittest.TestCase):
+    """フロントエンド資産が期待どおり配信・構成されるかを確認する。"""
+
     def setUp(self):
+        # 抽選/CPUを待たず、静的配信とフロントエンド文字列の検査に集中する。
         self.client_context = TestClient(
             create_app(roulette_delay=60, cpu_delay=0)
         )

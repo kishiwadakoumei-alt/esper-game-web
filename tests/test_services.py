@@ -1,3 +1,9 @@
+"""サービス層の状態更新を、HTTPを通さず直接確認するテスト。
+
+GameService/RoomService/CpuService/StateServiceの境界を小さく作り、
+カード移動、能力解決、通知文、CPU判断の仕様を固定する。
+"""
+
 import unittest
 from unittest.mock import patch
 
@@ -6,6 +12,7 @@ from services import CpuService, GameService, RoomService, StateService
 
 
 def make_game() -> EsperGame:
+    """各テストで必要な状態だけを足しやすい、空に近い2人対戦を作る。"""
     game = EsperGame()
     game.players = ["Alice", "Bob"]
     game.current_turn = "p1"
@@ -21,6 +28,8 @@ def make_game() -> EsperGame:
 
 
 class RoomServiceTests(unittest.TestCase):
+    """入室、CPU部屋、再戦など部屋単位の操作を確認する。"""
+
     def test_join_room_assigns_roles_and_rejects_third_player(self):
         rooms = {}
 
@@ -67,6 +76,8 @@ class RoomServiceTests(unittest.TestCase):
 
 
 class GameServiceTurnTests(unittest.TestCase):
+    """通常ターンの捨てる/引く/追加ターン遷移を確認する。"""
+
     def test_discard_and_draw_follow_normal_turn_steps(self):
         game = make_game()
         game.p1_hand = ["A", "B", "C", "D", "E", "F"]
@@ -121,6 +132,8 @@ class GameServiceTurnTests(unittest.TestCase):
 
 
 class GameServiceAbilityTests(unittest.TestCase):
+    """各能力がカードを正しい場所へ移動し、ターンを進めることを確認する。"""
+
     def test_teleport_discards_target_and_refills_both_players(self):
         game = make_game()
         game.turn_step = "TELEPORT_SELECTION"
@@ -267,6 +280,8 @@ class GameServiceAbilityTests(unittest.TestCase):
 
 
 class GameServiceActionEventTests(unittest.TestCase):
+    """能力や手札更新の通知で、相手へ秘密情報が漏れないことを確認する。"""
+
     def test_hidden_discard_name_is_not_exposed_to_opponent(self):
         game = make_game()
         game.p1_hand = ["SECRET", "B", "C", "D", "E", "F"]
@@ -349,6 +364,8 @@ class GameServiceActionEventTests(unittest.TestCase):
 
 
 class GameServiceAbilityNotificationTests(unittest.TestCase):
+    """能力ごとの中央通知が、閲覧者別に正しい内容になることを確認する。"""
+
     def test_successful_psychokinesis_reveals_returned_card_only_to_victim(self):
         game = make_game()
         game.turn_step = "PSY_DISCARD_SELECTION"
@@ -436,6 +453,8 @@ class GameServiceAbilityNotificationTests(unittest.TestCase):
 
 
 class CpuServiceTests(unittest.TestCase):
+    """CPUが難易度ごとの方針で1ステップずつ操作することを確認する。"""
+
     def test_easy_cpu_discards_one_card_in_one_step(self):
         game = make_game()
         game.is_cpu = True

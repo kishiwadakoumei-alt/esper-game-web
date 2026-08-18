@@ -1,3 +1,9 @@
+"""StateServiceが公開状態から秘密情報を除くことを確認するテスト。
+
+相手手札、山札、ゲーム外カード、裏向き捨て札、通知文の見え方を
+閲覧者ごとに検証する。
+"""
+
 import json
 import unittest
 
@@ -6,6 +12,7 @@ from services import StateService
 
 
 def make_game() -> EsperGame:
+    """秘匿情報を含む固定状態を作り、公開状態で漏れないか確認しやすくする。"""
     game = EsperGame()
     game.players = ["Alice", "Bob"]
     game.current_turn = "p1"
@@ -44,6 +51,8 @@ def make_game() -> EsperGame:
 
 
 class StateServiceVisibilityTests(unittest.TestCase):
+    """通常時と終局時で、公開されるカード情報が切り替わることを確認する。"""
+
     def test_normal_state_hides_all_opponent_and_deck_secrets(self):
         game = make_game()
         game.extra_turn_chain = 4
@@ -158,6 +167,8 @@ class StateServiceVisibilityTests(unittest.TestCase):
 
 
 class StateServiceActionEventTests(unittest.TestCase):
+    """中央通知イベントが閲覧者向けの文言だけを含むことを確認する。"""
+
     def test_action_event_exposes_only_viewer_specific_message(self):
         game = make_game()
         game.add_action_event(
@@ -206,6 +217,8 @@ class StateServiceActionEventTests(unittest.TestCase):
 
 
 class StateServiceInteractionTests(unittest.TestCase):
+    """能力選択中のinteractionが、操作プレイヤーだけに安全に見えることを確認する。"""
+
     def test_prescience_cards_are_visible_only_to_acting_player(self):
         game = make_game()
         game.turn_step = "PRESCIENCE_SELECT_1"
@@ -387,6 +400,8 @@ class StateServiceInteractionTests(unittest.TestCase):
 
 
 class StateServiceActionTests(unittest.TestCase):
+    """turn_stepごとのavailable_actionsが正しいことを確認する。"""
+
     def test_actions_are_limited_by_turn_and_step(self):
         game = make_game()
 

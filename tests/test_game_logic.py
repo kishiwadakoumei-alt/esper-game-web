@@ -1,3 +1,8 @@
+"""EsperGame本体の初期化、手札判定、ログ、終局処理を確認するテスト。
+
+UIやAPIを通さず、ゲーム状態オブジェクト単体のルールを固定する。
+"""
+
 import re
 import unittest
 from collections import Counter
@@ -7,6 +12,8 @@ from game_logic import EsperGame
 
 
 class EsperGameInitializationTests(unittest.TestCase):
+    """山札構成、初期手札、除外カードなど新規ゲームの前提を確認する。"""
+
     def test_initial_state_preserves_all_cards(self):
         game = EsperGame()
 
@@ -47,6 +54,8 @@ class EsperGameInitializationTests(unittest.TestCase):
 
 
 class EsperGameHandTests(unittest.TestCase):
+    """手札ソート、ESPER判定、補充、役割ヘルパーを確認する。"""
+
     def setUp(self):
         self.game = EsperGame()
 
@@ -112,6 +121,8 @@ class EsperGameHandTests(unittest.TestCase):
 
 
 class EsperGameLogAndEndgameTests(unittest.TestCase):
+    """ログ記録と、山札切れなどの終局判定を確認する。"""
+
     def setUp(self):
         self.game = EsperGame()
         self.game.players = ["Alice", "Bob"]
@@ -169,6 +180,8 @@ class EsperGameLogAndEndgameTests(unittest.TestCase):
 
 
 class EsperGameTurnTests(unittest.TestCase):
+    """ターン終了時の交代、追加ターン、終局条件を確認する。"""
+
     def setUp(self):
         self.game = EsperGame()
         self.game.players = ["Alice", "Bob"]
@@ -237,6 +250,8 @@ class EsperGameTurnTests(unittest.TestCase):
 
 
 class EsperGameResetTests(unittest.TestCase):
+    """再戦時に引き継ぐもの/初期化するものを確認する。"""
+
     def test_reset_game_resets_round_state_and_retains_room_state(self):
         with patch("game_logic.random.shuffle", side_effect=lambda cards: None):
             game = EsperGame()

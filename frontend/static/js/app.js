@@ -1,3 +1,5 @@
+// 画面全体の状態遷移とユーザー入力を受け持つエントリーポイント。
+// API通信はapi.js、実際のDOM描画はrender.jsへ分担している。
 import { ApiError, EsperApi } from "./api.js";
 import {
   renderGame,
@@ -6,12 +8,16 @@ import {
 } from "./render.js";
 
 const api = new EsperApi();
+// currentStateは最後に受け取った公開状態。トグル変更時の再描画に使う。
 let currentState = null;
 let busy = false;
 let toastTimer = null;
+// 補助説明はゲーム中に切り替える。初期値は要望どおりOFF。
 let assistEnabled = false;
+// チャットの流れる通知は初期ON。邪魔な場合はツールバーからOFFにできる。
 let chatNotificationsEnabled = true;
 
+// index.html上の固定要素を最初に取得して、以後はID文字列の重複を減らす。
 const landingScreen = document.getElementById("landing-screen");
 const gameScreen = document.getElementById("game-screen");
 const joinForm = document.getElementById("join-form");
@@ -41,6 +47,7 @@ const chatPanel = document.getElementById("chat-panel");
 const sessionPanel = document.getElementById("session-panel");
 const shareRoomButton = document.getElementById("share-room-button");
 const utilityPanelBackdrop = document.getElementById("utility-panel-backdrop");
+// 横画面では捨て札を画面中央のポップオーバーとして扱うため、向き変更を監視する。
 const discardLayoutMedia = window.matchMedia("(orientation: landscape)");
 const discardPanels = {
   mine: {
@@ -52,12 +59,14 @@ const discardPanels = {
     panel: document.getElementById("opponent-discard-panel"),
   },
 };
+// これらの操作が確定した後は、選択に使っていた捨て札パネルを閉じる。
 const DISCARD_SELECTION_CONFIRM_ACTIONS = new Set([
   "confirm_healing",
   "confirm_clairvoyance",
   "finish_clairvoyance",
   "select_psychokinesis_push",
 ]);
+// body直下へ一時移動した捨て札パネルを、元のDOM位置へ戻すためのアンカー。
 const discardPanelAnchors = Object.fromEntries(
   Object.entries(discardPanels).map(([owner, { panel }]) => [
     owner,
@@ -65,6 +74,7 @@ const discardPanelAnchors = Object.fromEntries(
   ]),
 );
 
+// 横画面のオーバーレイ表示時だけ、捨て札パネルをbody直下へ移す。
 function placeDiscardPanel(owner, inViewportLayer) {
   const panel = discardPanels[owner].panel;
   if (inViewportLayer) {
@@ -77,6 +87,7 @@ function placeDiscardPanel(owner, inViewportLayer) {
   }
 }
 
+// 自分/相手どちらかの捨て札パネルを開閉し、横画面では同時に1つだけ表示する。
 function setDiscardPanelOpen(owner, open) {
   const landscape = discardLayoutMedia.matches;
   if (open && landscape) {
@@ -105,15 +116,18 @@ function setDiscardPanelOpen(owner, open) {
   );
 }
 
+// 選択確定や画面遷移で、開いている捨て札パネルをまとめて閉じる。
 function closeDiscardPanels() {
   setDiscardPanelOpen("mine", false);
   setDiscardPanelOpen("opponent", false);
 }
 
+// 画面の向きが変わったとき、古い位置/表示状態を残さないようリセットする。
 function syncDiscardLayout() {
   closeDiscardPanels();
 }
 
+// ログ・チャット・セッション情報のスライドパネルを1つだけ開く。
 function setUtilityPanel(openPanel = null) {
   const logOpen = openPanel === "log";
   const chatOpen = openPanel === "chat";
@@ -138,10 +152,12 @@ function setUtilityPanel(openPanel = null) {
   }
 }
 
+// 古い呼び出し名との互換用。実体は汎用ユーティリティパネル。
 function setBattleLogOpen(open) {
   setUtilityPanel(open ? "log" : null);
 }
 
+// サイコキネシスなど、操作の続きで相手捨て札を開くためのショートカット。
 function openOpponentDiscards() {
   setUtilityPanel();
   setDiscardPanelOpen("opponent", true);
@@ -155,6 +171,7 @@ function openOpponentDiscards() {
   }
 }
 
+// 通信エラーやコピー完了など、短いフィードバックを一定時間だけ表示する。
 function showToast(message) {
   window.clearTimeout(toastTimer);
   toast.textContent = message;
@@ -164,6 +181,7 @@ function showToast(message) {
   }, 4200);
 }
 
+// API側で整形したエラーはそのまま表示し、それ以外は汎用文にする。
 function errorMessage(error) {
   if (error instanceof ApiError) {
     return error.message;
@@ -171,6 +189,7 @@ function errorMessage(error) {
   return "予期しないエラーが発生しました。";
 }
 
+// 招待URLのroomパラメータを読み、制御文字や長すぎる値は無視する。
 function readInvitedRoomId() {
   const roomId = new URLSearchParams(window.location.search)
     .get("room")
@@ -186,6 +205,7 @@ function readInvitedRoomId() {
   return roomId;
 }
 
+// 招待URL由来のあいことばが入力欄と一致しているときだけ、招待表示に切り替える。
 function syncInvitePresentation() {
   const isInvitedRoom = Boolean(
     invitedRoomId && roomInput.value.trim() === invitedRoomId,
@@ -197,6 +217,7 @@ function syncInvitePresentation() {
     : "入室する";
 }
 
+// 初期表示時に招待URLのあいことばを入力欄へ反映する。
 function applyRoomInvitation() {
   if (invitedRoomId) {
     roomInput.value = invitedRoomId;
@@ -204,6 +225,7 @@ function applyRoomInvitation() {
   syncInvitePresentation();
 }
 
+// 現在のURLから既存クエリを消し、roomだけを含む共有URLを作る。
 function buildRoomInviteUrl(roomId) {
   const url = new URL(window.location.href);
   url.search = "";
@@ -212,6 +234,7 @@ function buildRoomInviteUrl(roomId) {
   return url.toString();
 }
 
+// Web Share APIが使えない環境向けに、クリップボードまたはpromptで共有URLを渡す。
 async function copyRoomInviteUrl(url) {
   try {
     await navigator.clipboard.writeText(url);
@@ -221,6 +244,7 @@ async function copyRoomInviteUrl(url) {
   }
 }
 
+// 補助説明ON/OFFの見た目とアクセシビリティ状態をボタンへ同期する。
 function syncAssistToggle() {
   assistToggleButton.setAttribute("aria-pressed", String(assistEnabled));
   assistToggleButton.classList.toggle("active", assistEnabled);
@@ -231,6 +255,7 @@ function syncAssistToggle() {
   );
 }
 
+// チャット通知ON/OFFの見た目とアクセシビリティ状態をボタンへ同期する。
 function syncChatNoticeToggle() {
   chatNoticeToggleButton.setAttribute(
     "aria-pressed",
@@ -248,14 +273,17 @@ function syncChatNoticeToggle() {
   );
 }
 
+// 入室前/ヘッダーから開く、詳しいルール説明。
 function openDetailedRules() {
   rulesDialog.showModal();
 }
 
+// 対戦中の邪魔になりにくい簡易ルール説明。
 function openQuickRules() {
   quickRulesDialog.showModal();
 }
 
+// 入力中のあいことばを招待URL化し、OS共有またはコピーへ流す。
 async function shareRoomInvite() {
   const roomId = roomInput.value.trim();
   if (!roomId) {
@@ -282,11 +310,13 @@ async function shareRoomInvite() {
   await copyRoomInviteUrl(url);
 }
 
+// 二重送信を避けるためのロック状態を保存し、aria-busyにも反映する。
 function setBusy(value) {
   busy = value;
   document.getElementById("app").setAttribute("aria-busy", String(value));
 }
 
+// 対戦画面を閉じて入室画面へ戻し、描画側の一時状態も全てリセットする。
 function showLanding() {
   currentState = null;
   document.body.classList.remove("game-active");
@@ -300,6 +330,7 @@ function showLanding() {
   (inviteBanner.hidden ? roomInput : nameInput).focus();
 }
 
+// render.jsへ渡す操作ハンドラ。描画層からAPIや画面遷移の詳細を隠す。
 function handlers() {
   return {
     action: performAction,
@@ -313,6 +344,7 @@ function handlers() {
   };
 }
 
+// サーバーから受け取った公開状態を保存し、ゲーム画面を再描画する。
 function updateState(state, { suppressActionEvents = false } = {}) {
   currentState = state;
   document.body.classList.add("game-active");
@@ -325,6 +357,7 @@ function updateState(state, { suppressActionEvents = false } = {}) {
   });
 }
 
+// WebSocketを開き、サーバーからの状態pushをupdateStateへ接続する。
 function connectSocket() {
   api.connect({
     onState: updateState,
@@ -336,6 +369,7 @@ function connectSocket() {
   });
 }
 
+// 入室/CPU開始の共通処理。成功したら初期状態表示とWebSocket接続を始める。
 async function enterGame(operation) {
   if (busy) {
     return;
@@ -352,6 +386,7 @@ async function enterGame(operation) {
   }
 }
 
+// ゲーム操作を送信し、戻ってきた状態を即時反映する。
 async function performAction(action, payload = {}) {
   if (busy) {
     return;
@@ -360,6 +395,7 @@ async function performAction(action, payload = {}) {
   try {
     const nextState = await api.performAction(action, payload);
     updateState(nextState);
+    // 千里眼で相手捨て札を見た場合は、結果を見逃さないよう相手捨て札を開く。
     const revealsOpponentDiscard =
       action === "confirm_clairvoyance" &&
       nextState.interaction?.kind === "clairvoyance_reveal" &&
@@ -386,6 +422,7 @@ async function performAction(action, payload = {}) {
   }
 }
 
+// 終局後の再戦希望を送る。両者が揃うとサーバー側で新しいゲームになる。
 async function requestRematch() {
   if (busy) {
     return;
@@ -400,6 +437,7 @@ async function requestRematch() {
   }
 }
 
+// 退出時は対人部屋を解散するため、誤操作防止の確認を挟む。
 async function leaveRoom() {
   if (busy || !api.session) {
     return;
@@ -421,6 +459,7 @@ async function leaveRoom() {
   }
 }
 
+// ここから下はDOMイベントの配線。関数本体は上にまとめている。
 roomInput.addEventListener("input", syncInvitePresentation);
 
 joinForm.addEventListener("submit", (event) => {
@@ -530,6 +569,7 @@ document.getElementById("opponent-discard-close-button").addEventListener(
 
 discardLayoutMedia.addEventListener("change", syncDiscardLayout);
 
+// Escapeキーは、重なりやすい補助パネル/捨て札パネルを閉じる共通操作にする。
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") {
     return;
@@ -563,6 +603,7 @@ document.getElementById("rules-button").addEventListener("click", openDetailedRu
 entryRulesButton.addEventListener("click", openDetailedRules);
 gameRulesButton.addEventListener("click", openQuickRules);
 
+// リロード時にsessionStorageのトークンが生きていれば同じ部屋へ復帰する。
 async function restoreSession() {
   if (!api.session) {
     showLanding();
@@ -581,6 +622,7 @@ async function restoreSession() {
   }
 }
 
+// 初期化順序: 招待URL反映、トグル表示同期、レスポンシブ状態同期、セッション復帰。
 applyRoomInvitation();
 syncAssistToggle();
 syncChatNoticeToggle();

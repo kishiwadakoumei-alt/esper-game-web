@@ -9,6 +9,7 @@ const api = new EsperApi();
 let currentState = null;
 let busy = false;
 let toastTimer = null;
+let assistEnabled = false;
 
 const landingScreen = document.getElementById("landing-screen");
 const gameScreen = document.getElementById("game-screen");
@@ -23,6 +24,11 @@ const chatForm = document.getElementById("chat-form");
 const chatInput = document.getElementById("chat-message");
 const toast = document.getElementById("toast");
 const rulesDialog = document.getElementById("rules-dialog");
+const quickRulesDialog = document.getElementById("quick-rules-dialog");
+const entryRulesButton = document.getElementById("entry-rules-button");
+const gameRulesButton = document.getElementById("game-rules-button");
+const assistToggleButton = document.getElementById("assist-toggle-button");
+const assistToggleLabel = document.getElementById("assist-toggle-label");
 const logToggleButton = document.getElementById("log-toggle-button");
 const logToggleLabel = document.getElementById("log-toggle-label");
 const chatToggleButton = document.getElementById("chat-toggle-button");
@@ -212,6 +218,24 @@ async function copyRoomInviteUrl(url) {
   }
 }
 
+function syncAssistToggle() {
+  assistToggleButton.setAttribute("aria-pressed", String(assistEnabled));
+  assistToggleButton.classList.toggle("active", assistEnabled);
+  assistToggleLabel.textContent = assistEnabled ? "補助ON" : "補助OFF";
+  assistToggleButton.setAttribute(
+    "aria-label",
+    assistEnabled ? "補助説明をOFFにする" : "補助説明をONにする",
+  );
+}
+
+function openDetailedRules() {
+  rulesDialog.showModal();
+}
+
+function openQuickRules() {
+  quickRulesDialog.showModal();
+}
+
 async function shareRoomInvite() {
   const roomId = roomInput.value.trim();
   if (!roomId) {
@@ -274,7 +298,7 @@ function updateState(state, { suppressActionEvents = false } = {}) {
   document.body.classList.add("game-active");
   landingScreen.hidden = true;
   gameScreen.hidden = false;
-  renderGame(state, handlers(), { suppressActionEvents });
+  renderGame(state, handlers(), { suppressActionEvents, assistEnabled });
 }
 
 function connectSocket() {
@@ -423,6 +447,17 @@ sessionToggleButton.addEventListener("click", () => {
   setUtilityPanel(sessionPanel.hidden ? "session" : null);
 });
 
+assistToggleButton.addEventListener("click", () => {
+  assistEnabled = !assistEnabled;
+  syncAssistToggle();
+  if (currentState) {
+    renderGame(currentState, handlers(), {
+      suppressActionEvents: true,
+      assistEnabled,
+    });
+  }
+});
+
 document.getElementById("session-close-button").addEventListener(
   "click",
   () => setUtilityPanel(),
@@ -487,9 +522,9 @@ document.getElementById("copy-room-button").addEventListener("click", async () =
   }
 });
 
-document.getElementById("rules-button").addEventListener("click", () => {
-  rulesDialog.showModal();
-});
+document.getElementById("rules-button").addEventListener("click", openDetailedRules);
+entryRulesButton.addEventListener("click", openDetailedRules);
+gameRulesButton.addEventListener("click", openQuickRules);
 
 async function restoreSession() {
   if (!api.session) {
@@ -510,5 +545,6 @@ async function restoreSession() {
 }
 
 applyRoomInvitation();
+syncAssistToggle();
 syncDiscardLayout();
 restoreSession();

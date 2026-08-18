@@ -60,6 +60,16 @@
             </div>
           </div>
 
+          <div class="entry-rule-link">
+            <div>
+              <strong>詳しいルール説明</strong>
+              <small>ゲームの流れ・勝敗判定・カードの効果・細則を確認できます。</small>
+            </div>
+            <button id="entry-rules-button" class="entry-rule-button" type="button">
+              確認する
+            </button>
+          </div>
+
           <aside id="invite-banner" class="invite-banner" role="status" hidden>
             <span>ROOM INVITATION</span>
             <div>
@@ -122,9 +132,36 @@
 
       <section id="game-screen" class="game-screen" hidden>
         <div class="battle-status-row">
+          <div
+            id="turn-indicator"
+            class="turn-indicator is-waiting"
+            role="status"
+            aria-live="polite"
+          >
+            <span id="turn-indicator-label">TURN</span>
+            <strong id="turn-indicator-main">待機中</strong>
+            <small id="turn-indicator-detail"></small>
+          </div>
           <div id="phase-banner" class="phase-banner" role="status"></div>
 
           <nav class="game-toolbar" aria-label="対戦中の補助機能">
+          <button
+            id="assist-toggle-button"
+            class="utility-toggle-button"
+            type="button"
+            aria-pressed="false"
+          >
+            <span class="utility-toggle-icon" aria-hidden="true">?</span>
+            <span id="assist-toggle-label">補助OFF</span>
+          </button>
+          <button
+            id="game-rules-button"
+            class="utility-toggle-button"
+            type="button"
+          >
+            <span class="utility-toggle-icon" aria-hidden="true">?</span>
+            <span>簡易ルール</span>
+          </button>
           <button
             id="log-toggle-button"
             class="utility-toggle-button"
@@ -410,13 +447,13 @@
         <button class="dialog-close" aria-label="閉じる">×</button>
       </form>
       <p class="eyebrow">GAME RULES &amp; PSYCHIC ABILITY ARCHIVE</p>
-      <h2>遊び方・能力一覧</h2>
+      <h2>詳しいルール説明</h2>
       <section class="game-rules" aria-labelledby="basic-rules-title">
         <div class="rules-section-heading">
           <span>01</span>
           <div>
-            <p>BASIC RULES</p>
-            <h3 id="basic-rules-title">基本ルール</h3>
+            <p>GAME FLOW</p>
+            <h3 id="basic-rules-title">ゲームの流れ</h3>
           </div>
         </div>
 
@@ -453,27 +490,61 @@
               <span>03</span>
               <div><b>能力を使うか決める</b><p>使わない場合は、そのままターンを終了します。</p></div>
             </li>
+            <li>
+              <span>04</span>
+              <div><b>ESPERを宣言する</b><p>条件を満たしたら、自分の番以外でも宣言できます。</p></div>
+            </li>
           </ol>
         </section>
 
-        <div class="rule-detail-grid">
-          <article>
-            <b>伏せ札</b>
-            <p>通常の捨て札は、自分の伏せ札が5枚になるまで裏向きです。それ以降は表向きで置きます。</p>
-          </article>
-          <article>
-            <b>能力の発動</b>
-            <p>同名カード2枚を表向きで捨てると、その能力を使用できます。能力解決後は手札を補充します。</p>
-          </article>
-          <article>
-            <b>カモフラージュ</b>
-            <p>カモフラージュ2枚と別能力カード1枚を捨て、そのカードの能力を発動します。</p>
-          </article>
-          <article>
-            <b>自動決着</b>
-            <p>山札がなくなるか、どちらかの捨て札が18組になると終了。ESPER成立を優先し、未成立なら同種カードの枚数構成を比較します。</p>
-          </article>
-        </div>
+        <section class="judgement-rules" aria-labelledby="judgement-rules-title">
+          <div class="rules-section-heading">
+            <span>02</span>
+            <div>
+              <p>WIN OR DRAW</p>
+              <h3 id="judgement-rules-title">勝敗判定</h3>
+            </div>
+          </div>
+          <ol>
+            <li><b>ESPER宣言</b><p>同じ能力カード5枚以上、またはカモフラージュのワイルド判定で5枚相当になれば勝利です。</p></li>
+            <li><b>同時成立</b><p>両者が同時にESPER条件を満たした場合は引き分けになります。</p></li>
+            <li><b>山札切れ・捨て札上限</b><p>山札が尽きる、または捨て札が18組に達すると手札構成で判定します。</p></li>
+            <li><b>手札構成判定</b><p>同種カードの最大枚数を比べ、同じ場合は次に多い組を順に比較します。</p></li>
+          </ol>
+        </section>
+
+        <section class="other-rule-list" aria-labelledby="other-rules-title">
+          <div class="rules-section-heading">
+            <span>03</span>
+            <div>
+              <p>DETAILS</p>
+              <h3 id="other-rules-title">その他の詳しいルール</h3>
+            </div>
+          </div>
+          <div class="rule-detail-grid">
+            <article>
+              <b>伏せ札</b>
+              <p>通常の捨て札は、自分の伏せ札が5枚になるまで裏向きです。それ以降は表向きで置きます。</p>
+            </article>
+            <article>
+              <b>能力の発動</b>
+              <p>同名カード2枚を表向きで捨てると、その能力を使用できます。能力解決後は手札を補充します。</p>
+            </article>
+            <article>
+              <b>カモフラージュ</b>
+              <p>カモフラージュ2枚と別能力カード1枚を捨て、そのカードの能力を発動します。</p>
+            </article>
+            <article>
+              <b>自動決着</b>
+              <p>山札がなくなるか、どちらかの捨て札が18組になると終了。ESPER成立を優先し、未成立なら同種カードの枚数構成を比較します。</p>
+            </article>
+          </div>
+          <ul>
+            <li>裏向きの捨て札は、透視やサイコキネシスなど一部能力の対象になります。</li>
+            <li>タイムリープで追加ターンを得た場合も、通常ターンと同じ流れで進みます。</li>
+            <li>ゲーム外カード3枚は最終公開まで見えません。</li>
+          </ul>
+        </section>
 
         <aside class="esper-wildcard-note">
           <strong>カモフラージュのESPER判定</strong>
@@ -482,10 +553,10 @@
       </section>
 
       <div class="rules-ability-heading">
-        <span>02</span>
+        <span>04</span>
         <div>
           <p>SEVEN PSYCHIC POWERS</p>
-          <h3>7つの能力</h3>
+          <h3>カードの効果（7つの能力）</h3>
         </div>
       </div>
       <div class="rule-grid">
@@ -496,6 +567,48 @@
         <article><b>瞬間移動</b><span>テレポート</span><p>宣言した能力カードを相手の手札からすべて捨てさせる。</p></article>
         <article><b>再生</b><span>ヒーリング</span><p>両者の捨て札から3枚まで山札へ戻し、シャッフルする。</p></article>
         <article><b>擬態</b><span>カモフラージュ</span><p>2枚と別能力カード1枚を使い、そのカードの能力を発動する。</p></article>
+      </div>
+    </dialog>
+
+    <dialog id="quick-rules-dialog" class="rules-dialog quick-rules-dialog">
+      <form method="dialog">
+        <button class="dialog-close" aria-label="閉じる">×</button>
+      </form>
+      <p class="eyebrow">QUICK RULES</p>
+      <h2>簡易ルール</h2>
+      <div class="quick-rule-grid">
+        <article>
+          <span>GOAL</span>
+          <b>同じ能力を5枚集める</b>
+          <p>そろったら「ESPER」を宣言。相手のターンでも宣言できます。</p>
+        </article>
+        <article>
+          <span>TURN</span>
+          <b>捨てる → 引く → 能力</b>
+          <p>手札を整え、使える能力があれば発動するか選びます。</p>
+        </article>
+        <article>
+          <span>POWER</span>
+          <b>同名2枚で能力発動</b>
+          <p>カモフラージュは2枚と別能力1枚で、その能力として使えます。</p>
+        </article>
+        <article>
+          <span>END</span>
+          <b>山札切れでも判定</b>
+          <p>ESPER未成立なら、手札の同種カード枚数を比べます。</p>
+        </article>
+      </div>
+      <div class="quick-ability-list">
+        <p>能力早見</p>
+        <ul>
+          <li><b>クレヤボヤンス</b><span>2枚まで見る</span></li>
+          <li><b>タイムリープ</b><span>追加ターン</span></li>
+          <li><b>サイコキネシス</b><span>相手の手札を捨てさせる</span></li>
+          <li><b>プリサイエンス</b><span>山札3枚を並べ替える</span></li>
+          <li><b>テレポート</b><span>宣言した能力を捨てさせる</span></li>
+          <li><b>ヒーリング</b><span>場札を山札へ戻す</span></li>
+          <li><b>カモフラージュ</b><span>別能力として使う</span></li>
+        </ul>
       </div>
     </dialog>
 
@@ -839,6 +952,7 @@
           <div class="victory-result-detail victory-result-condition">
             <p id="result-condition-label">WIN CONDITION</p>
             <strong id="victory-reason"></strong>
+            <small id="victory-matchup" class="victory-matchup"></small>
           </div>
           <div class="victory-score">
             <span>あなた <b id="my-result-status">WIN</b></span>

@@ -174,11 +174,17 @@ class FrontendDeliveryTests(unittest.TestCase):
         ).read_text()
 
         self.assertIn("遊び方・能力一覧", html)
+        self.assertIn("詳しいルール説明", html)
+        self.assertIn("entry-rules-button", html)
         self.assertIn("basic-rules-title", html)
         self.assertIn("turn-rules-title", html)
         self.assertIn("同じ能力カードを5枚以上", html)
         self.assertIn("手札6枚から開始", html)
         self.assertIn("相手のターンでも宣言可能", html)
+        self.assertIn("ゲームの流れ", html)
+        self.assertIn("勝敗判定", html)
+        self.assertIn("カードの効果", html)
+        self.assertIn("その他の詳しいルール", html)
         self.assertIn("カードを1枚捨てる", html)
         self.assertIn("山札から引く", html)
         self.assertIn("能力を使うか決める", html)
@@ -187,8 +193,11 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("カモフラージュのESPER判定", html)
         self.assertIn("7つの能力", html)
         self.assertIn(".game-rules", css)
+        self.assertIn(".entry-rule-link", css)
         self.assertIn(".rule-summary-grid", css)
         self.assertIn(".turn-rules", css)
+        self.assertIn(".judgement-rules", css)
+        self.assertIn(".other-rule-list", css)
         self.assertIn(".rule-detail-grid", css)
         self.assertIn("overflow-y: auto", css)
 
@@ -358,7 +367,7 @@ class FrontendDeliveryTests(unittest.TestCase):
             renderer,
         )
         self.assertIn(
-            "{ allowStackExpansion: allowDiscardStackExpansion }",
+            "allowStackExpansion: allowDiscardStackExpansion",
             renderer,
         )
         self.assertIn("if (!allowDiscardStackExpansion)", renderer)
@@ -497,6 +506,7 @@ class FrontendDeliveryTests(unittest.TestCase):
             "result-end-trigger-value",
             "result-condition-label",
             "victory-reason",
+            "victory-matchup",
             "my-result-status",
             "opponent-result-status",
             "victory-rematch-button",
@@ -518,6 +528,8 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("state.game.result?.is_winner", renderer)
         self.assertIn("shouldShowResultOverlay", renderer)
         self.assertIn("resultReasonText", renderer)
+        self.assertIn("resultMatchupText", renderer)
+        self.assertIn("dominantSummary", renderer)
         self.assertIn("renderResultCardFan", renderer)
         self.assertIn("resultCopyText", renderer)
         self.assertIn("resultKickerText", renderer)
@@ -530,6 +542,7 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("DISCARD LIMIT", renderer)
         self.assertIn("ESPER DECLARATION", renderer)
         self.assertIn("state.game.result?.end_trigger", renderer)
+        self.assertIn("${label}: ${dominant.card}${dominant.cards.length}枚", renderer)
         self.assertIn("HAND VERDICT", renderer)
         self.assertIn("FINAL HAND CHECK", renderer)
         self.assertIn("判定勝利", renderer)
@@ -563,6 +576,11 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("revealFaceDown: revealFinalBoard", renderer)
         self.assertIn("const revealFinalBoard = state.game.finished", renderer)
         self.assertIn("公開された盤面を確認できます。", renderer)
+        self.assertIn("playAssistMessage", renderer)
+        self.assertIn("endgameWarningText", renderer)
+        self.assertIn("mergeAssistMessage", renderer)
+        self.assertIn("捨て札は能力の材料になります。", renderer)
+        self.assertIn("山札残り${deckCount}枚", renderer)
         self.assertIn("result-rematch-button", renderer)
         self.assertIn("showDeckOrderDialog", renderer)
         self.assertIn("deckOrderLabel", renderer)
@@ -589,6 +607,7 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn(".victory-card-display", css)
         self.assertIn(".victory-result-trigger", css)
         self.assertIn(".victory-result-detail", css)
+        self.assertIn(".victory-matchup", css)
         self.assertIn("--victory-fan-width", css)
         self.assertIn("--fan-x", css)
         self.assertIn("--fan-angle", css)
@@ -596,6 +615,7 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn("@keyframes defeat-sigil-flicker", css)
         self.assertIn("@keyframes draw-sigil-balance", css)
         self.assertIn("prefers-reduced-motion: reduce", css)
+        self.assertIn(".action-event-overlay", css)
 
     def test_extra_turn_indicator_has_four_color_levels(self):
         html = (FRONTEND_ROOT / "index.html").read_text()
@@ -672,6 +692,50 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn(".action-event-overlay.tone-turn-mine", css)
         self.assertIn(".action-event-overlay.tone-turn-opponent", css)
         self.assertIn(".turn-start-guide", css)
+
+    def test_turn_status_assist_toggle_and_quick_rules_are_available(self):
+        html = (FRONTEND_ROOT / "index.html").read_text()
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+        app = (
+            FRONTEND_ROOT / "static" / "js" / "app.js"
+        ).read_text()
+        renderer = (
+            FRONTEND_ROOT / "static" / "js" / "render.js"
+        ).read_text()
+
+        for element_id in (
+            "turn-indicator",
+            "turn-indicator-main",
+            "turn-indicator-detail",
+            "assist-toggle-button",
+            "assist-toggle-label",
+            "game-rules-button",
+            "quick-rules-dialog",
+        ):
+            self.assertIn(f'id="{element_id}"', html)
+        self.assertIn("補助OFF", html)
+        self.assertIn("簡易ルール", html)
+        self.assertIn("let assistEnabled = false", app)
+        self.assertIn("syncAssistToggle", app)
+        self.assertIn("quickRulesDialog.showModal()", app)
+        self.assertIn("renderGame(currentState, handlers()", app)
+        self.assertIn("renderTurnIndicator(state)", renderer)
+        self.assertIn("あなたのターン", renderer)
+        self.assertIn("相手のターン", renderer)
+        self.assertIn("PLAYER_TURN_REMINDER_INTERVAL_MS = 15000", renderer)
+        self.assertIn("PLAYER_TURN_REMINDER_DURATION_MS = 2000", renderer)
+        self.assertIn('kind: "turn_reminder"', renderer)
+        self.assertIn("schedulePlayerTurnReminder(state)", renderer)
+        self.assertIn('document.addEventListener(eventName, notePlayerActivity, true)', renderer)
+        self.assertIn("currentAssistEnabled", renderer)
+        self.assertIn("assistEnabled ? playAssistMessage(state) : """, renderer)
+        self.assertIn("copy.hidden = !message", renderer)
+        self.assertIn(".turn-indicator", css)
+        self.assertIn(".utility-toggle-button.active", css)
+        self.assertIn(".quick-rules-dialog", css)
+        self.assertIn(".quick-rule-grid", css)
 
     def test_newly_drawn_cards_are_temporarily_highlighted(self):
         css = (

@@ -46,6 +46,10 @@ let lastTurnNotificationStep = null;
 let activeNotification = null;
 let notificationTimer = null;
 let notificationGapTimer = null;
+let playerTurnReminderTimer = null;
+let playerTurnReminderState = null;
+let playerTurnReminderContext = null;
+let currentAssistEnabled = false;
 const notificationQueue = [];
 let previousHandCounts = null;
 let handTrackingContext = null;
@@ -59,6 +63,8 @@ const TURN_GUIDE_FULL_MS = 3400;
 const TURN_GUIDE_SHORT_MS = 1700;
 const TURN_GUIDE_SHORTEN_FROM_TURN = 3;
 const OPPONENT_TURN_NOTICE_MS = 2000;
+const PLAYER_TURN_REMINDER_INTERVAL_MS = 15000;
+const PLAYER_TURN_REMINDER_DURATION_MS = 2000;
 
 function byId(id) {
   return document.getElementById(id);
@@ -197,6 +203,7 @@ function decorateVisibleCard(node, name) {
   art.setAttribute("aria-hidden", "true");
   art.draggable = false;
   const label = create("span", "card-name", name);
+  node.setAttribute("aria-label", name);
   node.replaceChildren(art, label);
 }
 
@@ -849,7 +856,101 @@ export function resetRenderState() {
   if (victoryOverlay) {
     victoryOverlay.hidden = true;
   }
+  clearPlayerTurnReminder();
 }
+
+const PLAYER_TURN_REMINDER_INACTIVE_STEPS = new Set([
+  "WAITING",
+  "DECIDING_TURN",
+  "GAME_CLEAR",
+  "GAME_OVER",
+  "ROOM_DISBANDED",
+]);
+
+function playerTurnReminderKey(state) {
+  if (
+    !state.game.is_my_turn ||
+    state.game.finished ||
+    PLAYER_TURN_REMINDER_INACTIVE_STEPS.has(state.game.turn_step)
+  ) {
+    return null;
+  }
+  const turnCount = state.game.turn_counts?.[state.viewer.role] || 0;
+  return `${state.room_id}:${state.viewer.role}:${state.game.current_turn}:${turnCount}`;
+}
+
+function removeQueuedTurnReminders() {
+  for (let index = notificationQueue.length - 1; index >= 0; index -= 1) {
+    if (notificationQueue[index].kind === "turn_reminder") {
+      notificationQueue.splice(index, 1);
+    }
+  }
+}
+
+function clearPlayerTurnReminder() {
+  window.clearTimeout(playerTurnReminderTimer);
+  playerTurnReminderTimer = null;
+  playerTurnReminderState = null;
+  playerTurnReminderContext = null;
+  removeQueuedTurnReminders();
+}
+
+function showPlayerTurnReminder() {
+  playerTurnReminderTimer = null;
+  const key = playerTurnReminderState
+    ? playerTurnReminderKey(playerTurnReminderState)
+    : null;
+  if (!key || key !== playerTurnReminderContext) {
+    return;
+  }
+  enqueueNotification({
+    kind: "turn_reminder",
+    tone: "turn-mine",
+    title: "あなたの番です",
+    detail: "操作できる状態です。",
+    duration_ms: PLAYER_TURN_REMINDER_DURATION_MS,
+  });
+  playerTurnReminderTimer = window.setTimeout(
+    showPlayerTurnReminder,
+    PLAYER_TURN_REMINDER_INTERVAL_MS,
+  );
+}
+
+function schedulePlayerTurnReminder(state, { reset = false } = {}) {
+  const key = playerTurnReminderKey(state);
+  if (!key) {
+    clearPlayerTurnReminder();
+    return;
+  }
+  playerTurnReminderState = state;
+  if (playerTurnReminderContext !== key || reset) {
+    window.clearTimeout(playerTurnReminderTimer);
+    removeQueuedTurnReminders();
+    playerTurnReminderContext = key;
+    playerTurnReminderTimer = window.setTimeout(
+      showPlayerTurnReminder,
+      PLAYER_TURN_REMINDER_INTERVAL_MS,
+    );
+    return;
+  }
+  if (!playerTurnReminderTimer) {
+    playerTurnReminderTimer = window.setTimeout(
+      showPlayerTurnReminder,
+      PLAYER_TURN_REMINDER_INTERVAL_MS,
+    );
+  }
+}
+
+function notePlayerActivity() {
+  if (!playerTurnReminderState || !document.body.classList.contains("game-active")) {
+    return;
+  }
+  schedulePlayerTurnReminder(playerTurnReminderState, { reset: true });
+}
+
+["pointerdown", "keydown"].forEach((eventName) => {
+  document.addEventListener(eventName, notePlayerActivity, true);
+});
 
 function renderHand(state, onAction) {
   const container = byId("my-hand");
@@ -1261,6 +1362,20 @@ function resultEndTriggerText(state) {
   return END_TRIGGER_LABELS[trigger] || "GAME ENDED";
 }
 
+function dominantSummary(label, dominant) {
+  if (!dominant.card) {
+    return `${label}: なし`;
+  }
+  return `${label}: ${dominant.card}${dominant.cards.length}枚`;
+}
+
+function resultMatchupText(myDominant, opponentDominant) {
+  return [
+    dominantSummary("あなた", myDominant),
+    dominantSummary("相手", opponentDominant),
+  ].join(" / ");
+}
+
 function resultReasonText(state, outcome) {
   const reason = state.game.result?.reason;
   if (outcome === "defeat") {
@@ -1341,6 +1456,10 @@ function renderVictoryOverlay(state, handlers) {
     state,
   );
   byId("victory-reason").textContent = resultReasonText(state, outcome);
+  byId("victory-matchup").textContent = resultMatchupText(
+    myDominant,
+    opponentDominant,
+  );
   byId("my-result-status").textContent = presentation.myStatus;
   byId("opponent-result-status").textContent = presentation.opponentStatus;
 
@@ -1589,7 +1708,65 @@ function renderChoiceDialog(state, handlers) {
   }
 }
 
-function renderActionBar(state, handlers) {
+function endgameWarningText(state) {
+  if (state.game.finished) {
+    return "";
+  }
+  const warnings = [];
+  const deckCount = state.game.deck_count;
+  if (deckCount > 0 && deckCount <= 5) {
+    warnings.push(`山札残り${deckCount}枚。山札切れで判定に入ります。`);
+  }
+  [
+    ["あなた", state.discards.mine.length],
+    ["相手", state.discards.opponent.length],
+  ].forEach(([owner, count]) => {
+    const remaining = 18 - count;
+    if (remaining > 0 && remaining <= 3) {
+      warnings.push(`${owner}の捨て札が上限まであと${remaining}組です。`);
+    }
+  });
+  return warnings.join(" ");
+}
+
+function playAssistMessage(state) {
+  const actions = new Set(state.available_actions);
+  const step = state.game.turn_step;
+  if (state.game.finished) {
+    return "公開された盤面を確認できます。";
+  }
+  if (step === "DISCARD" && actions.has("discard_card")) {
+    return "手札から1枚捨てます。捨て札は能力の材料になります。";
+  }
+  if (step === "DRAW" && actions.has("draw_hand")) {
+    return "山札を押して1枚引きます。引いた後に能力を使うか選べます。";
+  }
+  if (step === "THINK") {
+    return actions.has("open_ability_selection")
+      ? "同じ能力カード2枚を捨て札にすると能力を使えます。"
+      : "使える能力がなければ、ターンを終了します。";
+  }
+  if (step === "ABILITY") {
+    return "発動できる能力だけ選べます。使う前に効果を確認できます。";
+  }
+  if (step === "MIMIC_SELECTION") {
+    return "カモフラージュ2枚と能力カード1枚で、その能力として発動します。";
+  }
+  if (step === "TELEPORT_SELECTION") {
+    return "相手の手札にありそうな能力を宣言します。当たればその能力カードを捨てさせます。";
+  }
+  return "";
+}
+
+function mergeAssistMessage(message, state) {
+  const warning = endgameWarningText(state);
+  if (message && warning) {
+    return `${message} ${warning}`;
+  }
+  return message || warning;
+}
+
+function renderActionBar(state, handlers, { assistEnabled = false } = {}) {
   const bar = byId("context-action-bar");
   const copy = byId("context-action-copy");
   const buttons = byId("context-action-buttons");
@@ -1597,7 +1774,7 @@ function renderActionBar(state, handlers) {
   const interaction = state.interaction;
   const step = state.game.turn_step;
   clear(buttons);
-  let message = "";
+  let message = assistEnabled ? playAssistMessage(state) : "";
 
   if (actions.has("declare_esper")) {
     addAction(
@@ -1609,7 +1786,7 @@ function renderActionBar(state, handlers) {
   }
 
   if (state.game.finished) {
-    message = "公開された盤面を確認できます。";
+    message = assistEnabled ? playAssistMessage(state) : "";
     addAction(
       buttons,
       "結果画面に戻る",
@@ -1635,7 +1812,7 @@ function renderActionBar(state, handlers) {
       );
     }
   } else if (step === "THINK") {
-    message = "次の行動を選択してください。";
+    message = assistEnabled ? playAssistMessage(state) : "";
     if (actions.has("open_ability_selection")) {
       addAction(
         buttons,
@@ -1652,7 +1829,9 @@ function renderActionBar(state, handlers) {
       );
     }
   } else if (step === "REGEN_SELECTION" && interaction) {
-    message = `盤面から山札へ戻すカードを選択してください（${interaction.selected_count} / ${interaction.maximum}枚）`;
+    message = assistEnabled
+      ? `盤面から山札へ戻すカードを選択してください（${interaction.selected_count} / ${interaction.maximum}枚）`
+      : "";
     addAction(
       buttons,
       "選択を確定する",
@@ -1660,7 +1839,9 @@ function renderActionBar(state, handlers) {
       { kind: "primary" },
     );
   } else if (step === "CLAIR_SELECTION" && interaction) {
-    message = `相手の盤面から透視するカードを選択してください（${interaction.selected_count} / ${interaction.maximum}枚）`;
+    message = assistEnabled
+      ? `相手の盤面から透視するカードを選択してください（${interaction.selected_count} / ${interaction.maximum}枚）`
+      : "";
     addAction(
       buttons,
       "選択を確定する",
@@ -1668,7 +1849,7 @@ function renderActionBar(state, handlers) {
       { kind: "primary" },
     );
   } else if (step === "CLAIR_REVEAL" && interaction) {
-    message = "表向きになったカードを確認してください。";
+    message = assistEnabled ? "表向きになったカードを確認してください。" : "";
     addAction(
       buttons,
       "確認完了",
@@ -1679,7 +1860,9 @@ function renderActionBar(state, handlers) {
     step === "PSY_PUSH_SELECTION" &&
     interaction?.kind === "psychokinesis_push"
   ) {
-    message = "STEP 2 / 2：相手の裏向き捨て札から、手札へ戻す1枚を選択してください。";
+    message = assistEnabled
+      ? "STEP 2 / 2：相手の裏向き捨て札から、手札へ戻す1枚を選択してください。"
+      : "";
     addAction(
       buttons,
       "相手の捨て札を開く",
@@ -1688,15 +1871,18 @@ function renderActionBar(state, handlers) {
     );
   }
 
+  message = assistEnabled ? mergeAssistMessage(message, state) : "";
   const visible = Boolean(message || buttons.children.length);
   copy.textContent = message;
+  copy.hidden = !message;
   bar.hidden = !visible;
   byId("game-screen").classList.toggle("has-context-actions", visible);
 }
 
-function renderActions(state, handlers) {
+function renderActions(state, handlers, options = {}) {
+  const mergedOptions = { assistEnabled: currentAssistEnabled, ...options };
   renderVictoryOverlay(state, handlers);
-  renderActionBar(state, handlers);
+  renderActionBar(state, handlers, mergedOptions);
   renderChoiceDialog(state, handlers);
 }
 
@@ -1773,9 +1959,11 @@ function showNextNotification() {
     byId("action-event-kicker").textContent =
       activeNotification.kind === "turn_change"
         ? "TURN CHANGE"
-        : activeNotification.tone === "impact"
-          ? "YOUR CARDS CHANGED"
-          : "OPPONENT ACTION";
+        : activeNotification.kind === "turn_reminder"
+          ? "YOUR TURN"
+          : activeNotification.tone === "impact"
+            ? "YOUR CARDS CHANGED"
+            : "OPPONENT ACTION";
     byId("action-event-title").textContent = activeNotification.title;
     byId("action-event-detail").textContent = activeNotification.detail;
     byId("turn-start-guide").hidden = !showTurnGuide;
@@ -1886,6 +2074,52 @@ function renderExtraTurnIndicators(state) {
   badge.hidden = false;
   badge.className = `extra-turn-badge ${levelClass}`;
   badge.textContent = `EXTRA TURN ×${count}`;
+}
+
+function renderTurnIndicator(state) {
+  const node = byId("turn-indicator");
+  const label = byId("turn-indicator-label");
+  const main = byId("turn-indicator-main");
+  const detail = byId("turn-indicator-detail");
+  const step = state.game.turn_step;
+  const extraTurnCount = state.game.extra_turn_chain || 0;
+
+  label.textContent = "TURN";
+  if (step === "WAITING") {
+    node.className = "turn-indicator is-waiting";
+    main.textContent = "対戦待ち";
+    detail.textContent = "相手の入室待ち";
+    return;
+  }
+  if (step === "DECIDING_TURN") {
+    node.className = "turn-indicator is-waiting";
+    main.textContent = "先攻抽選中";
+    detail.textContent = "まもなく開始";
+    return;
+  }
+  if (step === "ROOM_DISBANDED") {
+    node.className = "turn-indicator is-finished";
+    main.textContent = "ルーム解散";
+    detail.textContent = "タイトルへ戻れます";
+    return;
+  }
+  if (state.game.finished) {
+    node.className = "turn-indicator is-finished";
+    main.textContent = "ゲーム終了";
+    detail.textContent = "結果を確認";
+    return;
+  }
+
+  const isMyTurn = state.game.is_my_turn;
+  node.className = `turn-indicator ${isMyTurn ? "is-mine" : "is-opponent"}${
+    extraTurnCount > 0 ? ` extra-turn-level-${extraTurnLevel(extraTurnCount)}` : ""
+  }`;
+  main.textContent = isMyTurn ? "あなたのターン" : "相手のターン";
+  detail.textContent = extraTurnCount > 0
+    ? `追加ターン ${extraTurnCount}回目`
+    : isMyTurn
+      ? "操作できます"
+      : `${state.opponent.name}の操作待ち`;
 }
 
 function renderPhase(state) {
@@ -2229,11 +2463,13 @@ function revealClairvoyanceTargets(state) {
 export function renderGame(
   state,
   handlers,
-  { suppressActionEvents = false } = {},
+  { suppressActionEvents = false, assistEnabled = false } = {},
 ) {
+  currentAssistEnabled = assistEnabled;
   updateNewlyDrawnCards(state);
   renderActionEvents(state, { suppress: suppressActionEvents });
   renderTurnChange(state, { suppress: suppressActionEvents });
+  schedulePlayerTurnReminder(state);
   const revealDialog = byId("discard-reveal-dialog");
   if (revealDialog.open) {
     revealDialog.close();
@@ -2308,6 +2544,7 @@ export function renderGame(
   byId("deck-count-center").textContent = state.game.deck_count;
 
   renderExtraTurnIndicators(state);
+  renderTurnIndicator(state);
   renderPhase(state);
   const clairHighlights = clairvoyanceHighlights(state);
   const psychHighlights = psychokinesisHighlights(state);
@@ -2393,7 +2630,7 @@ export function renderGame(
     ? "捨てるカードを選択"
     : `${state.my_hand.length}枚`;
 
-  renderActions(state, handlers);
+  renderActions(state, handlers, { assistEnabled });
   renderLogs(state);
   renderChat(state);
 }

@@ -777,6 +777,9 @@ class FrontendDeliveryTests(unittest.TestCase):
         app = (
             FRONTEND_ROOT / "static" / "js" / "app.js"
         ).read_text()
+        renderer = (
+            FRONTEND_ROOT / "static" / "js" / "render.js"
+        ).read_text()
 
         for panel in ("log", "chat"):
             self.assertIn(f'id="{panel}-toggle-button"', html)
@@ -784,14 +787,26 @@ class FrontendDeliveryTests(unittest.TestCase):
             self.assertIn(f'id="{panel}-panel"', html)
             self.assertIn(f'id="{panel}-close-button"', html)
         self.assertIn('id="utility-panel-backdrop"', html)
+        self.assertIn('id="chat-float-layer"', html)
+        self.assertIn('id="my-name"', html)
         self.assertNotIn('class="side-column"', html)
         self.assertIn("setUtilityPanel", app)
         self.assertIn('openPanel === "log"', app)
         self.assertIn('openPanel === "chat"', app)
         self.assertIn("utilityPanelBackdrop.hidden", app)
+        self.assertIn("renderChatNotifications", renderer)
+        self.assertIn("showChatFloat", renderer)
+        self.assertIn("chatFloatText", renderer)
+        self.assertIn("logDisplayText", renderer)
+        self.assertIn("normalizeActorSpacing", renderer)
+        self.assertIn('byId("my-name").textContent = state.viewer.name', renderer)
+        self.assertIn('`[${log.time}] ${log.icon} `', renderer)
+        self.assertNotIn('`${log.time}] ${log.icon} ${log.name}: `', renderer)
         self.assertIn(".utility-toggle-button", css)
         self.assertIn(".utility-panel", css)
         self.assertIn(".utility-panel-backdrop", css)
+        self.assertIn(".chat-float-layer", css)
+        self.assertIn("@keyframes chat-float-left-to-right", css)
 
     def test_cards_use_ability_specific_tarot_skin(self):
         css = (

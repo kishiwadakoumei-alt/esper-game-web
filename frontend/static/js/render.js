@@ -50,6 +50,9 @@ let playerTurnReminderTimer = null;
 let playerTurnReminderState = null;
 let playerTurnReminderContext = null;
 let currentAssistEnabled = false;
+let lastChatContext = null;
+let lastChatCount = 0;
+let chatFloatIndex = 0;
 const notificationQueue = [];
 let previousHandCounts = null;
 let handTrackingContext = null;
@@ -65,6 +68,7 @@ const TURN_GUIDE_SHORTEN_FROM_TURN = 3;
 const OPPONENT_TURN_NOTICE_MS = 2000;
 const PLAYER_TURN_REMINDER_INTERVAL_MS = 15000;
 const PLAYER_TURN_REMINDER_DURATION_MS = 2000;
+const CHAT_FLOAT_LANES = 5;
 
 function byId(id) {
   return document.getElementById(id);
@@ -831,6 +835,9 @@ export function resetRenderState() {
   lastTurnNotificationStep = null;
   notificationQueue.length = 0;
   activeNotification = null;
+  lastChatContext = null;
+  lastChatCount = 0;
+  chatFloatIndex = 0;
   window.clearTimeout(notificationTimer);
   window.clearTimeout(notificationGapTimer);
   const actionOverlay = byId("action-event-overlay");
@@ -855,6 +862,11 @@ export function resetRenderState() {
   }
   if (victoryOverlay) {
     victoryOverlay.hidden = true;
+  }
+  const chatFloatLayer = byId("chat-float-layer");
+  if (chatFloatLayer) {
+    chatFloatLayer.replaceChildren();
+    chatFloatLayer.hidden = true;
   }
   clearPlayerTurnReminder();
 }
@@ -1886,6 +1898,33 @@ function renderActions(state, handlers, options = {}) {
   renderChoiceDialog(state, handlers);
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeActorSpacing(text, actorName) {
+  if (!actorName) {
+    return text.trim();
+  }
+  return text
+    .replace(new RegExp(`${escapeRegExp(actorName)}\\s+([がは])`, "g"), `${actorName}$1`)
+    .trim();
+}
+
+function logDisplayText(log) {
+  const text = normalizeActorSpacing(log.text || "", log.name);
+  if (!log.role || !log.name || !text) {
+    return text;
+  }
+  if (text.startsWith(log.name) || text.includes(log.name)) {
+    return text;
+  }
+  if (/^CPU[がは]/.test(text)) {
+    return text;
+  }
+  return `${log.name}が${text}`;
+}
+
 function renderLogs(state) {
   const list = byId("log-list");
   clear(list);
@@ -1895,14 +1934,55 @@ function renderLogs(state) {
   }
   [...state.logs].reverse().forEach((log) => {
     const entry = create("div", "log-entry");
-    const actor = create(
+    const prefix = create(
       "strong",
       "",
-      `[${log.time}] ${log.icon} ${log.name}: `,
+      `[${log.time}] ${log.icon} `,
     );
-    entry.append(actor, document.createTextNode(log.text));
+    entry.append(prefix, document.createTextNode(logDisplayText(log)));
     list.append(entry);
   });
+}
+
+function chatContext(state) {
+  return `${state.room_id}:${state.viewer.role}`;
+}
+
+function chatFloatText(message) {
+  return String(message).replace(/^💬\s*/, "").trim();
+}
+
+function showChatFloat(message) {
+  const layer = byId("chat-float-layer");
+  if (!layer) {
+    return;
+  }
+  const lane = chatFloatIndex % CHAT_FLOAT_LANES;
+  chatFloatIndex += 1;
+  const item = create("div", `chat-float-message lane-${lane}`, chatFloatText(message));
+  layer.hidden = false;
+  layer.append(item);
+  item.addEventListener("animationend", () => {
+    item.remove();
+    if (!layer.children.length) {
+      layer.hidden = true;
+    }
+  }, { once: true });
+}
+
+function renderChatNotifications(state, { suppress = false } = {}) {
+  const context = chatContext(state);
+  const count = state.chat.length;
+  if (lastChatContext !== context || suppress) {
+    lastChatContext = context;
+    lastChatCount = count;
+    return;
+  }
+  if (count < lastChatCount) {
+    lastChatCount = 0;
+  }
+  state.chat.slice(lastChatCount).forEach(showChatFloat);
+  lastChatCount = count;
 }
 
 function renderChat(state) {
@@ -2469,6 +2549,7 @@ export function renderGame(
   updateNewlyDrawnCards(state);
   renderActionEvents(state, { suppress: suppressActionEvents });
   renderTurnChange(state, { suppress: suppressActionEvents });
+  renderChatNotifications(state, { suppress: suppressActionEvents });
   schedulePlayerTurnReminder(state);
   const revealDialog = byId("discard-reveal-dialog");
   if (revealDialog.open) {
@@ -2538,6 +2619,7 @@ export function renderGame(
   byId("room-player").textContent =
     `${state.viewer.name} / プレイヤー${state.viewer.role === "p1" ? "1" : "2"}`;
   byId("room-code").textContent = state.room_id;
+  byId("my-name").textContent = state.viewer.name;
   byId("opponent-name").textContent = state.opponent.name;
   byId("opponent-count").textContent = state.opponent.hand_count;
   byId("deck-count").textContent = state.game.deck_count;

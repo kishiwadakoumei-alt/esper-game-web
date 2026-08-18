@@ -1425,6 +1425,62 @@ button.card:hover {
   font-size: 10px;
 }
 
+.chat-float-layer[hidden] {
+  display: none;
+}
+
+.chat-float-layer {
+  position: fixed;
+  z-index: 29;
+  inset: 82px 0 auto;
+  height: min(260px, 42vh);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.chat-float-message {
+  position: absolute;
+  left: 0;
+  top: 12px;
+  max-width: min(72vw, 520px);
+  padding: 8px 12px;
+  border: 1px solid rgba(86, 216, 228, 0.38);
+  border-radius: 999px;
+  color: #f5fdff;
+  background: rgba(8, 13, 25, 0.78);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  transform: translateX(-110%);
+  animation: chat-float-left-to-right 6.4s linear forwards;
+}
+
+.chat-float-message.lane-1 {
+  top: 56px;
+}
+
+.chat-float-message.lane-2 {
+  top: 100px;
+}
+
+.chat-float-message.lane-3 {
+  top: 144px;
+}
+
+.chat-float-message.lane-4 {
+  top: 188px;
+}
+
+@keyframes chat-float-left-to-right {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(100vw);
+  }
+}
+
 .chat-form {
   display: grid;
   grid-template-columns: 1fr 38px;

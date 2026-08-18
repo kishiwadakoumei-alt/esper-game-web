@@ -1396,7 +1396,11 @@ button.card:hover {
 }
 
 .log-entry {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 7px;
   padding: 8px 0;
+  align-items: start;
   border-top: 1px solid var(--line);
   color: #b2bdcf;
   font-size: 10px;
@@ -1405,6 +1409,44 @@ button.card:hover {
 
 .log-entry strong {
   color: var(--text);
+}
+
+.log-kind-badge {
+  display: grid;
+  width: 19px;
+  height: 19px;
+  place-items: center;
+  border: 1px solid var(--log-kind-color, var(--line));
+  border-radius: 50%;
+  color: var(--log-kind-color, var(--muted));
+  background: var(--log-kind-bg, rgba(148, 163, 184, 0.06));
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.log-kind-discard {
+  --log-kind-color: #ff9d2e;
+  --log-kind-bg: rgba(255, 157, 46, 0.1);
+}
+
+.log-kind-draw {
+  --log-kind-color: #61d6a3;
+  --log-kind-bg: rgba(97, 214, 163, 0.1);
+}
+
+.log-kind-ability {
+  --log-kind-color: #aa8cff;
+  --log-kind-bg: rgba(170, 140, 255, 0.11);
+}
+
+.log-kind-result {
+  --log-kind-color: #ff6475;
+  --log-kind-bg: rgba(255, 100, 117, 0.12);
+}
+
+.log-kind-system {
+  --log-kind-color: #56d8e4;
+  --log-kind-bg: rgba(86, 216, 228, 0.09);
 }
 
 .chat-panel h2 {
@@ -1838,6 +1880,15 @@ button.card:hover {
 
   .rule-summary-grid article {
     min-height: 0;
+  }
+
+  .rule-grid article {
+    grid-template-columns: 46px minmax(0, 1fr);
+    min-height: 0;
+  }
+
+  .rule-card-art {
+    width: 46px;
   }
 }
 
@@ -2286,9 +2337,22 @@ button.card:hover {
 }
 
 .rule-grid article {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 116px;
   padding: 15px;
+  align-items: center;
   border: 1px solid var(--line);
   background: #0c1423;
+}
+
+.rule-card-art {
+  width: 54px;
+  max-width: 100%;
+  aspect-ratio: 78 / 108;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.28));
 }
 
 .rule-grid b,
@@ -5753,5 +5817,118 @@ button.card:hover .card-art,
 
   .deck-order-detail strong {
     font-size: 13px;
+  }
+}
+
+/* Orientation-specific information density */
+@media (max-width: 680px) and (orientation: portrait) {
+  body.game-active .battle-status-row {
+    gap: 6px;
+  }
+
+  body.game-active .turn-indicator {
+    min-height: 36px;
+    padding: 6px 10px;
+  }
+
+  body.game-active .turn-indicator small,
+  body.game-active .counter-row,
+  body.game-active .excluded-zone .mini-heading,
+  body.game-active .arena-mark span,
+  body.game-active .deck-visual small {
+    display: none;
+  }
+
+  body.game-active .phase-banner {
+    min-height: 0;
+    max-height: 32px;
+    padding: 7px 10px;
+    overflow: hidden;
+    font-size: 10px;
+    line-height: 1.55;
+  }
+
+  body.game-active .game-toolbar {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  body.game-active .utility-toggle-button {
+    min-width: 0;
+    min-height: 34px;
+    padding: 0 5px;
+    justify-content: center;
+    font-size: 8px;
+    letter-spacing: 0;
+  }
+
+  body.game-active .utility-toggle-icon {
+    font-size: 13px;
+  }
+
+  body.game-active .center-zone {
+    grid-template-columns: 68px minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  body.game-active .excluded-zone {
+    justify-self: stretch;
+  }
+
+  body.game-active .excluded-zone .card-row {
+    justify-content: flex-end;
+  }
+
+  body.game-active .excluded-zone .card {
+    width: 28px;
+    min-width: 28px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0;
+    font-size: 0;
+  }
+
+  body.game-active .my-zone {
+    padding-bottom: 18px;
+  }
+}
+
+@media (orientation: landscape) {
+  body.game-active .turn-indicator small {
+    display: block;
+  }
+
+  body.game-active .phase-banner {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  body.game-active .utility-panel {
+    width: min(520px, 38vw);
+  }
+
+  body.game-active .utility-panel .log-list,
+  body.game-active .utility-panel .chat-list {
+    max-height: min(72dvh, 640px);
+  }
+
+  body.game-active > .discard-popover {
+    width: min(460px, 34vw);
+    max-height: calc(100dvh - 34px);
+  }
+
+  body.game-active .discard-popover .discard-row {
+    grid-template-columns: repeat(6, minmax(0, 68px));
+  }
+
+  body.game-active .excluded-zone {
+    min-width: min(28vw, 360px);
+  }
+
+  body.game-active .excluded-zone .card-row {
+    justify-content: flex-end;
   }
 }

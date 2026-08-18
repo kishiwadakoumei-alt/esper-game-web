@@ -10,6 +10,7 @@ let currentState = null;
 let busy = false;
 let toastTimer = null;
 let assistEnabled = false;
+let chatNotificationsEnabled = true;
 
 const landingScreen = document.getElementById("landing-screen");
 const gameScreen = document.getElementById("game-screen");
@@ -29,6 +30,8 @@ const entryRulesButton = document.getElementById("entry-rules-button");
 const gameRulesButton = document.getElementById("game-rules-button");
 const assistToggleButton = document.getElementById("assist-toggle-button");
 const assistToggleLabel = document.getElementById("assist-toggle-label");
+const chatNoticeToggleButton = document.getElementById("chat-notice-toggle-button");
+const chatNoticeToggleLabel = document.getElementById("chat-notice-toggle-label");
 const logToggleButton = document.getElementById("log-toggle-button");
 const logToggleLabel = document.getElementById("log-toggle-label");
 const chatToggleButton = document.getElementById("chat-toggle-button");
@@ -228,6 +231,23 @@ function syncAssistToggle() {
   );
 }
 
+function syncChatNoticeToggle() {
+  chatNoticeToggleButton.setAttribute(
+    "aria-pressed",
+    String(chatNotificationsEnabled),
+  );
+  chatNoticeToggleButton.classList.toggle("active", chatNotificationsEnabled);
+  chatNoticeToggleLabel.textContent = chatNotificationsEnabled
+    ? "通知ON"
+    : "通知OFF";
+  chatNoticeToggleButton.setAttribute(
+    "aria-label",
+    chatNotificationsEnabled
+      ? "チャット通知をOFFにする"
+      : "チャット通知をONにする",
+  );
+}
+
 function openDetailedRules() {
   rulesDialog.showModal();
 }
@@ -298,7 +318,11 @@ function updateState(state, { suppressActionEvents = false } = {}) {
   document.body.classList.add("game-active");
   landingScreen.hidden = true;
   gameScreen.hidden = false;
-  renderGame(state, handlers(), { suppressActionEvents, assistEnabled });
+  renderGame(state, handlers(), {
+    suppressActionEvents,
+    assistEnabled,
+    chatNotificationsEnabled,
+  });
 }
 
 function connectSocket() {
@@ -454,6 +478,19 @@ assistToggleButton.addEventListener("click", () => {
     renderGame(currentState, handlers(), {
       suppressActionEvents: true,
       assistEnabled,
+      chatNotificationsEnabled,
+    });
+  }
+});
+
+chatNoticeToggleButton.addEventListener("click", () => {
+  chatNotificationsEnabled = !chatNotificationsEnabled;
+  syncChatNoticeToggle();
+  if (currentState) {
+    renderGame(currentState, handlers(), {
+      suppressActionEvents: true,
+      assistEnabled,
+      chatNotificationsEnabled,
     });
   }
 });
@@ -546,5 +583,6 @@ async function restoreSession() {
 
 applyRoomInvitation();
 syncAssistToggle();
+syncChatNoticeToggle();
 syncDiscardLayout();
 restoreSession();

@@ -1925,6 +1925,34 @@ function logDisplayText(log) {
   return `${log.name}が${text}`;
 }
 
+function logKind(log) {
+  const text = logDisplayText(log);
+  if (/勝利|敗北|引き分け|決着|終了|ESPER|エスパー/.test(text)) {
+    return "result";
+  }
+  if (/発動|透視|宣言|能力/.test(text)) {
+    return "ability";
+  }
+  if (/捨て|捨て札/.test(text)) {
+    return "discard";
+  }
+  if (/引き|引く|補充|山札から/.test(text)) {
+    return "draw";
+  }
+  if (!log.role) {
+    return "system";
+  }
+  return "system";
+}
+
+const LOG_KIND_LABELS = {
+  discard: "捨",
+  draw: "引",
+  ability: "能",
+  result: "決",
+  system: "情",
+};
+
 function renderLogs(state) {
   const list = byId("log-list");
   clear(list);
@@ -1933,13 +1961,16 @@ function renderLogs(state) {
     return;
   }
   [...state.logs].reverse().forEach((log) => {
-    const entry = create("div", "log-entry");
+    const kind = logKind(log);
+    const entry = create("div", `log-entry log-kind-${kind}`);
+    const badge = create("span", "log-kind-badge", LOG_KIND_LABELS[kind]);
+    badge.setAttribute("aria-label", `ログ種別: ${kind}`);
     const prefix = create(
       "strong",
       "",
       `[${log.time}] ${log.icon} `,
     );
-    entry.append(prefix, document.createTextNode(logDisplayText(log)));
+    entry.append(badge, prefix, document.createTextNode(logDisplayText(log)));
     list.append(entry);
   });
 }
@@ -1970,10 +2001,13 @@ function showChatFloat(message) {
   }, { once: true });
 }
 
-function renderChatNotifications(state, { suppress = false } = {}) {
+function renderChatNotifications(
+  state,
+  { suppress = false, enabled = true } = {},
+) {
   const context = chatContext(state);
   const count = state.chat.length;
-  if (lastChatContext !== context || suppress) {
+  if (lastChatContext !== context || suppress || !enabled) {
     lastChatContext = context;
     lastChatCount = count;
     return;
@@ -2543,13 +2577,20 @@ function revealClairvoyanceTargets(state) {
 export function renderGame(
   state,
   handlers,
-  { suppressActionEvents = false, assistEnabled = false } = {},
+  {
+    suppressActionEvents = false,
+    assistEnabled = false,
+    chatNotificationsEnabled = true,
+  } = {},
 ) {
   currentAssistEnabled = assistEnabled;
   updateNewlyDrawnCards(state);
   renderActionEvents(state, { suppress: suppressActionEvents });
   renderTurnChange(state, { suppress: suppressActionEvents });
-  renderChatNotifications(state, { suppress: suppressActionEvents });
+  renderChatNotifications(state, {
+    suppress: suppressActionEvents,
+    enabled: chatNotificationsEnabled,
+  });
   schedulePlayerTurnReminder(state);
   const revealDialog = byId("discard-reveal-dialog");
   if (revealDialog.open) {

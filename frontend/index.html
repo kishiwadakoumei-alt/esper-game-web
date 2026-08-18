@@ -163,6 +163,15 @@
             <span>簡易ルール</span>
           </button>
           <button
+            id="chat-notice-toggle-button"
+            class="utility-toggle-button active"
+            type="button"
+            aria-pressed="true"
+          >
+            <span class="utility-toggle-icon" aria-hidden="true">≋</span>
+            <span id="chat-notice-toggle-label">通知ON</span>
+          </button>
+          <button
             id="log-toggle-button"
             class="utility-toggle-button"
             type="button"
@@ -560,13 +569,34 @@
         </div>
       </div>
       <div class="rule-grid">
-        <article><b>千里眼</b><span>クレヤボヤンス</span><p>相手の手札または裏向きの場札から2枚まで選んで見る。</p></article>
-        <article><b>時間移動</b><span>タイムリープ</span><p>このターンの後、もう一度自分のターンを行う。</p></article>
-        <article><b>念力</b><span>サイコキネシス</span><p>相手の手札を1枚捨てさせ、裏向きの捨て札1枚を戻す。</p></article>
-        <article><b>未来予知</b><span>プリサイエンス</span><p>山札の上から3枚を見て、好きな順番で山札へ戻す。</p></article>
-        <article><b>瞬間移動</b><span>テレポート</span><p>宣言した能力カードを相手の手札からすべて捨てさせる。</p></article>
-        <article><b>再生</b><span>ヒーリング</span><p>両者の捨て札から3枚まで山札へ戻し、シャッフルする。</p></article>
-        <article><b>擬態</b><span>カモフラージュ</span><p>2枚と別能力カード1枚を使い、そのカードの能力を発動する。</p></article>
+        <article>
+          <img class="rule-card-art" src="/static/assets/cards/clairvoyance.svg" alt="" aria-hidden="true">
+          <div><b>千里眼</b><span>クレヤボヤンス</span><p>相手の手札または裏向きの場札から2枚まで選んで見る。</p></div>
+        </article>
+        <article>
+          <img class="rule-card-art" src="/static/assets/cards/time-leap.svg" alt="" aria-hidden="true">
+          <div><b>時間移動</b><span>タイムリープ</span><p>このターンの後、もう一度自分のターンを行う。</p></div>
+        </article>
+        <article>
+          <img class="rule-card-art" src="/static/assets/cards/psychokinesis.svg" alt="" aria-hidden="true">
+          <div><b>念力</b><span>サイコキネシス</span><p>相手の手札を1枚捨てさせ、裏向きの捨て札1枚を戻す。</p></div>
+        </article>
+        <article>
+          <img class="rule-card-art" src="/static/assets/cards/prescience.svg" alt="" aria-hidden="true">
+          <div><b>未来予知</b><span>プリサイエンス</span><p>山札の上から3枚を見て、好きな順番で山札へ戻す。</p></div>
+        </article>
+        <article>
+          <img class="rule-card-art" src="/static/assets/cards/teleport.svg" alt="" aria-hidden="true">
+          <div><b>瞬間移動</b><span>テレポート</span><p>宣言した能力カードを相手の手札からすべて捨てさせる。</p></div>
+        </article>
+        <article>
+          <img class="rule-card-art" src="/static/assets/cards/healing.svg" alt="" aria-hidden="true">
+          <div><b>再生</b><span>ヒーリング</span><p>両者の捨て札から3枚まで山札へ戻し、シャッフルする。</p></div>
+        </article>
+        <article>
+          <img class="rule-card-art" src="/static/assets/cards/camouflage.svg" alt="" aria-hidden="true">
+          <div><b>擬態</b><span>カモフラージュ</span><p>2枚と別能力カード1枚を使い、そのカードの能力を発動する。</p></div>
+        </article>
       </div>
     </dialog>
 

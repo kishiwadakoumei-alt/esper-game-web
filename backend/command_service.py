@@ -1,4 +1,8 @@
-"""HTTPで受け取った操作を検証し、ゲームサービスへ振り分ける。"""
+"""HTTPで受け取った操作を検証し、ゲームサービスへ振り分ける。
+
+フロントエンドは公開状態に含まれるavailable_actionsだけを表示するが、
+通信内容は信用せず、このサービスで毎回公開状態を作り直して検証する。
+"""
 
 from typing import Any
 
@@ -11,7 +15,11 @@ from .session_store import PlayerSession
 
 
 class CommandService:
-    """公開状態に示された操作だけを実行する。"""
+    """公開状態に示された操作だけを実行する。
+
+    action文字列をGameServiceの具体的なメソッドへ対応付け、payloadは
+    その時点のinteractionに存在する選択肢だけを許可する。
+    """
 
     @classmethod
     def execute(
@@ -21,11 +29,13 @@ class CommandService:
         action: str,
         payload: dict[str, Any],
     ) -> None:
+        """1操作を検証し、現在のターン状態に合う処理だけを実行する。"""
         public_state = StateService.build_public_state(
             game,
             session.role,
             room_id=session.room_id,
         )
+        # UIに表示されていない操作や古い画面からの再送はここで拒否する。
         if action not in public_state["available_actions"]:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -36,6 +46,7 @@ class CommandService:
         name = session.player_name
         interaction = public_state["interaction"]
 
+        # ここから先は、action名ごとにpayloadをinteraction内の安全な選択肢へ解決する。
         if action == "declare_esper":
             GameService.declare_esper(game, role, name)
         elif action == "discard_card":
@@ -133,6 +144,7 @@ class CommandService:
         interaction: dict[str, Any],
         payload: dict[str, Any],
     ) -> list[int]:
+        """未来予知の並び順が、提示された全カードの完全な並べ替えか検証する。"""
         order = payload.get("order")
         valid_indices = [
             option["index"] for option in interaction["options"]
@@ -154,6 +166,7 @@ class CommandService:
 
     @staticmethod
     def _payload_index(payload: dict[str, Any]) -> int:
+        """boolを整数扱いせず、明示的なintだけをindexとして受け付ける。"""
         index = payload.get("index")
         if isinstance(index, bool) or not isinstance(index, int):
             raise HTTPException(
@@ -168,6 +181,7 @@ class CommandService:
         interaction: dict[str, Any],
         payload: dict[str, Any],
     ) -> dict[str, Any]:
+        """payloadのindexに対応する公開済み選択肢を返す。"""
         index = cls._payload_index(payload)
         for option in interaction["options"]:
             if option["index"] == index:
@@ -179,6 +193,7 @@ class CommandService:
 
     @staticmethod
     def _payload_card(payload: dict[str, Any]) -> str:
+        """payloadから空でないカード名を取り出す。"""
         card = payload.get("card")
         if not isinstance(card, str) or not card:
             raise HTTPException(
@@ -193,6 +208,7 @@ class CommandService:
         options: list[dict[str, Any]],
         payload: dict[str, Any],
     ) -> str:
+        """能力候補のうちdisabledでないカードだけを許可する。"""
         card = cls._payload_card(payload)
         for option in options:
             if option["card"] == card and not option["disabled"]:
@@ -208,6 +224,7 @@ class CommandService:
         options: list[dict[str, Any]],
         payload: dict[str, Any],
     ) -> str:
+        """テレポートなど、提示済みカード名から選ぶ操作を検証する。"""
         card = cls._payload_card(payload)
         if any(option["card"] == card for option in options):
             return card
@@ -222,6 +239,7 @@ class CommandService:
         options: list[dict[str, Any]],
         payload: dict[str, Any],
     ) -> int:
+        """捨て札グループを対象にする操作のgroup_indexを検証する。"""
         group_index = payload.get("group_index")
         if (
             isinstance(group_index, bool)

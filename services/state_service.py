@@ -1,4 +1,8 @@
-"""閲覧者ごとに秘匿情報を除いたゲーム状態を生成するサービス。"""
+"""閲覧者ごとに秘匿情報を除いたゲーム状態を生成するサービス。
+
+EsperGameはすべてのカード名を保持するため、そのままブラウザへ渡すと
+相手手札や山札が漏れる。このサービスで閲覧者ごとに安全なJSONへ変換する。
+"""
 
 from collections import Counter
 from typing import Any
@@ -9,7 +13,11 @@ from services.game_service import NAME_MAP
 
 
 class StateService:
-    """EsperGameをブラウザへ公開可能なJSON互換辞書へ変換する。"""
+    """EsperGameをブラウザへ公開可能なJSON互換辞書へ変換する。
+
+    公開状態はフロントエンドの唯一の入力になるため、ここで
+    「見せてよい情報」と「今押せる操作」を同時に組み立てる。
+    """
 
     FINAL_STEPS = {"GAME_CLEAR", "GAME_OVER"}
 
@@ -21,12 +29,14 @@ class StateService:
         *,
         room_id: str | None = None,
     ) -> PublicGameState:
+        """指定プレイヤー視点で、画面描画と操作検証に必要な状態を作る。"""
         cls._validate_role(viewer_role)
         opponent_role = game.get_op_role(viewer_role)
         viewer_hand = game.get_hand(viewer_role)
         opponent_hand = game.get_hand(opponent_role)
         is_finished = game.turn_step in cls.FINAL_STEPS
 
+        # 終局前は相手手札・山札・ゲーム外カードを伏せ、終局後だけ全公開する。
         state: dict[str, Any] = {
             "version": 1,
             "room_id": room_id,
@@ -96,6 +106,7 @@ class StateService:
 
     @staticmethod
     def _result(game: EsperGame, viewer_role: str) -> dict[str, Any]:
+        """勝者役割から、閲覧者にとって勝ち/負け/引き分けかを構造化する。"""
         winner_role = getattr(game, "winner_role", None)
         return {
             "winner_role": winner_role,
@@ -115,12 +126,14 @@ class StateService:
         game: EsperGame,
         viewer_role: str,
     ) -> list[dict[str, Any]]:
+        """通知イベントを閲覧者向けの文言に変換する。"""
         events = []
         for event in game.action_events:
             message = event["messages"][viewer_role]
             actor_role = event["actor_role"]
             actor_name = game.get_player_name(actor_role)
             actor_label = "あなた" if actor_role == viewer_role else "相手"
+            # 画面では実名だけでなく「あなた/相手」でも即座に理解できるよう置換する。
             title = message["title"].replace(
                 actor_name,
                 actor_label,
@@ -143,6 +156,7 @@ class StateService:
         game: EsperGame,
         viewer_role: str,
     ) -> list[str]:
+        """現在の状態と閲覧者から、実行可能なaction名だけを列挙する。"""
         actions = []
         if game.turn_step in {
             "WAITING",
@@ -157,6 +171,7 @@ class StateService:
             actions.append("leave_room")
             return actions
 
+        # ESPER宣言は自分のターン以外でも可能なので、ターン所有者判定より先に追加する。
         if game.check_esper(game.get_hand(viewer_role)):
             actions.append("declare_esper")
 
@@ -214,6 +229,7 @@ class StateService:
         game: EsperGame,
         viewer_role: str,
     ) -> dict[str, Any] | None:
+        """選択UIに必要な候補を、現在のターンプレイヤーにだけ返す。"""
         if game.current_turn != viewer_role:
             return None
 
@@ -269,6 +285,7 @@ class StateService:
         game: EsperGame,
         viewer_role: str,
     ) -> dict[str, Any]:
+        """同名2枚で発動できる通常能力と、擬態候補を作る。"""
         hand = game.get_hand(viewer_role)
         counts = Counter(hand)
         deck_count = len(game.deck)
@@ -276,6 +293,7 @@ class StateService:
         for card, count in counts.items():
             if count < 2 or card == "カモフラージュ":
                 continue
+            # 多くの能力は解決後に補充が必要なため、山札不足時はヒーリング以外を止める。
             disabled = deck_count <= 1 and card != "ヒーリング"
             abilities.append({
                 "card": card,
@@ -295,6 +313,7 @@ class StateService:
         game: EsperGame,
         viewer_role: str,
     ) -> dict[str, Any]:
+        """カモフラージュ発動時の擬態先候補だけを返す。"""
         return {
             "kind": "mimic",
             "targets": StateService._mimic_targets(game, viewer_role),
@@ -305,6 +324,7 @@ class StateService:
         game: EsperGame,
         viewer_role: str,
     ) -> list[dict[str, Any]]:
+        """カモフラージュ2枚を持つ場合に、手札内の別能力を擬態候補にする。"""
         hand = game.get_hand(viewer_role)
         if hand.count("カモフラージュ") < 2:
             return []
@@ -327,6 +347,7 @@ class StateService:
         game: EsperGame,
         viewer_role: str,
     ) -> dict[str, Any]:
+        """念力1段目で選べる、相手の伏せ手札スロットを作る。"""
         opponent_hand_count = len(
             game.get_hand(game.get_op_role(viewer_role))
         )
@@ -346,6 +367,7 @@ class StateService:
         game: EsperGame,
         viewer_role: str,
     ) -> dict[str, Any]:
+        """念力2段目で戻せる、相手の裏向き捨て札グループを作る。"""
         opponent_role = game.get_op_role(viewer_role)
         options = []
         for group_index, group in enumerate(
@@ -369,9 +391,11 @@ class StateService:
         game: EsperGame,
         viewer_role: str,
     ) -> dict[str, Any]:
+        """ヒーリング候補を、見えてよいカード名だけ含めて返す。"""
         options = []
         for index, item in enumerate(game.regen_pool):
             is_mine = item["owner"] == viewer_role
+            # 自分の捨て札は裏向きでも中身を知っているので、自分視点では公開する。
             visible = item["is_face_up"] or is_mine
             target = None
             if "g_idx" in item and "item_idx" in item:
@@ -399,7 +423,9 @@ class StateService:
     def _clairvoyance_interaction(
         game: EsperGame,
     ) -> dict[str, Any]:
+        """千里眼の選択中/公開中で、カード名を出すかどうかを切り替える。"""
         options = []
+        # 選択中はカード名を伏せ、確認ステップになった選択済みカードだけ公開する。
         reveal = game.turn_step == "CLAIR_REVEAL"
         for index, item in enumerate(game.clair_pool):
             selected = index in game.temp_selection
@@ -430,6 +456,7 @@ class StateService:
 
     @staticmethod
     def _prescience_interaction(game: EsperGame) -> dict[str, Any]:
+        """未来予知で山札上から抜いたカードと現在の選択位置を返す。"""
         position = (
             1 if game.turn_step == "PRESCIENCE_SELECT_1" else 2
         )
@@ -453,6 +480,7 @@ class StateService:
         *,
         reveal_all: bool = False,
     ) -> list[list[dict[str, Any]]]:
+        """捨て札グループを、閲覧者に見えるカード名だけ含む形へ変換する。"""
         serialized = []
         for group in groups:
             serialized.append([
@@ -473,5 +501,6 @@ class StateService:
 
     @staticmethod
     def _validate_role(viewer_role: str) -> None:
+        """公開状態生成に使える役割名をp1/p2へ限定する。"""
         if viewer_role not in {"p1", "p2"}:
             raise ValueError("viewer_role must be 'p1' or 'p2'")

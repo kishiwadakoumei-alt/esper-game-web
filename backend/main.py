@@ -1,4 +1,8 @@
-"""ESPERのHTTP APIとWebSocketを提供するFastAPIアプリ。"""
+"""ESPERのHTTP APIとWebSocketを提供するFastAPIアプリ。
+
+このファイルはURLごとの入出力と認証、ルーム単位の排他制御、
+状態更新後のWebSocket配信をまとめる。ゲームルール自体はservices層へ委譲する。
+"""
 
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -36,7 +40,9 @@ def create_app(
     roulette_delay: float = 1.5,
     cpu_delay: float = 1.0,
 ) -> FastAPI:
+    """本番起動とテストの両方で使うFastAPIアプリを作成する。"""
     frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
+    # ApplicationContextにプロセス内の部屋、セッション、非同期タスクを集約する。
     context = ApplicationContext(
         roulette_delay=roulette_delay,
         cpu_delay=cpu_delay,
@@ -44,6 +50,7 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
+        """アプリ終了時にCPU/先攻抽選などのバックグラウンドタスクを止める。"""
         yield
         await context.shutdown()
 
@@ -61,15 +68,19 @@ def create_app(
 
     @application.get("/")
     async def root() -> FileResponse:
+        """ブラウザ版アプリのHTMLを返す。"""
         return FileResponse(frontend_dir / "index.html")
 
     @application.get("/api/health")
     async def health() -> dict:
+        """死活監視用の軽量エンドポイント。"""
         return {"status": "ok"}
 
     @application.post("/api/rooms/join")
     async def join_room(body: JoinRoomRequest) -> dict:
+        """あいことばの部屋へ参加し、プレイヤー用セッションを発行する。"""
         room_id = body.room_id
+        # 同じ部屋への同時入室でp1/p2割り当てが崩れないよう、部屋単位でロックする。
         async with context.room_lock(room_id):
             result = RoomService.join_room(
                 context.rooms,
@@ -90,12 +101,14 @@ def create_app(
             response = _session_response(session, game)
 
         await context.broadcast(room_id, game)
+        # 2人目が入ったら先攻抽選を少し遅らせ、画面に待機演出を見せる。
         if game.turn_step == "DECIDING_TURN":
             context.schedule_roulette(room_id)
         return response
 
     @application.post("/api/rooms/cpu")
     async def create_cpu_room(body: CreateCpuRoomRequest) -> dict:
+        """CPU対戦部屋を作り、人間をp1、CPUをp2として開始する。"""
         suffixes = {
             "easy": "初級",
             "normal": "中級",
@@ -121,6 +134,7 @@ def create_app(
         room_id: str,
         token: Annotated[str, Depends(_bearer_token)],
     ) -> dict:
+        """再接続や409回復時に、現在の公開状態を取得する。"""
         session, game = _session_and_game(context, token, room_id)
         return StateService.build_public_state(
             game,
@@ -134,9 +148,11 @@ def create_app(
         body: ActionRequest,
         token: Annotated[str, Depends(_bearer_token)],
     ) -> dict:
+        """プレイヤー操作を1つ適用し、更新後状態を返して全接続へ配信する。"""
         session = _session_for_room(context, token, room_id)
         async with context.room_lock(room_id):
             game = _game_or_404(context, room_id)
+            # CommandServiceで操作可否とpayloadを再検証してから、ゲーム状態を更新する。
             CommandService.execute(
                 game,
                 session,
@@ -151,6 +167,7 @@ def create_app(
             )
 
         await context.broadcast(room_id, game)
+        # 人間の操作後にCPUの番になった場合だけ、CPUタスクを起動する。
         context.schedule_cpu(room_id)
         return state_data
 
@@ -160,6 +177,7 @@ def create_app(
         body: ChatRequest,
         token: Annotated[str, Depends(_bearer_token)],
     ) -> dict:
+        """チャットを履歴へ追加し、相手画面にも即時配信する。"""
         session = _session_for_room(context, token, room_id)
         async with context.room_lock(room_id):
             game = _game_or_404(context, room_id)
@@ -186,6 +204,7 @@ def create_app(
         room_id: str,
         token: Annotated[str, Depends(_bearer_token)],
     ) -> dict:
+        """終局後の再戦希望を記録し、両者が希望したらゲームをリセットする。"""
         session = _session_for_room(context, token, room_id)
         async with context.room_lock(room_id):
             game = _game_or_404(context, room_id)
@@ -216,6 +235,7 @@ def create_app(
         room_id: str,
         token: Annotated[str, Depends(_bearer_token)],
     ) -> dict:
+        """部屋を解散し、WebSocket/セッション/非同期タスクをまとめて片付ける。"""
         _session_for_room(context, token, room_id)
         async with context.room_lock(room_id):
             game = _game_or_404(context, room_id)
@@ -233,8 +253,10 @@ def create_app(
         room_id: str,
         token: Annotated[str, Query(min_length=1)],
     ) -> None:
+        """部屋の状態更新を受け取るWebSocket接続を確立する。"""
         session = context.sessions.get(token)
         game = context.rooms.get(room_id)
+        # URL上のトークンが部屋と一致しない接続は、状態を一切送らず拒否する。
         if (
             session is None
             or session.room_id != room_id
@@ -260,6 +282,7 @@ def create_app(
 def _bearer_token(
     authorization: Annotated[str | None, Header()] = None,
 ) -> str:
+    """AuthorizationヘッダーからBearerトークンだけを取り出す。"""
     prefix = "Bearer "
     if authorization is None or not authorization.startswith(prefix):
         raise HTTPException(
@@ -280,6 +303,7 @@ def _session_for_room(
     token: str,
     room_id: str,
 ) -> PlayerSession:
+    """トークンが存在し、指定部屋に属することを確認する。"""
     session = context.sessions.get(token)
     if session is None:
         raise HTTPException(
@@ -298,6 +322,7 @@ def _game_or_404(
     context: ApplicationContext,
     room_id: str,
 ):
+    """ルームIDからゲーム状態を取得し、なければ404として扱う。"""
     game = context.rooms.get(room_id)
     if game is None:
         raise HTTPException(
@@ -312,11 +337,13 @@ def _session_and_game(
     token: str,
     room_id: str,
 ):
+    """状態取得でよく使うセッションとゲームの組をまとめて返す。"""
     session = _session_for_room(context, token, room_id)
     return session, _game_or_404(context, room_id)
 
 
 def _session_response(session: PlayerSession, game) -> dict:
+    """入室系APIの返却形式を揃える。"""
     return {
         "token": session.token,
         "room_id": session.room_id,

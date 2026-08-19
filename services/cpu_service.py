@@ -1,4 +1,8 @@
-"""CPUプレイヤーの判断と1ステップ分の操作を管理するサービス。"""
+"""CPUプレイヤーの判断と1ステップ分の操作を管理するサービス。
+
+CPUはp2固定で動く。難易度ごとの判断はこのファイルに閉じ込め、
+実際の状態更新は人間と同じGameServiceを使う。
+"""
 
 import random
 from collections import Counter
@@ -8,8 +12,13 @@ from services.game_service import GameService
 
 
 class CpuService:
-    """画面処理から独立したCPU操作を提供する。"""
+    """画面処理から独立したCPU操作を提供する。
 
+    take_stepは現在のturn_stepを1つだけ進める。複数ステップ必要な能力は
+    ApplicationContext._run_cpuがループして続きのステップを呼ぶ。
+    """
+
+    # CPUが自動操作してよいターン状態。終局や待機状態は含めない。
     ACTIVE_STEPS = [
         "DISCARD",
         "DRAW",
@@ -27,6 +36,7 @@ class CpuService:
 
     @classmethod
     def can_act(cls, game: EsperGame) -> bool:
+        """CPU戦かつp2の操作待ちならTrueを返す。"""
         return (
             game.is_cpu
             and game.current_turn == "p2"
@@ -35,6 +45,7 @@ class CpuService:
 
     @classmethod
     def begin_action(cls, game: EsperGame) -> bool:
+        """CPU行動の開始フラグを立て、多重実行を防ぐ。"""
         if not cls.can_act(game) or game.cpu_acting:
             return False
         game.cpu_acting = True
@@ -42,12 +53,15 @@ class CpuService:
 
     @staticmethod
     def finish_action(game: EsperGame) -> None:
+        """CPU行動フラグを下げ、次のCPUステップを予約できる状態に戻す。"""
         game.cpu_acting = False
 
     @classmethod
     def take_step(cls, game: EsperGame) -> None:
+        """現在のturn_stepに応じて、CPUの操作を1つだけ実行する。"""
         level = getattr(game, "cpu_level", "normal")
 
+        # CPUも人間と同じく、条件を満たしたら自分の番以外の処理途中でも宣言できる。
         if (
             game.turn_step not in ["GAME_CLEAR", "GAME_OVER"]
             and game.check_esper(game.p2_hand)
@@ -139,11 +153,13 @@ class CpuService:
 
     @staticmethod
     def _choose_discard(game: EsperGame, level: str) -> str:
+        """難易度に応じて、CPUが捨てるカードを選ぶ。"""
         if level != "hard":
             return random.choice(game.p2_hand)
 
         counts = Counter(game.p2_hand)
         if counts.get("カモフラージュ", 0) >= 3:
+            # hardはカモフラージュを抱え込みすぎないよう、余剰分を捨てやすくする。
             return "カモフラージュ"
 
         candidates = [
@@ -163,6 +179,7 @@ class CpuService:
 
     @staticmethod
     def _think(game: EsperGame, level: str) -> None:
+        """能力を使うか、ターンを終了するかを難易度ごとに判断する。"""
         if level == "easy":
             GameService.pass_turn(
                 game,
@@ -194,6 +211,7 @@ class CpuService:
 
     @staticmethod
     def _activate_ability(game: EsperGame) -> None:
+        """現在手札で使える通常能力からランダムに1つ発動する。"""
         counts = Counter(game.p2_hand)
         usable = [
             card
@@ -214,9 +232,11 @@ class CpuService:
         game: EsperGame,
         level: str,
     ) -> str:
+        """テレポートで宣言する能力名を選ぶ。hardは見えていない枚数が多い能力を狙う。"""
         if level != "hard":
             return random.choice(game.types)
 
+        # hardは自分の手札・表向き捨て札・ゲーム外カードから見えている枚数を数える。
         visible_counts = Counter()
         for card in game.p2_hand:
             visible_counts[card] += 1
@@ -245,6 +265,7 @@ class CpuService:
         game: EsperGame,
         level: str,
     ) -> list[int]:
+        """ヒーリングで戻すカードを選ぶ。hardは自分の手札に合う種類を優先する。"""
         count = min(3, len(game.regen_pool))
         if level != "hard":
             return random.sample(range(len(game.regen_pool)), count)
@@ -269,6 +290,7 @@ class CpuService:
         game: EsperGame,
         level: str,
     ) -> int:
+        """未来予知で次に山札上へ置くカードを選ぶ。hardは自分に有利な種類を優先する。"""
         if level != "hard":
             return random.randrange(len(game.prescience_cards))
 

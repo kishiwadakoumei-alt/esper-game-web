@@ -1,6 +1,9 @@
+// ブラウザ側の通信とセッション保存をまとめるモジュール。
+// 画面操作はapp.js、DOM描画はrender.jsに任せ、ここではHTTP/WebSocketだけを扱う。
 const SESSION_KEY = "esper.session.v1";
 
 export class ApiError extends Error {
+  // HTTPステータスを保持して、app.js側で401/404/409などを判定できるようにする。
   constructor(message, status = 0) {
     super(message);
     this.name = "ApiError";
@@ -10,12 +13,14 @@ export class ApiError extends Error {
 
 export class EsperApi {
   constructor() {
+    // sessionStorageに残っていれば、リロード後も同じ部屋へ復帰できる。
     this.session = this.loadSession();
     this.socket = null;
     this.socketClosedIntentionally = false;
   }
 
   loadSession() {
+    // 壊れたJSONが残っている場合は、復帰を諦めてセッションを消す。
     try {
       const value = window.sessionStorage.getItem(SESSION_KEY);
       return value ? JSON.parse(value) : null;
@@ -26,6 +31,7 @@ export class EsperApi {
   }
 
   saveSession(data, name) {
+    // サーバーのセッション情報に、画面復元用の入力名も一緒に保存する。
     this.session = {
       token: data.token,
       roomId: data.room_id,
@@ -39,11 +45,13 @@ export class EsperApi {
   }
 
   clearSession() {
+    // 部屋から戻るときはWebSocketも閉じ、以後の自動再接続を止める。
     this.disconnect();
     this.session = null;
     window.sessionStorage.removeItem(SESSION_KEY);
   }
 
+  // 以降のメソッドはAPIパスを隠し、app.jsからはゲーム操作名だけで呼べるようにする。
   async joinRoom(roomId, name) {
     const data = await this.request("/api/rooms/join", {
       method: "POST",
@@ -91,6 +99,7 @@ export class EsperApi {
   }
 
   roomRequest(endpoint, options = {}) {
+    // 部屋IDを毎回呼び出し側へ渡さなくてよいよう、保存済みセッションからURLを組み立てる。
     if (!this.session) {
       throw new ApiError("セッションがありません", 401);
     }
@@ -108,6 +117,7 @@ export class EsperApi {
       authenticated = true,
     } = {},
   ) {
+    // JSON送受信、Bearer付与、APIエラー文の取り出しを共通化する。
     const headers = { Accept: "application/json" };
     if (body !== undefined) {
       headers["Content-Type"] = "application/json";
@@ -133,6 +143,7 @@ export class EsperApi {
     }
 
     const contentType = response.headers.get("content-type") || "";
+    // エラー応答もJSONならdetailを読み、トーストへ出せる文字列に変換する。
     const data = contentType.includes("application/json")
       ? await response.json()
       : null;
@@ -147,6 +158,7 @@ export class EsperApi {
   }
 
   connect({ onState, onStatus, onDisbanded }) {
+    // WebSocketは状態同期専用。初回stateでは演出を抑え、差分更新だけ通知する。
     if (!this.session) {
       return;
     }
@@ -184,6 +196,7 @@ export class EsperApi {
     });
     socket.addEventListener("close", () => {
       onStatus(false);
+      // 意図しない切断なら少し待って自動再接続する。
       if (!this.socketClosedIntentionally && this.session) {
         window.setTimeout(
           () => this.connect({ onState, onStatus, onDisbanded }),
@@ -195,6 +208,7 @@ export class EsperApi {
   }
 
   disconnect() {
+    // 手動で閉じた接続は、closeイベント後の自動再接続を走らせない。
     this.socketClosedIntentionally = true;
     if (this.socket) {
       this.socket.close();

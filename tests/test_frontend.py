@@ -1,3 +1,9 @@
+"""ブラウザへ配信するHTML/CSS/JSの構成とUI仕様を確認するテスト。
+
+実ブラウザの代わりに静的ファイルとFastAPI配信結果を読み、
+画面要素、レスポンシブCSS、通知/ログ/ルールUIの存在を固定する。
+"""
+
 import struct
 import unittest
 import zlib
@@ -13,7 +19,10 @@ FRONTEND_ROOT = PROJECT_ROOT / "frontend"
 
 
 class FrontendDeliveryTests(unittest.TestCase):
+    """フロントエンド資産が期待どおり配信・構成されるかを確認する。"""
+
     def setUp(self):
+        # 抽選/CPUを待たず、静的配信とフロントエンド文字列の検査に集中する。
         self.client_context = TestClient(
             create_app(roulette_delay=60, cpu_delay=0)
         )
@@ -199,6 +208,9 @@ class FrontendDeliveryTests(unittest.TestCase):
         self.assertIn(".judgement-rules", css)
         self.assertIn(".other-rule-list", css)
         self.assertIn(".rule-detail-grid", css)
+        self.assertIn(".rule-card-art", css)
+        self.assertIn("clairvoyance.svg", html)
+        self.assertIn("camouflage.svg", html)
         self.assertIn("overflow-y: auto", css)
 
     def test_discard_confirmation_modal_is_separated_from_action(self):
@@ -777,6 +789,9 @@ class FrontendDeliveryTests(unittest.TestCase):
         app = (
             FRONTEND_ROOT / "static" / "js" / "app.js"
         ).read_text()
+        renderer = (
+            FRONTEND_ROOT / "static" / "js" / "render.js"
+        ).read_text()
 
         for panel in ("log", "chat"):
             self.assertIn(f'id="{panel}-toggle-button"', html)
@@ -784,14 +799,42 @@ class FrontendDeliveryTests(unittest.TestCase):
             self.assertIn(f'id="{panel}-panel"', html)
             self.assertIn(f'id="{panel}-close-button"', html)
         self.assertIn('id="utility-panel-backdrop"', html)
+        self.assertIn('id="chat-float-layer"', html)
+        self.assertIn('id="chat-notice-toggle-button"', html)
+        self.assertIn('id="chat-notice-toggle-label"', html)
+        self.assertIn('通知ON', html)
+        self.assertIn('id="my-name"', html)
         self.assertNotIn('class="side-column"', html)
         self.assertIn("setUtilityPanel", app)
         self.assertIn('openPanel === "log"', app)
         self.assertIn('openPanel === "chat"', app)
         self.assertIn("utilityPanelBackdrop.hidden", app)
+        self.assertIn("let chatNotificationsEnabled = true", app)
+        self.assertIn("syncChatNoticeToggle", app)
+        self.assertIn("chatNotificationsEnabled = !chatNotificationsEnabled", app)
+        self.assertIn("chatNotificationsEnabled,", app)
+        self.assertIn("renderChatNotifications", renderer)
+        self.assertIn("showChatFloat", renderer)
+        self.assertIn("chatFloatText", renderer)
+        self.assertIn("logDisplayText", renderer)
+        self.assertIn("logKind(log)", renderer)
+        self.assertIn("LOG_KIND_LABELS", renderer)
+        self.assertIn("normalizeActorSpacing", renderer)
+        self.assertIn('byId("my-name").textContent = state.viewer.name', renderer)
+        self.assertIn('`[${log.time}] ${log.icon} `', renderer)
+        self.assertIn('log-entry log-kind-${kind}', renderer)
+        self.assertIn('!enabled', renderer)
+        self.assertNotIn('`${log.time}] ${log.icon} ${log.name}: `', renderer)
         self.assertIn(".utility-toggle-button", css)
         self.assertIn(".utility-panel", css)
         self.assertIn(".utility-panel-backdrop", css)
+        self.assertIn(".chat-float-layer", css)
+        self.assertIn("@keyframes chat-float-left-to-right", css)
+        self.assertIn(".log-kind-discard", css)
+        self.assertIn(".log-kind-draw", css)
+        self.assertIn(".log-kind-ability", css)
+        self.assertIn(".log-kind-result", css)
+        self.assertIn(".log-kind-system", css)
 
     def test_cards_use_ability_specific_tarot_skin(self):
         css = (
@@ -910,6 +953,33 @@ class FrontendDeliveryTests(unittest.TestCase):
             1,
         )[1].split("}", 1)[0]
         self.assertIn("display: none", card_names)
+
+    def test_orientation_specific_information_density(self):
+        css = (
+            FRONTEND_ROOT / "static" / "css" / "styles.css"
+        ).read_text()
+
+        section = css.split(
+            "/* Orientation-specific information density */",
+            1,
+        )[1]
+        portrait = section.split("@media (orientation: landscape)", 1)[0]
+        landscape = section.split("@media (orientation: landscape)", 1)[1]
+
+        self.assertIn("body.game-active .counter-row", portrait)
+        self.assertIn("body.game-active .deck-visual small", portrait)
+        self.assertIn("body.game-active .arena-mark span", portrait)
+        self.assertIn("max-height: 32px", portrait)
+        self.assertIn("grid-template-columns: repeat(6, minmax(0, 1fr))", portrait)
+        self.assertIn("body.game-active .excluded-zone .card", portrait)
+        self.assertIn("width: 28px", portrait)
+        self.assertIn("body.game-active .my-zone", portrait)
+        self.assertIn("body.game-active .utility-panel", landscape)
+        self.assertIn("width: min(520px, 38vw)", landscape)
+        self.assertIn("max-height: min(72dvh, 640px)", landscape)
+        self.assertIn("body.game-active > .discard-popover", landscape)
+        self.assertIn("grid-template-columns: repeat(6, minmax(0, 68px))", landscape)
+        self.assertIn("min-width: min(28vw, 360px)", landscape)
 
     def test_discard_overlay_stays_visible_above_context_actions(self):
         css = (

@@ -1,3 +1,7 @@
+// ESPERのDOM描画をまとめるモジュール。
+// サーバーから受け取る公開状態だけを入力にして、手札・盤面・通知・ログを再構築する。
+
+// turn_stepごとに、現在フェーズの説明文を表示する。
 const PHASE_MESSAGES = {
   WAITING: "対戦相手の入室を待っています。あいことばを友達に共有してください。",
   DECIDING_TURN: "先攻・後攻を抽選しています…",
@@ -19,6 +23,7 @@ const PHASE_MESSAGES = {
   ROOM_DISBANDED: "対戦相手が退出し、ルームが解散されました。",
 };
 
+// カード詳細ツールチップ、確認ダイアログ、ルール表示で使う能力説明。
 const CARD_EFFECTS = {
   クレヤボヤンス:
     "相手の手札または相手の場にある裏向きのカードから、2枚まで選んで内容を確認します。",
@@ -36,6 +41,7 @@ const CARD_EFFECTS = {
     "このターン中のみ好きなカード1枚として使えます。そのカードで能力を発動でき、ESPER宣言にも使用できます。",
 };
 
+// render.js内だけで持つ一時UI状態。サーバー状態に含まれない、選択途中や演出制御のための値。
 let prescienceOrder = [];
 let psychokinesisSelection = null;
 let psychokinesisPushGuideShown = false;
@@ -50,22 +56,29 @@ let playerTurnReminderTimer = null;
 let playerTurnReminderState = null;
 let playerTurnReminderContext = null;
 let currentAssistEnabled = false;
+let lastChatContext = null;
+let lastChatCount = 0;
+let chatFloatIndex = 0;
 const notificationQueue = [];
 let previousHandCounts = null;
 let handTrackingContext = null;
 let previousTurnStep = null;
 let dismissedResultKey = null;
+// 新しく増えた手札を短時間だけ光らせるため、カード名+出現回数ごとに開始時刻を保持する。
 const newlyDrawnCards = new Map();
 const NEW_CARD_HOLD_MS = 3000;
 const NEW_CARD_FADE_MS = 400;
 const NEW_CARD_HIGHLIGHT_MS = NEW_CARD_HOLD_MS + NEW_CARD_FADE_MS;
+// ターン通知や無操作リマインダーの表示時間。慣れた頃は自ターン通知を短縮する。
 const TURN_GUIDE_FULL_MS = 3400;
 const TURN_GUIDE_SHORT_MS = 1700;
 const TURN_GUIDE_SHORTEN_FROM_TURN = 3;
 const OPPONENT_TURN_NOTICE_MS = 2000;
 const PLAYER_TURN_REMINDER_INTERVAL_MS = 15000;
 const PLAYER_TURN_REMINDER_DURATION_MS = 2000;
+const CHAT_FLOAT_LANES = 5;
 
+// よく使うDOMヘルパー。ID取得と子要素クリアを短く書くための薄い関数。
 function byId(id) {
   return document.getElementById(id);
 }
@@ -89,6 +102,7 @@ function emptyNote(text = "まだありません") {
   return create("p", "empty-note", text);
 }
 
+// 能力名からカード画像ファイル名へ変換する。画像がないカードはテキスト表示へ落ちる。
 const CARD_ART_FILES = {
   クレヤボヤンス: "clairvoyance.svg",
   タイムリープ: "time-leap.svg",
@@ -99,6 +113,7 @@ const CARD_ART_FILES = {
   カモフラージュ: "camouflage.svg",
 };
 
+// 勝敗演出で、決着に関係したカードの色を画面全体へ反映する。
 const VICTORY_CARD_COLORS = {
   クレヤボヤンス: { color: "#f59a2a", rgb: "245, 154, 42" },
   タイムリープ: { color: "#20b8d4", rgb: "32, 184, 212" },
@@ -109,6 +124,7 @@ const VICTORY_CARD_COLORS = {
   カモフラージュ: { color: "#8171bd", rgb: "129, 113, 189" },
 };
 
+// 勝ち/負け/引き分けで結果オーバーレイの基礎文言と見た目を切り替える。
 const RESULT_PRESENTATIONS = {
   victory: {
     kicker: "ESPER ACHIEVED",
@@ -141,6 +157,7 @@ const RESULT_PRESENTATIONS = {
   },
 };
 
+// ESPER勝利時は、成立カードに合わせた短いコピーを表示する。
 const VICTORY_COPY_BY_CARD = {
   クレヤボヤンス: "見えないはずの未来まで、あなたは読み切りました",
   タイムリープ: "巻き戻した時間の先で、勝利だけを選び取りました",
@@ -161,6 +178,7 @@ const DEFEAT_COPY_BY_CARD = {
   カモフラージュ: "相手は最後まで正体を隠し、勝利だけを表にしました",
 };
 
+// 山札切れなどの手札構成判定では、ESPER達成とは別のコピーを使う。
 const HAND_VICTORY_COPY_BY_CARD = {
   クレヤボヤンス: "最後の読み合いで、あなたの視界が一歩先を捉えました",
   タイムリープ: "積み重ねた時間が、最後の判定を動かしました",
@@ -181,6 +199,7 @@ const HAND_DEFEAT_COPY_BY_CARD = {
   カモフラージュ: "相手の隠していた輪郭が、最後の判定で効きました",
 };
 
+// 終了理由を、結果画面で短い英字ラベルとして見せるための対応表。
 const END_TRIGGER_LABELS = {
   ESPERを宣言: "ESPER DECLARATION",
   山札が尽きました: "DECK OUT",
@@ -189,6 +208,7 @@ const END_TRIGGER_LABELS = {
   補充するカードが足りません: "DECK SHORTAGE",
 };
 
+// 表向きカードへ画像・カード名・aria-labelを入れる。裏向きカードは呼び出し側で別表示にする。
 function decorateVisibleCard(node, name) {
   const fileName = CARD_ART_FILES[name];
   node.dataset.cardName = name;
@@ -207,6 +227,7 @@ function decorateVisibleCard(node, name) {
   node.replaceChildren(art, label);
 }
 
+// 盤面上で共通して使うカードDOMを作る。hiddenなら「？」、表向きなら能力画像を入れる。
 function cardNode(
   name,
   { hidden = false, selected = false, newlyDrawnElapsed = null } = {},
@@ -227,6 +248,7 @@ function cardNode(
   return node;
 }
 
+// カード効果ツールチップ。PCはhover/focus、スマホは長押しで表示する。
 const CARD_DETAIL_LONG_PRESS_MS = 550;
 const CARD_DETAIL_MOVE_TOLERANCE = 12;
 let cardDetailLongPressTimer = null;
@@ -235,18 +257,21 @@ let cardDetailAnchor = null;
 let suppressCardDetailClick = false;
 let cardDetailInputModality = "pointer";
 
+// イベント発生元から、効果説明を表示できる表向きカードを探す。
 function visibleCardFromTarget(target) {
   return target instanceof Element
     ? target.closest(".card[data-card-name]:not(.hidden-card)")
     : null;
 }
 
+// 長押し判定のタイマーと開始位置を消し、スクロールや指移動で誤表示しないようにする。
 function clearCardDetailLongPress() {
   window.clearTimeout(cardDetailLongPressTimer);
   cardDetailLongPressTimer = null;
   cardDetailTouch = null;
 }
 
+// カード詳細ツールチップを画面外にはみ出さない位置へ配置する。
 function positionCardDetail(card) {
   const tooltip = byId("card-detail-tooltip");
   const cardRect = card.getBoundingClientRect();
@@ -260,6 +285,7 @@ function positionCardDetail(card) {
       "(max-width: 680px) and (orientation: portrait)",
     ).matches;
   if (portraitHand) {
+    // 縦画面の手札ファンでは横に置く余白がないため、手札全体の上へ中央配置する。
     const handTop = Math.min(
       ...[...hand.children].map(
         (node) => node.getBoundingClientRect().top,
@@ -300,6 +326,7 @@ function positionCardDetail(card) {
   tooltip.style.top = `${top}px`;
 }
 
+// 選択されたカードの名前と効果をツールチップに流し込んで表示する。
 function showCardDetail(card) {
   const name = card.dataset.cardName;
   if (!name || !CARD_EFFECTS[name]) {
@@ -317,6 +344,7 @@ function showCardDetail(card) {
   positionCardDetail(card);
 }
 
+// ツールチップを閉じ、現在の基準カードも忘れる。
 function hideCardDetail() {
   const tooltip = byId("card-detail-tooltip");
   if (tooltip) {
@@ -325,6 +353,7 @@ function hideCardDetail() {
   cardDetailAnchor = null;
 }
 
+// カード詳細表示に必要なhover、focus、長押し、外側クリックのイベントを登録する。
 function initializeCardDetails() {
   const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
 
@@ -445,11 +474,14 @@ function initializeCardDetails() {
 
 initializeCardDetails();
 
+// 手札ファンは最大6枚の固定スロットへ割り付け、枚数変化で大きく跳ねないようにする。
 const HAND_FAN_SLOT_COUNT = 6;
 
+// 手札行へカードを追加する。バトル用手札ではCSS変数で扇状配置も指定する。
 function appendHandCard(container, node, index, total) {
   if (container.classList.contains("battle-hand-row")) {
     const isOpponent = container.id === "opponent-hand";
+    // 相手手札はプレイヤー視点の右側から並ぶよう、視覚上のindexを反転する。
     const visualIndex = isOpponent ? total - index - 1 : index;
     const firstSlot = isOpponent ? HAND_FAN_SLOT_COUNT - total : 0;
     const slot = firstSlot + visualIndex;
@@ -472,6 +504,7 @@ function appendHandCard(container, node, index, total) {
   container.append(node);
 }
 
+// 表向きカード配列、または伏せカード枚数からカード行を描画する。
 function renderCards(
   container,
   cards,
@@ -496,6 +529,7 @@ function renderCards(
   }
 }
 
+// 複数枚の捨て札グループを、畳んだ重なり表示か展開表示に切り替える。
 function applyDiscardStackLayout(stack, expanded) {
   stack.classList.toggle("expanded", expanded);
   stack.setAttribute("aria-expanded", String(expanded));
@@ -516,6 +550,7 @@ function applyDiscardStackLayout(stack, expanded) {
   }
 }
 
+// 捨て札グループを描画する。能力選択中は選択状態や元裏向き表示も反映する。
 function renderDiscardGroups(
   container,
   groups,
@@ -552,6 +587,7 @@ function renderDiscardGroups(
     });
 
     if (expandable) {
+      // 能力コストなどで複数枚まとまった捨て札は、押すと中身を広げて確認できる。
       stack.classList.add("expandable");
       stack.tabIndex = 0;
       stack.setAttribute("role", "group");
@@ -599,6 +635,7 @@ function renderDiscardGroups(
   });
 }
 
+// ヒーリング確定前に、山札へ戻すカードの一覧を確認させる。
 function confirmHealingSelection(state, handlers) {
   const dialog = byId("healing-confirm-dialog");
   const list = byId("healing-confirm-list");
@@ -631,6 +668,7 @@ function confirmHealingSelection(state, handlers) {
   }
 }
 
+// 捨てるカードの効果を見せたうえで、誤タップなら戻れる確認ダイアログを開く。
 function confirmDiscard(card, index, onAction) {
   const dialog = byId("discard-dialog");
   byId("discard-card-name").textContent = card;
@@ -648,6 +686,7 @@ function confirmDiscard(card, index, onAction) {
   }
 }
 
+// 自分の裏向き捨て札を押したとき、本人だけがカード内容を確認できる。
 function showDiscardReveal(card) {
   const dialog = byId("discard-reveal-dialog");
   byId("discard-reveal-name").textContent = card;
@@ -659,6 +698,7 @@ function showDiscardReveal(card) {
   }
 }
 
+// 能力発動前に、能力名・必要枚数・効果を確認する共通ダイアログ。
 function confirmAbility(card, label, cardCount, onConfirm, onCancel) {
   const dialog = byId("ability-dialog");
   byId("ability-dialog-name").textContent = label;
@@ -687,6 +727,7 @@ function confirmAbility(card, label, cardCount, onConfirm, onCancel) {
   }
 }
 
+// テレポートで宣言する能力名を確定する前に確認する。
 function confirmTeleportTarget(card, label, onConfirm, onCancel) {
   const dialog = byId("teleport-dialog");
   byId("teleport-target-name").textContent = label;
@@ -714,6 +755,7 @@ function confirmTeleportTarget(card, label, onConfirm, onCancel) {
   }
 }
 
+// サイコキネシスの対象選択を、盤面ハイライトと確認ダイアログで二段階にする。
 function confirmPsychokinesisTarget(
   state,
   option,
@@ -772,6 +814,7 @@ function confirmPsychokinesisTarget(
   }
 }
 
+// カード名ごとの枚数をMapで数える。手札差分や勝敗演出で使う。
 function countCards(cards) {
   return cards.reduce((counts, card) => {
     counts.set(card, (counts.get(card) || 0) + 1);
@@ -779,6 +822,7 @@ function countCards(cards) {
   }, new Map());
 }
 
+// 部屋変更・再戦・初回描画時に、新規手札ハイライトの基準を作り直す。
 function resetHandTracking(state) {
   previousHandCounts = countCards(state.my_hand);
   handTrackingContext = `${state.room_id}:${state.viewer.role}`;
@@ -786,6 +830,7 @@ function resetHandTracking(state) {
   newlyDrawnCards.clear();
 }
 
+// 前回手札との差分から増えたカードを検出し、短時間だけ光らせる。
 function updateNewlyDrawnCards(state) {
   const context = `${state.room_id}:${state.viewer.role}`;
   const restarted =
@@ -817,6 +862,7 @@ function updateNewlyDrawnCards(state) {
   previousTurnStep = state.game.turn_step;
 }
 
+// タイトルへ戻る/セッション破棄時に、描画モジュール内の一時状態と開いたダイアログを消す。
 export function resetRenderState() {
   previousHandCounts = null;
   handTrackingContext = null;
@@ -831,6 +877,9 @@ export function resetRenderState() {
   lastTurnNotificationStep = null;
   notificationQueue.length = 0;
   activeNotification = null;
+  lastChatContext = null;
+  lastChatCount = 0;
+  chatFloatIndex = 0;
   window.clearTimeout(notificationTimer);
   window.clearTimeout(notificationGapTimer);
   const actionOverlay = byId("action-event-overlay");
@@ -856,9 +905,15 @@ export function resetRenderState() {
   if (victoryOverlay) {
     victoryOverlay.hidden = true;
   }
+  const chatFloatLayer = byId("chat-float-layer");
+  if (chatFloatLayer) {
+    chatFloatLayer.replaceChildren();
+    chatFloatLayer.hidden = true;
+  }
   clearPlayerTurnReminder();
 }
 
+// 自分の番でもリマインダーを出さない待機・終局系ステップ。
 const PLAYER_TURN_REMINDER_INACTIVE_STEPS = new Set([
   "WAITING",
   "DECIDING_TURN",
@@ -867,6 +922,7 @@ const PLAYER_TURN_REMINDER_INACTIVE_STEPS = new Set([
   "ROOM_DISBANDED",
 ]);
 
+// 現在のターンを一意に表すキー。ターンが変わったらタイマーも作り直す。
 function playerTurnReminderKey(state) {
   if (
     !state.game.is_my_turn ||
@@ -879,6 +935,7 @@ function playerTurnReminderKey(state) {
   return `${state.room_id}:${state.viewer.role}:${state.game.current_turn}:${turnCount}`;
 }
 
+// 既に通知キューへ入った自ターンリマインダーを取り除く。操作時の重複表示を避ける。
 function removeQueuedTurnReminders() {
   for (let index = notificationQueue.length - 1; index >= 0; index -= 1) {
     if (notificationQueue[index].kind === "turn_reminder") {
@@ -887,6 +944,7 @@ function removeQueuedTurnReminders() {
   }
 }
 
+// 自ターンリマインダーのタイマー・対象状態・キューをまとめて消す。
 function clearPlayerTurnReminder() {
   window.clearTimeout(playerTurnReminderTimer);
   playerTurnReminderTimer = null;
@@ -895,6 +953,7 @@ function clearPlayerTurnReminder() {
   removeQueuedTurnReminders();
 }
 
+// 自分の番で一定時間操作がなければ「あなたの番です」を2秒表示し、次回も予約する。
 function showPlayerTurnReminder() {
   playerTurnReminderTimer = null;
   const key = playerTurnReminderState
@@ -916,6 +975,7 @@ function showPlayerTurnReminder() {
   );
 }
 
+// 自ターン状態に入ったら15秒タイマーを張る。入力があればresetで張り直す。
 function schedulePlayerTurnReminder(state, { reset = false } = {}) {
   const key = playerTurnReminderKey(state);
   if (!key) {
@@ -941,6 +1001,7 @@ function schedulePlayerTurnReminder(state, { reset = false } = {}) {
   }
 }
 
+// クリックやキー入力を「操作あり」とみなし、無操作リマインダーの起点を更新する。
 function notePlayerActivity() {
   if (!playerTurnReminderState || !document.body.classList.contains("game-active")) {
     return;
@@ -952,6 +1013,7 @@ function notePlayerActivity() {
   document.addEventListener(eventName, notePlayerActivity, true);
 });
 
+// 自分の手札を描画する。捨て札ステップだけカードをボタン化する。
 function renderHand(state, onAction) {
   const container = byId("my-hand");
   clear(container);
@@ -996,6 +1058,7 @@ function renderHand(state, onAction) {
   });
 }
 
+// 画面下の主要操作ボタンを作る小さなファクトリ。
 function actionButton(
   label,
   onClick,
@@ -1012,14 +1075,17 @@ function actionButton(
   return button;
 }
 
+// 選択肢ダイアログ内でボタンを縦に並べる入れ物を作る。
 function actionList() {
   return create("div", "action-list");
 }
 
+// 作った操作ボタンをリストへ追加する。呼び出し側の分岐を短く保つためのヘルパー。
 function addAction(list, label, callback, options) {
   list.append(actionButton(label, callback, options));
 }
 
+// 未来予知の並べ替え中に、現在手札も同時に確認できる小さなプレビューを描く。
 function renderPrescienceHandPreview(containerId, hand) {
   const container = byId(containerId);
   const cards = hand || [];
@@ -1032,6 +1098,7 @@ function renderPrescienceHandPreview(containerId, hand) {
       `現在の手札（${cards.length}枚）`;
 }
 
+// 未来予知で選んだ山札上の順番を、送信前に一覧で確認する。
 function showPrescienceConfirmation(state, handlers) {
   const dialog = byId("prescience-dialog");
   const orderList = byId("prescience-order-list");
@@ -1066,6 +1133,7 @@ function showPrescienceConfirmation(state, handlers) {
   }
 }
 
+// 未来予知のカードを押した順にprescienceOrderへ積み、全選択後に確認へ進む。
 function renderPrescienceSelection(list, state, handlers) {
   const preview = byId("prescience-selection-hand-preview");
   preview.hidden = false;
@@ -1117,6 +1185,7 @@ function renderPrescienceSelection(list, state, handlers) {
   }
 }
 
+// 汎用選択ダイアログを閉じる。各能力の専用確認ダイアログとは分けて扱う。
 function closeChoiceDialog() {
   const dialog = byId("choice-dialog");
   if (dialog.open) {
@@ -1124,6 +1193,7 @@ function closeChoiceDialog() {
   }
 }
 
+// 専用確認ダイアログが開いている間は、汎用選択ダイアログを重ねない。
 function choiceDialogIsBlocked() {
   return [
     "ability-dialog",
@@ -1135,6 +1205,7 @@ function choiceDialogIsBlocked() {
   ].some((id) => byId(id).open);
 }
 
+// 能力選択や山札順選択で使う汎用ダイアログを初期化して開く。
 function openChoiceDialog({ kicker, title, copy, onBack = null }) {
   if (choiceDialogIsBlocked()) {
     closeChoiceDialog();
@@ -1169,10 +1240,12 @@ function openChoiceDialog({ kicker, title, copy, onBack = null }) {
   return options;
 }
 
+// 同じ終局状態の結果オーバーレイを、閉じた後に再表示しないためのキー。
 function resultStateKey(state) {
   return `${state.room_id}:${state.game.turn_step}:${state.game.latest_log}`;
 }
 
+// 構造化されたresultから、見た目の種類victory/defeat/drawへ変換する。
 function resultOutcome(state) {
   if (state.game.result?.is_draw) {
     return "draw";
@@ -1180,6 +1253,7 @@ function resultOutcome(state) {
   return state.game.result?.is_winner ? "victory" : "defeat";
 }
 
+// 終局済みかつ未dismissの結果だけ、勝敗オーバーレイを表示する。
 function shouldShowResultOverlay(state) {
   return Boolean(
     state.game.finished &&
@@ -1188,6 +1262,7 @@ function shouldShowResultOverlay(state) {
   );
 }
 
+// 結果演出で主役にするカードを選ぶ。ESPER成立なら成立カード、未成立なら最多カード。
 function dominantVictoryCard(cards) {
   const hand = cards || [];
   const counts = countCards(hand);
@@ -1204,6 +1279,7 @@ function dominantVictoryCard(cards) {
     });
   }
 
+  // カモフラージュ2枚を任意カード1枚として数え、各能力でESPER成立するか見る。
   const wildcardCount = Math.floor(mimicCount / 2);
   counts.forEach((candidateCount, candidateCard) => {
     if (candidateCard === "カモフラージュ") {
@@ -1257,6 +1333,7 @@ function dominantVictoryCard(cards) {
   };
 }
 
+// 結果画面で、決着に関係したカードを扇状に並べる。
 function renderResultCardFan(container, dominant) {
   clear(container);
   if (!dominant.card) {
@@ -1287,6 +1364,7 @@ function renderResultCardFan(container, dominant) {
   });
 }
 
+// 勝敗理由がESPER系か、手札構成判定かを表示文言用に判定する。
 function isEsperResult(state, dominant) {
   const reason = state.game.result?.reason;
   return Boolean(
@@ -1297,6 +1375,7 @@ function isEsperResult(state, dominant) {
   );
 }
 
+// 結果画面の小見出しを、ESPER勝敗と手札判定で出し分ける。
 function resultKickerText(presentation, outcome, dominant, state) {
   if (["victory", "defeat"].includes(outcome) && !isEsperResult(state, dominant)) {
     return "HAND VERDICT";
@@ -1390,6 +1469,7 @@ function resultReasonText(state, outcome) {
   return reason || "勝利条件を達成";
 }
 
+// 終局時の大きな結果演出を描画し、再戦/結果確認/退出ボタンを配線する。
 function renderVictoryOverlay(state, handlers) {
   const overlay = byId("victory-overlay");
   if (!state.game.finished) {
@@ -1503,6 +1583,7 @@ function renderVictoryOverlay(state, handlers) {
   overlay.hidden = false;
 }
 
+// turn_stepとinteractionに応じて、能力選択や追加選択のダイアログを表示する。
 function renderChoiceDialog(state, handlers) {
   if (shouldShowResultOverlay(state)) {
     closeChoiceDialog();
@@ -1524,6 +1605,7 @@ function renderChoiceDialog(state, handlers) {
     return;
   }
 
+  // 画面中央で選ばせるステップだけ汎用ダイアログを開く。
   const modalStep = [
     "ABILITY",
     "MIMIC_SELECTION",
@@ -1708,6 +1790,7 @@ function renderChoiceDialog(state, handlers) {
   }
 }
 
+// 山札切れや捨て札上限が近いとき、補助説明へ短い警告を混ぜる。
 function endgameWarningText(state) {
   if (state.game.finished) {
     return "";
@@ -1729,6 +1812,7 @@ function endgameWarningText(state) {
   return warnings.join(" ");
 }
 
+// 補助ON時だけ表示する、現在ステップに応じた操作説明を返す。
 function playAssistMessage(state) {
   const actions = new Set(state.available_actions);
   const step = state.game.turn_step;
@@ -1758,6 +1842,7 @@ function playAssistMessage(state) {
   return "";
 }
 
+// 通常の補助文と終局警告を1つの文章へまとめる。
 function mergeAssistMessage(message, state) {
   const warning = endgameWarningText(state);
   if (message && warning) {
@@ -1766,6 +1851,7 @@ function mergeAssistMessage(message, state) {
   return message || warning;
 }
 
+// 画面下の重要操作バーを描画する。操作がない時は非表示にして盤面を広く使う。
 function renderActionBar(state, handlers, { assistEnabled = false } = {}) {
   const bar = byId("context-action-bar");
   const copy = byId("context-action-copy");
@@ -1879,6 +1965,7 @@ function renderActionBar(state, handlers, { assistEnabled = false } = {}) {
   byId("game-screen").classList.toggle("has-context-actions", visible);
 }
 
+// 結果オーバーレイ、下部操作バー、選択ダイアログをまとめて更新する。
 function renderActions(state, handlers, options = {}) {
   const mergedOptions = { assistEnabled: currentAssistEnabled, ...options };
   renderVictoryOverlay(state, handlers);
@@ -1886,6 +1973,67 @@ function renderActions(state, handlers, options = {}) {
   renderChoiceDialog(state, handlers);
 }
 
+// ログ整形用に、プレイヤー名を正規表現へ安全に埋め込めるようエスケープする。
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// 「Alice が」を「Aliceが」へ整え、ログの読みづらさを減らす。
+function normalizeActorSpacing(text, actorName) {
+  if (!actorName) {
+    return text.trim();
+  }
+  return text
+    .replace(new RegExp(`${escapeRegExp(actorName)}\\s+([がは])`, "g"), `${actorName}$1`)
+    .trim();
+}
+
+// ログ本文に名前が入っていない場合だけ名前を補い、重複した「名前: 名前が」を避ける。
+function logDisplayText(log) {
+  const text = normalizeActorSpacing(log.text || "", log.name);
+  if (!log.role || !log.name || !text) {
+    return text;
+  }
+  if (text.startsWith(log.name) || text.includes(log.name)) {
+    return text;
+  }
+  if (/^CPU[がは]/.test(text)) {
+    return text;
+  }
+  return `${log.name}が${text}`;
+}
+
+// ログ本文のキーワードから、色分け用の大まかな種別を推定する。
+function logKind(log) {
+  const text = logDisplayText(log);
+  if (/勝利|敗北|引き分け|決着|終了|ESPER|エスパー/.test(text)) {
+    return "result";
+  }
+  if (/発動|透視|宣言|能力/.test(text)) {
+    return "ability";
+  }
+  if (/捨て|捨て札/.test(text)) {
+    return "discard";
+  }
+  if (/引き|引く|補充|山札から/.test(text)) {
+    return "draw";
+  }
+  if (!log.role) {
+    return "system";
+  }
+  return "system";
+}
+
+// ログ種別の短いバッジ文字。CSS側で種別ごとの色を付ける。
+const LOG_KIND_LABELS = {
+  discard: "捨",
+  draw: "引",
+  ability: "能",
+  result: "決",
+  system: "情",
+};
+
+// バトルログを新しい順で表示し、種別バッジと時刻を付ける。
 function renderLogs(state) {
   const list = byId("log-list");
   clear(list);
@@ -1894,17 +2042,69 @@ function renderLogs(state) {
     return;
   }
   [...state.logs].reverse().forEach((log) => {
-    const entry = create("div", "log-entry");
-    const actor = create(
+    const kind = logKind(log);
+    const entry = create("div", `log-entry log-kind-${kind}`);
+    const badge = create("span", "log-kind-badge", LOG_KIND_LABELS[kind]);
+    badge.setAttribute("aria-label", `ログ種別: ${kind}`);
+    const prefix = create(
       "strong",
       "",
-      `[${log.time}] ${log.icon} ${log.name}: `,
+      `[${log.time}] ${log.icon} `,
     );
-    entry.append(actor, document.createTextNode(log.text));
+    entry.append(badge, prefix, document.createTextNode(logDisplayText(log)));
     list.append(entry);
   });
 }
 
+// 部屋と閲覧者が変わったら、チャット通知の既読基準もリセットする。
+function chatContext(state) {
+  return `${state.room_id}:${state.viewer.role}`;
+}
+
+// 保存時に付けた吹き出し記号を、流れる通知では取り除いて短く見せる。
+function chatFloatText(message) {
+  return String(message).replace(/^💬\s*/, "").trim();
+}
+
+// 新着チャットを左から右へ流す。複数件はレーンをずらして重なりを減らす。
+function showChatFloat(message) {
+  const layer = byId("chat-float-layer");
+  if (!layer) {
+    return;
+  }
+  const lane = chatFloatIndex % CHAT_FLOAT_LANES;
+  chatFloatIndex += 1;
+  const item = create("div", `chat-float-message lane-${lane}`, chatFloatText(message));
+  layer.hidden = false;
+  layer.append(item);
+  item.addEventListener("animationend", () => {
+    item.remove();
+    if (!layer.children.length) {
+      layer.hidden = true;
+    }
+  }, { once: true });
+}
+
+// 直前のチャット件数との差分だけを流れる通知として表示する。
+function renderChatNotifications(
+  state,
+  { suppress = false, enabled = true } = {},
+) {
+  const context = chatContext(state);
+  const count = state.chat.length;
+  if (lastChatContext !== context || suppress || !enabled) {
+    lastChatContext = context;
+    lastChatCount = count;
+    return;
+  }
+  if (count < lastChatCount) {
+    lastChatCount = 0;
+  }
+  state.chat.slice(lastChatCount).forEach(showChatFloat);
+  lastChatCount = count;
+}
+
+// チャットパネル内の履歴を描画し、最新メッセージまでスクロールする。
 function renderChat(state) {
   const list = byId("chat-list");
   clear(list);
@@ -1918,10 +2118,12 @@ function renderChat(state) {
   list.scrollTop = list.scrollHeight;
 }
 
+// 追加ターンの連続回数をCSSクラス用に1〜4へ丸める。
 function extraTurnLevel(count) {
   return Math.min(Math.max(count, 1), 4);
 }
 
+// 通知を退場アニメーションへ切り替え、少し間を空けて次の通知を出す。
 function finishNotification(overlay) {
   overlay.classList.add("leaving");
   notificationTimer = window.setTimeout(() => {
@@ -1932,6 +2134,7 @@ function finishNotification(overlay) {
   }, 250);
 }
 
+// 通知キューの先頭を、種類に応じたオーバーレイへ表示する。
 function showNextNotification() {
   if (activeNotification || !notificationQueue.length) {
     return;
@@ -1976,6 +2179,7 @@ function showNextNotification() {
   );
 }
 
+// 通常通知は末尾へ、タイムリープなど強い通知は先頭へ積む。
 function enqueueNotification(notification, { priority = false } = {}) {
   if (priority) {
     notificationQueue.unshift(notification);
@@ -1985,6 +2189,7 @@ function enqueueNotification(notification, { priority = false } = {}) {
   showNextNotification();
 }
 
+// サーバーから届いた新しいaction_eventsだけを通知キューへ積む。
 function renderActionEvents(state, { suppress = false } = {}) {
   const events = state.action_events || [];
   const newestId = events.reduce(
@@ -2014,6 +2219,7 @@ function renderActionEvents(state, { suppress = false } = {}) {
   lastActionEventId = Math.max(lastActionEventId, newestId);
 }
 
+// 自分のターン通知は序盤だけ長めに出し、慣れたら短くする。
 function turnChangeDuration(state, isMyTurn) {
   if (!isMyTurn) {
     return OPPONENT_TURN_NOTICE_MS;
@@ -2024,6 +2230,7 @@ function turnChangeDuration(state, isMyTurn) {
     : TURN_GUIDE_FULL_MS;
 }
 
+// ターン所有者が変わった瞬間だけ、あなた/相手の番を中央通知する。
 function renderTurnChange(state, { suppress = false } = {}) {
   const currentOwner = state.game.current_turn;
   const currentStep = state.game.turn_step;
@@ -2061,6 +2268,7 @@ function renderTurnChange(state, { suppress = false } = {}) {
   });
 }
 
+// 追加ターンが連続している間、セッションパネル内のバッジへ回数を出す。
 function renderExtraTurnIndicators(state) {
   const count = state.game.extra_turn_chain || 0;
   const badge = byId("extra-turn-badge");
@@ -2076,6 +2284,7 @@ function renderExtraTurnIndicators(state) {
   badge.textContent = `EXTRA TURN ×${count}`;
 }
 
+// 画面左上の常設ターン表示を、待機/自分/相手/終局で切り替える。
 function renderTurnIndicator(state) {
   const node = byId("turn-indicator");
   const label = byId("turn-indicator-label");
@@ -2122,6 +2331,7 @@ function renderTurnIndicator(state) {
       : `${state.opponent.name}の操作待ち`;
 }
 
+// フェーズ説明バナーを更新する。補助OFFでも最低限の進行状況はここで見せる。
 function renderPhase(state) {
   const banner = byId("phase-banner");
   const step = state.game.turn_step;
@@ -2157,6 +2367,7 @@ function renderPhase(state) {
   }`;
 }
 
+// サイコキネシス確認中に、選択中の相手手札/捨て札を盤面上で強調する。
 function psychokinesisHighlights(state) {
   const highlights = {
     hand: new Set(),
@@ -2180,6 +2391,7 @@ function psychokinesisHighlights(state) {
   return highlights;
 }
 
+// カードや捨て札スタックを、マウス/キーボード両対応の選択対象にする。
 function makeBoardTargetClickable(
   node,
   onSelect,
@@ -2202,6 +2414,7 @@ function makeBoardTargetClickable(
   });
 }
 
+// サイコキネシス中、相手手札または相手捨て札を直接クリック対象にする。
 function bindPsychokinesisBoardTargets(state, handlers) {
   const interaction = state.interaction;
   if (!interaction) {
@@ -2228,6 +2441,7 @@ function bindPsychokinesisBoardTargets(state, handlers) {
   }
 }
 
+// ヒーリング中、候補となる捨て札カードを直接クリック対象にする。
 function bindHealingBoardTargets(state, handlers) {
   const interaction = state.interaction;
   if (!interaction || interaction.kind !== "healing") {
@@ -2256,6 +2470,7 @@ function bindHealingBoardTargets(state, handlers) {
   });
 }
 
+// クレヤボヤンス中、相手手札/裏向き捨て札を直接クリック対象にする。
 function bindClairvoyanceBoardTargets(state, handlers) {
   const interaction = state.interaction;
   if (!interaction || interaction.kind !== "clairvoyance") {
@@ -2278,6 +2493,7 @@ function bindClairvoyanceBoardTargets(state, handlers) {
   });
 }
 
+// 自分だけが知っている裏向き捨て札を、押して確認できるようにする。
 function bindDiscardReveal(containerId, groups) {
   const container = byId(containerId);
   groups.forEach((group, groupIndex) => {
@@ -2298,6 +2514,7 @@ function bindDiscardReveal(containerId, groups) {
   });
 }
 
+// ヒーリング選択中は選択操作を優先し、裏向き確認クリックとは競合させない。
 function bindOwnDiscardReveal(state) {
   if (state.game.turn_step === "REGEN_SELECTION") {
     return;
@@ -2305,6 +2522,7 @@ function bindOwnDiscardReveal(state) {
   bindDiscardReveal("my-discards", state.discards.mine);
 }
 
+// 現在のinteractionに応じた盤面クリック操作をまとめて再配線する。
 function bindBoardInteractions(state, handlers) {
   bindPsychokinesisBoardTargets(state, handlers);
   bindHealingBoardTargets(state, handlers);
@@ -2312,6 +2530,7 @@ function bindBoardInteractions(state, handlers) {
   bindOwnDiscardReveal(state);
 }
 
+// 終局後の山札確認で、上/底/途中位置を人間向けラベルにする。
 function deckOrderLabel(index, total) {
   if (total === 1) {
     return "山札の上・底";
@@ -2325,6 +2544,7 @@ function deckOrderLabel(index, total) {
   return `上から${index + 1}枚目`;
 }
 
+// 終局後だけ、残り山札を次に引く順番で一覧表示する。
 function showDeckOrderDialog(deckCards) {
   const dialog = byId("deck-order-dialog");
   const list = byId("deck-order-list");
@@ -2364,6 +2584,7 @@ function showDeckOrderDialog(deckCards) {
   }
 }
 
+// 山札ボタンを、進行中はドロー、終局後は山札確認として使い分ける。
 function bindDeckAction(state, handlers) {
   const deck = byId("deck-action-button");
   const canDraw = state.available_actions.includes("draw_hand");
@@ -2387,6 +2608,7 @@ function bindDeckAction(state, handlers) {
       : null;
 }
 
+// ヒーリングで選択済みの捨て札カード位置を、盤面ハイライト用Setにする。
 function healingHighlights(state) {
   const highlights = {
     mine: new Set(),
@@ -2406,6 +2628,7 @@ function healingHighlights(state) {
   return highlights;
 }
 
+// クレヤボヤンスで選択済みの相手手札/捨て札位置を、盤面ハイライト用Setにする。
 function clairvoyanceHighlights(state) {
   const highlights = {
     hand: new Set(),
@@ -2428,6 +2651,7 @@ function clairvoyanceHighlights(state) {
   return highlights;
 }
 
+// クレヤボヤンス確認ステップだけ、選んだ相手カードを一時的に表向き表示へ差し替える。
 function revealClairvoyanceTargets(state) {
   const interaction = state.interaction;
   if (interaction?.kind !== "clairvoyance_reveal") {
@@ -2460,16 +2684,28 @@ function revealClairvoyanceTargets(state) {
     });
 }
 
+// 公開状態を受け取るたびに呼ばれるメイン描画関数。
+// 盤面を作り直し、現在のステップで必要な操作・通知・パネル状態を同期する。
 export function renderGame(
   state,
   handlers,
-  { suppressActionEvents = false, assistEnabled = false } = {},
+  {
+    suppressActionEvents = false,
+    assistEnabled = false,
+    chatNotificationsEnabled = true,
+  } = {},
 ) {
   currentAssistEnabled = assistEnabled;
+  // 通知系はDOM再構築より先に差分を見て、初回同期では演出を抑制する。
   updateNewlyDrawnCards(state);
   renderActionEvents(state, { suppress: suppressActionEvents });
   renderTurnChange(state, { suppress: suppressActionEvents });
+  renderChatNotifications(state, {
+    suppress: suppressActionEvents,
+    enabled: chatNotificationsEnabled,
+  });
   schedulePlayerTurnReminder(state);
+  // 状態遷移で意味がなくなったダイアログは閉じ、古い選択を残さない。
   const revealDialog = byId("discard-reveal-dialog");
   if (revealDialog.open) {
     revealDialog.close();
@@ -2538,6 +2774,7 @@ export function renderGame(
   byId("room-player").textContent =
     `${state.viewer.name} / プレイヤー${state.viewer.role === "p1" ? "1" : "2"}`;
   byId("room-code").textContent = state.room_id;
+  byId("my-name").textContent = state.viewer.name;
   byId("opponent-name").textContent = state.opponent.name;
   byId("opponent-count").textContent = state.opponent.hand_count;
   byId("deck-count").textContent = state.game.deck_count;
@@ -2550,6 +2787,7 @@ export function renderGame(
   const psychHighlights = psychokinesisHighlights(state);
   const regenHighlights = healingHighlights(state);
   const allowDiscardStackExpansion =
+    // ヒーリング中と終局後だけ、複数枚捨て札グループを展開可能にする。
     state.interaction?.kind === "healing" || state.game.finished;
   const revealFinalBoard = state.game.finished;
   if (!allowDiscardStackExpansion) {
@@ -2630,11 +2868,13 @@ export function renderGame(
     ? "捨てるカードを選択"
     : `${state.my_hand.length}枚`;
 
+  // 最後に操作UIと履歴を更新する。盤面DOMができた後でないと対象クリックを結びにくい。
   renderActions(state, handlers, { assistEnabled });
   renderLogs(state);
   renderChat(state);
 }
 
+// WebSocket接続状態をセッションパネルへ反映する。
 export function setConnectionStatus(connected) {
   const node = byId("connection-status");
   node.classList.toggle("offline", !connected);
